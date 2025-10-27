@@ -1,0 +1,358 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+enum TipoUsuario {
+  CLIENTE
+  ADMINISTRADOR
+}
+
+enum PlanSuscripcion {
+  PLAN_0  // gratis - 1 granja, 10 registros por tabla
+  PLAN_1  // 1 granja, 50 registros por tabla
+  PLAN_2  // 1 granja, 50 registros por tabla
+  PLAN_3  // 1 granja, 100 registros por tabla
+  PLAN_4  // 1 granja, 200 registros por tabla
+}
+
+enum CategoriaAnimal {
+  LACTANCIA
+  DESTETE
+  CRECIMIENTO
+  ENGORDE
+  REPRODUCTOR
+  OTRO
+}
+
+enum EstadoFabricacion {
+  PROGRAMADA
+  EN_PROCESO
+  COMPLETADA
+  CANCELADA
+}
+
+enum TablaOrigen {
+  INVENTARIO
+  FABRICACION
+  COMPRA
+}
+
+// ============================================
+// MODELOS PRINCIPALES
+// ============================================
+
+model Usuario {
+  id               String          @id @default(cuid())
+  email            String          @unique
+  passwordHash     String?         // nullable para login con Google
+  nombreUsuario    String
+  apellidoUsuario  String
+  tipoUsuario      TipoUsuario     @default(CLIENTE)
+  planSuscripcion  PlanSuscripcion @default(PLAN_0)
+  maxGranjas       Int             @default(1)
+  activo           Boolean         @default(true)
+  fechaRegistro    DateTime        @default(now())
+  ultimoAcceso     DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Relaciones
+  granjas          Granja[]
+  compras          CompraCabecera[]
+  fabricaciones    Fabricacion[]
+
+  @@map("t_usuarios")
+}
+
+model Granja {
+  id              String   @id @default(cuid())
+  idUsuario       String
+  nombreGranja    String
+  descripcion     String?  @db.Text
+  fechaCreacion   DateTime @default(now())
+  activa          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relaciones
+  usuario         Usuario            @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  materiasPrimas  MateriaPrima[]
+  proveedores     Proveedor[]
+  piensos         Animal[]
+  formulasCab     FormulaCabecera[]
+  fabricaciones   Fabricacion[]
+  inventario      Inventario[]
+  compras         CompraCabecera[]
+  archivos        ArchivoCabecera[]
+
+  @@index([idUsuario])
+  @@map("t_granja")
+}
+
+model MateriaPrima {
+  id                      String    @id @default(cuid())
+  idGranja               String
+  codigoMateriaPrima      String
+  nombreMateriaPrima      String
+  precioPorKilo           Float     @default(0)
+  activa                  Boolean   @default(true)
+  fechaCreacion           DateTime  @default(now())
+  fechaUltimaActualizacion DateTime @updatedAt
+
+  // Relaciones
+  granja                  Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  formulasDetalle         FormulaDetalle[]
+  comprasDetalle          CompraDetalle[]
+  inventario              Inventario[]
+  detallesFabricacion     DetalleFabricacion[]
+  registrosPrecio         RegistroPrecio[]
+
+  @@unique([idGranja, codigoMateriaPrima])
+  @@index([idGranja])
+  @@map("t_materia_prima")
+}
+
+model Proveedor {
+  id              String   @id @default(cuid())
+  idGranja        String
+  codigoProveedor  String
+  nombreProveedor  String
+  direccion       String?
+  localidad       String?
+  activo          Boolean  @default(true)
+  fechaCreacion   DateTime @default(now())
+
+  // Relaciones
+  granja          Granja          @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  compras         CompraCabecera[]
+
+  @@unique([idGranja, codigoProveedor])
+  @@index([idGranja])
+  @@map("t_proveedor")
+}
+
+model Animal {
+  id                    String    @id @default(cuid())
+  idGranja              String
+  codigoAnimal          String
+  descripcionAnimal     String
+  categoriaAnimal       CategoriaAnimal
+  activo                Boolean   @default(true)
+  fechaCreacion         DateTime  @default(now())
+
+  // Relaciones
+  granja                Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  formulasCab            FormulaCabecera[]
+
+  @@unique([idGranja, codigoAnimal])
+  @@index([idGranja])
+  @@map("t_animal")
+}
+
+model FormulaCabecera {
+  id                      String   @id @default(cuid())
+  idGranja                String
+  idAnimal                String
+  codigoFormula           String
+  descripcionFormula      String
+  pesoTotalFormula        Float    @default(1000) // en kg
+  costoTotalFormula       Float    @default(0)
+  activa                  Boolean  @default(true)
+  fechaCreacion           DateTime @default(now())
+  fechaUltimaModificacion DateTime @updatedAt
+
+  // Relaciones
+  granja                  Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  animal                  Animal            @relation(fields: [idAnimal], references: [id])
+  formulasDetalle         FormulaDetalle[]
+  fabricaciones           Fabricacion[]
+
+  @@unique([idGranja, codigoFormula])
+  @@index([idGranja])
+  @@map("t_formula_cabecera")
+}
+
+model FormulaDetalle {
+  id                              String  @id @default(cuid())
+  idFormula                       String
+  idMateriaPrima                  String
+  cantidadKg                      Float
+  porcentajeFormula               Float
+  precioUnitarioMomentoCreacion   Float
+  costoParcial                    Float
+
+  // Relaciones
+  formula                         FormulaCabecera @relation(fields: [idFormula], references: [id], onDelete: Cascade)
+  materiaPrima                    MateriaPrima    @relation(fields: [idMateriaPrima], references: [id])
+
+  @@index([idFormula])
+  @@index([idMateriaPrima])
+  @@map("t_formula_detalle")
+}
+
+model Fabricacion {
+  id                      String           @id @default(cuid())
+  idGranja                String
+  idUsuario                String
+  idFormula               String
+  descripcionFabricacion   String
+  cantidadFabricacion      Float
+  costoTotalFabricacion    Float
+  costoPorKilo             Float
+  fechaFabricacion         DateTime
+  fechaCreacion            DateTime        @default(now())
+  estado                   EstadoFabricacion @default(PROGRAMADA)
+
+  // Relaciones
+  granja                   Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  usuario                  Usuario           @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  formula                  FormulaCabecera   @relation(fields: [idFormula], references: [id])
+  detallesFabricacion      DetalleFabricacion[]
+
+  @@index([idGranja])
+  @@index([idUsuario])
+  @@index([idFormula])
+  @@map("t_fabricacion")
+}
+
+model DetalleFabricacion {
+  id                      String      @id @default(cuid())
+  idFabricacion           String
+  idMateriaPrima          String
+  cantidadUsada           Float
+  precioUnitario          Float
+  costoParcial            Float
+
+  // Relaciones
+  fabricacion             Fabricacion @relation(fields: [idFabricacion], references: [id], onDelete: Cascade)
+  materiaPrima            MateriaPrima @relation(fields: [idMateriaPrima], references: [id])
+
+  @@index([idFabricacion])
+  @@index([idMateriaPrima])
+  @@map("t_detalle_fabricacion")
+}
+
+model Inventario {
+  id                      String   @id @default(cuid())
+  idGranja                String
+  idMateriaPrima          String
+  cantidadAcumulada       Float    @default(0)
+  cantidadSistema         Float    @default(0)
+  cantidadReal            Float    @default(0)
+  merma                   Float    @default(0)  // calculado: cantidad_sistema - cantidad_real
+  precioAlmacen           Float    @default(0)  // calculado: sum(total_compras) / sum(cantidad_total_adquirida)
+  valorStock              Float    @default(0)  // calculado: cantidad_real * precio_materia_prima
+  fechaUltimaActualizacion DateTime @updatedAt
+  observaciones           String?  @db.Text
+
+  // Relaciones
+  granja                  Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  materiaPrima            MateriaPrima      @relation(fields: [idMateriaPrima], references: [id])
+
+  @@unique([idGranja, idMateriaPrima])
+  @@index([idGranja])
+  @@map("t_inventario")
+}
+
+model CompraCabecera {
+  id              String      @id @default(cuid())
+  idGranja          String
+  idUsuario         String
+  idProveedor       String
+  numeroFactura     String?
+  fechaCompra       DateTime
+  totalFactura      Float      @default(0)
+  observaciones      String?    @db.Text
+  fechaCreacion      DateTime   @default(now())
+
+  // Relaciones
+  granja             Granja          @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  usuario            Usuario         @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  proveedor          Proveedor       @relation(fields: [idProveedor], references: [id])
+  comprasDetalle     CompraDetalle[]
+
+  @@index([idGranja])
+  @@index([idUsuario])
+  @@index([idProveedor])
+  @@map("t_compra_cabecera")
+}
+
+model CompraDetalle {
+  id                          String           @id @default(cuid())
+  idCompra                    String
+  idMateriaPrima              String
+  cantidadComprada            Float
+  precioUnitario              Float
+  subtotal                    Float
+  precioAnteriorMateriaPrima  Float            // para auditoría
+
+  // Relaciones
+  compra                      CompraCabecera   @relation(fields: [idCompra], references: [id], onDelete: Cascade)
+  materiaPrima               MateriaPrima     @relation(fields: [idMateriaPrima], references: [id])
+
+  @@index([idCompra])
+  @@index([idMateriaPrima])
+  @@map("t_compra_detalle")
+}
+
+model RegistroPrecio {
+  id                      String   @id @default(cuid())
+  idMateriaPrima          String
+  precioAnterior          Float
+  precioNuevo             Float
+  diferenciaPorcentual    Float
+  fechaCambio             DateTime @default(now())
+  motivo                  String?  @db.Text
+
+  // Relaciones
+  materiaPrima            MateriaPrima @relation(fields: [idMateriaPrima], references: [id], onDelete: Cascade)
+
+  @@index([idMateriaPrima])
+  @@index([fechaCambio])
+  @@map("t_registro_precio")
+}
+
+model ArchivoCabecera {
+  id                  String      @id @default(cuid())
+  idGranja            String
+  tablaOrigen         TablaOrigen
+  fechaArchivo          DateTime
+  descripcionArchivo   String
+  totalRegistros       Int         @default(0)
+  fechaCreacion        DateTime    @default(now())
+
+  // Relaciones
+  granja              Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  archivosDetalle     ArchivoDetalle[]
+
+  @@index([idGranja])
+  @@index([tablaOrigen])
+  @@map("t_archivo_cabecera")
+}
+
+model ArchivoDetalle {
+  id              String  @id @default(cuid())
+  idArchivo       String
+  datosJson       Json    // JSON con los datos archivados
+
+  // Relaciones
+  archivo         ArchivoCabecera @relation(fields: [idArchivo], references: [id], onDelete: Cascade)
+
+  @@index([idArchivo])
+  @@map("t_archivo_detalle")
+}
+
+
+
