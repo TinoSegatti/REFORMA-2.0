@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { crearCompra, obtenerComprasGranja, obtenerGastoPorProveedor, obtenerHistorialPrecios } from '../services/compraService';
+import { crearCompra, obtenerComprasGranja, obtenerGastoPorProveedor, obtenerHistorialPrecios, eliminarCompra } from '../services/compraService';
 
 interface CompraRequest extends Request {
   userId?: string;
@@ -50,6 +50,7 @@ export async function registrarCompra(req: CompraRequest, res: Response) {
     // Crear la compra
     const compra = await crearCompra({
       idGranja,
+      idUsuario: userId,
       idProveedor,
       fechaCompra: new Date(fechaCompra),
       observaciones,
@@ -157,6 +158,47 @@ export async function obtenerHistorialPreciosMateriaPrima(req: CompraRequest, re
   } catch (error: any) {
     console.error('Error obteniendo historial de precios:', error);
     res.status(500).json({ error: 'Error al obtener historial de precios' });
+  }
+}
+
+/**
+ * Eliminar una compra
+ */
+export async function eliminarCompraEndpoint(req: CompraRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idCompra } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar que la compra pertenece a una granja del usuario
+    const compra = await prisma.compraCabecera.findUnique({
+      where: { id: idCompra },
+      include: {
+        granja: {
+          select: {
+            idUsuario: true
+          }
+        }
+      }
+    });
+
+    if (!compra) {
+      return res.status(404).json({ error: 'Compra no encontrada' });
+    }
+
+    if (compra.granja.idUsuario !== userId) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar esta compra' });
+    }
+
+    const resultado = await eliminarCompra(idCompra);
+
+    res.json(resultado);
+  } catch (error: any) {
+    console.error('Error eliminando compra:', error);
+    res.status(500).json({ error: 'Error al eliminar compra', detalle: error.message });
   }
 }
 

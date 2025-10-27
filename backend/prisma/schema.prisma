@@ -36,12 +36,7 @@ enum CategoriaAnimal {
   OTRO
 }
 
-enum EstadoFabricacion {
-  PROGRAMADA
-  EN_PROCESO
-  COMPLETADA
-  CANCELADA
-}
+// EstadoFabricacion ya no se usa - se eliminó
 
 enum TablaOrigen {
   INVENTARIO
@@ -203,23 +198,24 @@ model FormulaDetalle {
 }
 
 model Fabricacion {
-  id                      String           @id @default(cuid())
+  id                      String              @id @default(cuid())
   idGranja                String
-  idUsuario                String
+  idUsuario               String
   idFormula               String
-  descripcionFabricacion   String
-  cantidadFabricacion      Float
-  costoTotalFabricacion    Float
-  costoPorKilo             Float
-  fechaFabricacion         DateTime
-  fechaCreacion            DateTime        @default(now())
-  estado                   EstadoFabricacion @default(PROGRAMADA)
+  descripcionFabricacion  String
+  cantidadFabricacion     Float
+  costoTotalFabricacion   Float
+  costoPorKilo            Float
+  fechaFabricacion        DateTime
+  fechaCreacion           DateTime            @default(now())
+  observaciones           String?
+  sinExistencias          Boolean             @default(false)
 
   // Relaciones
-  granja                   Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  usuario                  Usuario           @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
-  formula                  FormulaCabecera   @relation(fields: [idFormula], references: [id])
-  detallesFabricacion      DetalleFabricacion[]
+  granja                  Granja              @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  usuario                 Usuario             @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  formula                 FormulaCabecera     @relation(fields: [idFormula], references: [id])
+  detallesFabricacion     DetalleFabricacion[]
 
   @@index([idGranja])
   @@index([idUsuario])

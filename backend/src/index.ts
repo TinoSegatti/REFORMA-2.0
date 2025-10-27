@@ -38,6 +38,7 @@ import granjaRoutes from './routes/granjaRoutes';
 import inventarioRoutes from './routes/inventarioRoutes';
 import compraRoutes from './routes/compraRoutes';
 import formulaRoutes from './routes/formulaRoutes';
+import fabricacionRoutes from './routes/fabricacionRoutes';
 
 // Rutas
 app.use('/api/usuarios', usuarioRoutes);
@@ -45,6 +46,7 @@ app.use('/api/granjas', granjaRoutes);
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/compras', compraRoutes);
 app.use('/api/formulas', formulaRoutes);
+app.use('/api/fabricaciones', fabricacionRoutes);
 
 // Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

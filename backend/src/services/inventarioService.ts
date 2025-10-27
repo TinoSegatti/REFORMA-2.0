@@ -4,7 +4,6 @@
  */
 
 import prisma from '../lib/prisma';
-import { Prisma } from '@prisma/client';
 
 interface CalcularInventarioParams {
   idGranja: string;
@@ -73,7 +72,7 @@ export async function calcularPrecioAlmacen(params: CalcularInventarioParams): P
       AND cd.id_materia_prima = ${idMateriaPrima}
   `;
 
-  const { total_dinero, total_cantidad } = 0 } = resultado[0];
+  const { total_dinero = 0, total_cantidad = 0 } = resultado[0] || {};
 
   if (total_cantidad === 0) return 0;
   
@@ -136,7 +135,7 @@ export async function recalcularInventario(params: CalcularInventarioParams) {
     create: {
       idGranja,
       idMateriaPrima,
-      cantidadAcumulada,
+      cantidadAcumulada: cantidad_acumulada,
       cantidadSistema: cantidad_sistema,
       cantidadReal: cantidad_real,
       merma,
@@ -144,7 +143,7 @@ export async function recalcularInventario(params: CalcularInventarioParams) {
       valorStock: valor_stock
     },
     update: {
-      cantidadAcumulada,
+      cantidadAcumulada: cantidad_acumulada,
       cantidadSistema: cantidad_sistema,
       merma,
       precioAlmacen: precio_almacen,
@@ -196,7 +195,7 @@ export async function actualizarCantidadReal(
     create: {
       idGranja,
       idMateriaPrima,
-      cantidadAcumulada,
+      cantidadAcumulada: cantidad_acumulada,
       cantidadSistema: cantidad_sistema,
       cantidadReal: cantidadReal,
       merma,
@@ -204,7 +203,7 @@ export async function actualizarCantidadReal(
       valorStock: valor_stock
     },
     update: {
-      cantidadAcumulada,
+      cantidadAcumulada: cantidad_acumulada,
       cantidadSistema: cantidad_sistema,
       cantidadReal: cantidadReal,
       merma,

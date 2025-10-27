@@ -9,6 +9,7 @@ import { recalcularFormulasPorMateriaPrima } from './formulaService';
 
 interface CrearCompraParams {
   idGranja: string;
+  idUsuario: string;
   idProveedor: string;
   numeroFactura?: string;
   fechaCompra: Date;
@@ -24,7 +25,7 @@ interface CrearCompraParams {
  * Registra una nueva compra y actualiza el sistema completo
  */
 export async function crearCompra(params: CrearCompraParams) {
-  const { idGranja, idProveedor, fechaCompra, observaciones, detalles } = params;
+  const { idGranja, idUsuario, idProveedor, fechaCompra, observaciones, detalles } = params;
 
   // Calcular total de la factura
   const totalFactura = detalles.reduce(
@@ -36,6 +37,7 @@ export async function crearCompra(params: CrearCompraParams) {
   const compra = await prisma.compraCabecera.create({
     data: {
       idGranja,
+      idUsuario,
       idProveedor,
       fechaCompra,
       totalFactura,
@@ -174,6 +176,70 @@ export async function obtenerHistorialPrecios(idMateriaPrima: string) {
       fechaCambio: 'desc'
     }
   });
+}
+
+/**
+ * Eliminar una compra y revertir todos los cambios
+ * Esto revertirá: inventario, precios y fórmulas
+ */
+export async function eliminarCompra(idCompra: string) {
+  // Obtener la compra con todos sus detalles
+  const compra = await prisma.compraCabecera.findUnique({
+    where: { id: idCompra },
+    include: {
+      comprasDetalle: true
+    }
+  });
+
+  if (!compra) {
+    throw new Error('Compra no encontrada');
+  }
+
+  // Por cada materia prima en la compra:
+  for (const detalle of compra.comprasDetalle) {
+    // 1. Eliminar el registro de precio (si existe)
+    await prisma.registroPrecio.deleteMany({
+      where: { 
+        idMateriaPrima: detalle.idMateriaPrima,
+        motivo: {
+          contains: `Factura ${compra.numeroFactura || 'N/A'}`
+        }
+      }
+    });
+
+    // 2. Restaurar el precio anterior de la materia prima
+    // Si había un precio anterior registrado, restaurarlo
+    const ultimoRegistro = await prisma.registroPrecio.findFirst({
+      where: { idMateriaPrima: detalle.idMateriaPrima },
+      orderBy: { fechaCambio: 'desc' }
+    });
+
+    if (ultimoRegistro) {
+      await prisma.materiaPrima.update({
+        where: { id: detalle.idMateriaPrima },
+        data: { precioPorKilo: ultimoRegistro.precioAnterior }
+      });
+    } else {
+      // Si no hay registro previo, establecer precio a 0 o dejar el actual
+      // (dependiendo de la lógica de negocio)
+    }
+
+    // 3. Recalcular inventario
+    await recalcularInventario({
+      idGranja: compra.idGranja,
+      idMateriaPrima: detalle.idMateriaPrima
+    });
+
+    // 4. Recalcular todas las fórmulas que usan esta materia prima
+    await recalcularFormulasPorMateriaPrima(detalle.idMateriaPrima);
+  }
+
+  // 5. Eliminar la compra (cascada eliminará los detalles)
+  await prisma.compraCabecera.delete({
+    where: { id: idCompra }
+  });
+
+  return { mensaje: 'Compra eliminada exitosamente' };
 }
 
 

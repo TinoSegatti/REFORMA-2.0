@@ -2,7 +2,7 @@
  * Configuración de Base de Datos
  */
 
-import { PrismaClient } from '../generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 // Singleton pattern para Prisma Client
 const globalForPrisma = global as unknown as {

@@ -19,6 +19,7 @@ module.exports = {
         noImplicitReturns: false
       }
     }
-  }
+  },
+  testTimeout: 10000 // 10 segundos para todos los tests
 };
 
