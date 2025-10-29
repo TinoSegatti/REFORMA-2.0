@@ -14,7 +14,10 @@ export default function Home() {
         </div>
 
         {/* Botones */}
-        <Card header="Botones">
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Botones</h3>
+          </div>
           <div className="flex flex-wrap gap-4">
             <Button variant="primary">Botón Principal</Button>
             <Button variant="secondary">Botón Secundario</Button>
@@ -24,7 +27,10 @@ export default function Home() {
         </Card>
 
         {/* Inputs */}
-        <Card header="Inputs">
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Inputs</h3>
+          </div>
           <div className="space-y-4">
             <Input label="Nombre" placeholder="Ingresa tu nombre" />
             <Input label="Email" type="email" placeholder="email@ejemplo.com" />
@@ -33,7 +39,10 @@ export default function Home() {
         </Card>
 
         {/* Card */}
-        <Card header="Ejemplo de Card">
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Ejemplo de Card</h3>
+          </div>
           <p className="text-foreground">
             Este es un ejemplo de una card con estilo retro. Tiene bordes gruesos,
             sombras características y efectos hover.
@@ -41,7 +50,10 @@ export default function Home() {
         </Card>
 
         {/* Colores */}
-        <Card header="Paleta de Colores">
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Paleta de Colores</h3>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="retro-section p-4">
               <div className="h-20 bg-[#D4B5A0] border-2 border-[#8B7355] mb-2"></div>

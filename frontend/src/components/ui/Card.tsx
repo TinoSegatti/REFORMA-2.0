@@ -3,19 +3,17 @@ import React from 'react';
 interface CardProps {
   children: React.ReactNode;
   className?: string;
-  header?: string;
+  hover?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({
-  children,
+export const Card: React.FC<CardProps> = ({ 
+  children, 
   className = '',
-  header
+  hover = true
 }) => {
   return (
-    <div className={`retro-card ${className}`}>
-      {header && <div className="retro-header">{header}</div>}
-      <div className="p-6">{children}</div>
+    <div className={`modern-card p-6 ${hover ? 'hover:scale-[1.01]' : ''} transition-all duration-300 ${className}`}>
+      {children}
     </div>
   );
 };
-

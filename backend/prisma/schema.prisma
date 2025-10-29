@@ -27,14 +27,7 @@ enum PlanSuscripcion {
   PLAN_4  // 1 granja, 200 registros por tabla
 }
 
-enum CategoriaAnimal {
-  LACTANCIA
-  DESTETE
-  CRECIMIENTO
-  ENGORDE
-  REPRODUCTOR
-  OTRO
-}
+// CategoriaAnimal ya no se usa - se eliminó (campo libre en Animal)
 
 // EstadoFabricacion ya no se usa - se eliminó
 
@@ -143,7 +136,7 @@ model Animal {
   idGranja              String
   codigoAnimal          String
   descripcionAnimal     String
-  categoriaAnimal       CategoriaAnimal
+  categoriaAnimal        String    // Campo de texto libre para categorías
   activo                Boolean   @default(true)
   fechaCreacion         DateTime  @default(now())
 

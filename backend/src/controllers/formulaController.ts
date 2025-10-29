@@ -1,30 +1,25 @@
-/**
- * Controlador de Fórmulas
- * Gestiona las fórmulas de alimentación
- */
-
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { crearFormula, obtenerFormula, obtenerFormulasGranja, recalcularCostoFormula } from '../services/formulaService';
 
 interface FormulaRequest extends Request {
   userId?: string;
 }
 
 /**
- * Crear una nueva fórmula
+ * Agregar detalle a una fórmula existente
  */
-export async function crearNuevaFormula(req: FormulaRequest, res: Response) {
+export async function agregarDetalleFormula(req: FormulaRequest, res: Response) {
   try {
     const userId = req.userId;
-    const { idGranja, idAnimal, codigoFormula, descripcionFormula, detalles } = req.body;
+    const { idGranja, id } = req.params;
+    const { idMateriaPrima, cantidadKg } = req.body;
 
     if (!userId) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    if (!codigoFormula || !descripcionFormula || !detalles || detalles.length === 0) {
-      return res.status(400).json({ error: 'Faltan campos requeridos' });
+    if (!idMateriaPrima || !cantidadKg) {
+      return res.status(400).json({ error: 'Materia prima y cantidad son requeridos' });
     }
 
     // Verificar que la granja pertenece al usuario
@@ -36,39 +31,205 @@ export async function crearNuevaFormula(req: FormulaRequest, res: Response) {
       return res.status(404).json({ error: 'Granja no encontrada' });
     }
 
-    // Validar que todas las materias primas existen y pertenecen a la granja
-    for (const detalle of detalles) {
-      const materiaPrima = await prisma.materiaPrima.findFirst({
-        where: { 
-          id: detalle.idMateriaPrima,
-          idGranja
-        }
-      });
-
-      if (!materiaPrima) {
-        return res.status(404).json({ error: `Materia prima ${detalle.idMateriaPrima} no encontrada en esta granja` });
-      }
-
-      if (detalle.cantidadKg <= 0) {
-        return res.status(400).json({ error: 'La cantidad en kg debe ser mayor a 0' });
-      }
-    }
-
-    // Crear la fórmula
-    const formula = await crearFormula({
-      idGranja,
-      idAnimal,
-      codigoFormula,
-      descripcionFormula,
-      detalles
+    // Verificar que existe la fórmula
+    const formula = await prisma.formulaCabecera.findFirst({
+      where: { id, idGranja }
     });
 
-    res.status(201).json(formula);
+    if (!formula) {
+      return res.status(404).json({ error: 'Fórmula no encontrada' });
+    }
+
+    // Verificar que existe la materia prima
+    const materiaPrima = await prisma.materiaPrima.findFirst({
+      where: { id: idMateriaPrima, idGranja }
+    });
+
+    if (!materiaPrima) {
+      return res.status(404).json({ error: 'Materia prima no encontrada' });
+    }
+
+    // Verificar que no existe ya este detalle
+    const detalleExistente = await prisma.formulaDetalle.findFirst({
+      where: {
+        idFormula: id,
+        idMateriaPrima
+      }
+    });
+
+    if (detalleExistente) {
+      return res.status(400).json({ error: 'Esta materia prima ya está en la fórmula' });
+    }
+
+    // Calcular porcentaje y costos
+    const cantidad = parseFloat(cantidadKg);
+    const porcentaje = (cantidad / formula.pesoTotalFormula) * 100;
+    const precioUnitario = materiaPrima.precioPorKilo || 0;
+    const costoParcial = cantidad * precioUnitario;
+
+    // Crear detalle
+    const detalle = await prisma.formulaDetalle.create({
+      data: {
+        idFormula: id,
+        idMateriaPrima,
+        cantidadKg: cantidad,
+        porcentajeFormula: porcentaje,
+        precioUnitarioMomentoCreacion: precioUnitario,
+        costoParcial
+      }
+    });
+
+    // Actualizar costo total de la fórmula
+    const todosLosDetalles = await prisma.formulaDetalle.findMany({
+      where: { idFormula: id }
+    });
+
+    const costoTotal = todosLosDetalles.reduce((sum, d) => sum + d.costoParcial, 0);
+
+    await prisma.formulaCabecera.update({
+      where: { id },
+      data: { costoTotalFormula: costoTotal }
+    });
+
+    res.status(201).json(detalle);
   } catch (error: any) {
-    console.error('Error creando fórmula:', error);
-    res.status(500).json({ error: 'Error al crear fórmula', detalle: error.message });
+    console.error('Error agregando detalle:', error);
+    res.status(500).json({ error: 'Error al agregar detalle' });
   }
 }
+
+/**
+ * Actualizar detalle de fórmula
+ */
+export async function actualizarDetalleFormula(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, id, detalleId } = req.params;
+    const { cantidadKg } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!cantidadKg) {
+      return res.status(400).json({ error: 'Cantidad es requerida' });
+    }
+
+    // Verificar permisos
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Verificar que existe la fórmula
+    const formula = await prisma.formulaCabecera.findFirst({
+      where: { id, idGranja }
+    });
+
+    if (!formula) {
+      return res.status(404).json({ error: 'Fórmula no encontrada' });
+    }
+
+    // Obtener detalle actual
+    const detalleActual = await prisma.formulaDetalle.findFirst({
+      where: { id: detalleId, idFormula: id },
+      include: { materiaPrima: true }
+    });
+
+    if (!detalleActual) {
+      return res.status(404).json({ error: 'Detalle no encontrado' });
+    }
+
+    // Actualizar
+    const cantidad = parseFloat(cantidadKg);
+    const porcentaje = (cantidad / formula.pesoTotalFormula) * 100;
+    const precioUnitario = detalleActual.materiaPrima.precioPorKilo || 0;
+    const costoParcial = cantidad * precioUnitario;
+
+    const detalle = await prisma.formulaDetalle.update({
+      where: { id: detalleId },
+      data: {
+        cantidadKg: cantidad,
+        porcentajeFormula: porcentaje,
+        costoParcial
+      }
+    });
+
+    // Actualizar costo total
+    const todosLosDetalles = await prisma.formulaDetalle.findMany({
+      where: { idFormula: id }
+    });
+
+    const costoTotal = todosLosDetalles.reduce((sum, d) => sum + d.costoParcial, 0);
+
+    await prisma.formulaCabecera.update({
+      where: { id },
+      data: { costoTotalFormula: costoTotal }
+    });
+
+    res.json(detalle);
+  } catch (error: any) {
+    console.error('Error actualizando detalle:', error);
+    res.status(500).json({ error: 'Error al actualizar detalle' });
+  }
+}
+
+/**
+ * Eliminar detalle de fórmula
+ */
+export async function eliminarDetalleFormula(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, id, detalleId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar permisos
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    const formula = await prisma.formulaCabecera.findFirst({
+      where: { id, idGranja }
+    });
+
+    if (!formula) {
+      return res.status(404).json({ error: 'Fórmula no encontrada' });
+    }
+
+    // Eliminar detalle
+    await prisma.formulaDetalle.delete({
+      where: { id: detalleId }
+    });
+
+    // Actualizar costo total
+    const todosLosDetalles = await prisma.formulaDetalle.findMany({
+      where: { idFormula: id }
+    });
+
+    const costoTotal = todosLosDetalles.reduce((sum, d) => sum + d.costoParcial, 0);
+
+    await prisma.formulaCabecera.update({
+      where: { id },
+      data: { costoTotalFormula: costoTotal }
+    });
+
+    res.json({ mensaje: 'Detalle eliminado exitosamente' });
+  } catch (error: any) {
+    console.error('Error eliminando detalle:', error);
+    res.status(500).json({ error: 'Error al eliminar detalle' });
+  }
+}
+
 
 /**
  * Obtener todas las fórmulas de una granja
@@ -91,7 +252,29 @@ export async function obtenerFormulas(req: FormulaRequest, res: Response) {
       return res.status(404).json({ error: 'Granja no encontrada' });
     }
 
-    const formulas = await obtenerFormulasGranja(idGranja);
+    const formulas = await prisma.formulaCabecera.findMany({
+      where: { idGranja },
+      include: {
+        animal: {
+          select: {
+            codigoAnimal: true,
+            descripcionAnimal: true,
+            categoriaAnimal: true
+          }
+        },
+        formulasDetalle: {
+          include: {
+            materiaPrima: {
+              select: {
+                codigoMateriaPrima: true,
+                nombreMateriaPrima: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { fechaCreacion: 'desc' }
+    });
 
     res.json(formulas);
   } catch (error: any) {
@@ -101,30 +284,237 @@ export async function obtenerFormulas(req: FormulaRequest, res: Response) {
 }
 
 /**
- * Obtener una fórmula específica con sus detalles
+ * Obtener estadísticas de fórmulas
  */
-export async function obtenerFormulaDetalle(req: FormulaRequest, res: Response) {
+export async function obtenerEstadisticasFormulas(req: FormulaRequest, res: Response) {
   try {
     const userId = req.userId;
-    const { idFormula } = req.params;
+    const { idGranja } = req.params;
 
     if (!userId) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    const formula = await obtenerFormula(idFormula);
-
-    if (!formula) {
-      return res.status(404).json({ error: 'Fórmula no encontrada' });
-    }
-
-    // Verificar que la fórmula pertenece a una granja del usuario
+    // Verificar que la granja pertenece al usuario
     const granja = await prisma.granja.findFirst({
-      where: { id: formula.idGranja, idUsuario: userId }
+      where: { id: idGranja, idUsuario: userId }
     });
 
     if (!granja) {
-      return res.status(403).json({ error: 'Acceso denegado' });
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Contar total de fórmulas
+    const totalFormulas = await prisma.formulaCabecera.count({
+      where: { idGranja }
+    });
+
+    // Obtener materias primas más utilizadas (en toneladas)
+    const materiasMasUtilizadas = await prisma.$queryRaw`
+      SELECT 
+        mp."codigoMateriaPrima" as codigo,
+        mp."nombreMateriaPrima" as nombre,
+        SUM(fd."cantidadKg") / 1000 as toneladas_totales
+      FROM t_formula_detalle fd
+      JOIN t_materia_prima mp ON fd."idMateriaPrima" = mp.id
+      JOIN t_formula_cabecera fc ON fd."idFormula" = fc.id
+      WHERE fc."idGranja" = ${idGranja}
+      GROUP BY mp.id, mp."codigoMateriaPrima", mp."nombreMateriaPrima"
+      ORDER BY toneladas_totales DESC
+      LIMIT 10
+    ` as Array<{
+      codigo: string;
+      nombre: string;
+      toneladas_totales: number;
+    }>;
+
+    res.json({
+      totalFormulas,
+      materiasMasUtilizadas
+    });
+  } catch (error: any) {
+    console.error('Error obteniendo estadísticas:', error);
+    res.status(500).json({ error: 'Error al obtener estadísticas' });
+  }
+}
+
+/**
+ * Crear nueva fórmula
+ */
+export async function crearFormula(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+    const { 
+      codigoFormula, 
+      descripcionFormula, 
+      idAnimal, 
+      pesoTotalFormula,
+      detalles 
+    } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!codigoFormula || !descripcionFormula || !idAnimal || !detalles || !Array.isArray(detalles)) {
+      return res.status(400).json({ error: 'Datos requeridos faltantes' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Verificar que el animal existe
+    const animal = await prisma.animal.findFirst({
+      where: { id: idAnimal, idGranja }
+    });
+
+    if (!animal) {
+      return res.status(404).json({ error: 'Animal no encontrado' });
+    }
+
+    // Verificar que el código no esté duplicado
+    const codigoExistente = await prisma.formulaCabecera.findFirst({
+      where: {
+        idGranja,
+        codigoFormula
+      }
+    });
+
+    if (codigoExistente) {
+      return res.status(400).json({ error: 'El código de fórmula ya existe' });
+    }
+
+    // Crear fórmula con detalles en una transacción
+    const formula = await prisma.$transaction(async (tx) => {
+      // Crear cabecera
+      const nuevaFormula = await tx.formulaCabecera.create({
+        data: {
+          idGranja,
+          idAnimal,
+          codigoFormula,
+          descripcionFormula,
+          pesoTotalFormula: pesoTotalFormula || 1000,
+          costoTotalFormula: 0 // Se calculará después
+        }
+      });
+
+      // Crear detalles
+      let costoTotal = 0;
+      for (const detalle of detalles) {
+        const { idMateriaPrima, cantidadKg, porcentajeFormula } = detalle;
+        
+        // Obtener precio de la materia prima
+        const materiaPrima = await tx.materiaPrima.findFirst({
+          where: { id: idMateriaPrima, idGranja }
+        });
+
+        if (!materiaPrima) {
+          throw new Error(`Materia prima ${idMateriaPrima} no encontrada`);
+        }
+
+        const precioUnitario = materiaPrima.precioPorKilo || 0;
+        const costoParcial = cantidadKg * precioUnitario;
+        costoTotal += costoParcial;
+
+        await tx.formulaDetalle.create({
+          data: {
+            idFormula: nuevaFormula.id,
+            idMateriaPrima,
+            cantidadKg,
+            porcentajeFormula,
+            precioUnitarioMomentoCreacion: precioUnitario,
+            costoParcial
+          }
+        });
+      }
+
+      // Actualizar costo total
+      return await tx.formulaCabecera.update({
+        where: { id: nuevaFormula.id },
+        data: { costoTotalFormula: costoTotal },
+        include: {
+          animal: {
+            select: {
+              codigoAnimal: true,
+              descripcionAnimal: true,
+              categoriaAnimal: true
+            }
+          },
+          formulasDetalle: {
+            include: {
+              materiaPrima: {
+                select: {
+                  codigoMateriaPrima: true,
+                  nombreMateriaPrima: true
+                }
+              }
+            }
+          }
+        }
+      });
+    });
+
+    res.status(201).json(formula);
+  } catch (error: any) {
+    console.error('Error creando fórmula:', error);
+    res.status(500).json({ error: 'Error al crear fórmula' });
+  }
+}
+
+/**
+ * Obtener fórmula por ID
+ */
+export async function obtenerFormulaPorId(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    const formula = await prisma.formulaCabecera.findFirst({
+      where: { id, idGranja },
+      include: {
+        animal: {
+          select: {
+            codigoAnimal: true,
+            descripcionAnimal: true,
+            categoriaAnimal: true
+          }
+        },
+        formulasDetalle: {
+          include: {
+            materiaPrima: {
+              select: {
+                codigoMateriaPrima: true,
+                nombreMateriaPrima: true,
+                precioPorKilo: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!formula) {
+      return res.status(404).json({ error: 'Fórmula no encontrada' });
     }
 
     res.json(formula);
@@ -135,178 +525,38 @@ export async function obtenerFormulaDetalle(req: FormulaRequest, res: Response) 
 }
 
 /**
- * Recalcular costo de una fórmula
- */
-export async function recalcularFormula(req: FormulaRequest, res: Response) {
-  try {
-    const userId = req.userId;
-    const { idFormula } = req.params;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
-
-    // Verificar que la fórmula existe y pertenece al usuario
-    const formula = await prisma.formulaCabecera.findUnique({
-      where: { id: idFormula },
-      include: {
-        granja: {
-          select: {
-            idUsuario: true
-          }
-        }
-      }
-    });
-
-    if (!formula) {
-      return res.status(404).json({ error: 'Fórmula no encontrada' });
-    }
-
-    if (formula.granja.idUsuario !== userId) {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    const costoTotal = await recalcularCostoFormula(idFormula);
-
-    res.json({
-      mensaje: 'Fórmula recalculada exitosamente',
-      costoTotal
-    });
-  } catch (error: any) {
-    console.error('Error recalculando fórmula:', error);
-    res.status(500).json({ error: 'Error al recalcular fórmula' });
-  }
-}
-
-/**
- * Actualizar una fórmula
- */
-export async function actualizarFormula(req: FormulaRequest, res: Response) {
-  try {
-    const userId = req.userId;
-    const { idFormula } = req.params;
-    const { descripcionFormula, codigoFormula, idAnimal, detalles } = req.body;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
-
-    // Verificar que la fórmula existe y pertenece al usuario
-    const formula = await prisma.formulaCabecera.findUnique({
-      where: { id: idFormula },
-      include: {
-        granja: {
-          select: {
-            idUsuario: true
-          }
-        }
-      }
-    });
-
-    if (!formula) {
-      return res.status(404).json({ error: 'Fórmula no encontrada' });
-    }
-
-    if (formula.granja.idUsuario !== userId) {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    // Actualizar datos básicos
-    const formulaActualizada = await prisma.formulaCabecera.update({
-      where: { id: idFormula },
-      data: {
-        descripcionFormula,
-        codigoFormula,
-        idAnimal
-      }
-    });
-
-    // Si hay nuevos detalles, actualizarlos
-    if (detalles && detalles.length > 0) {
-      // Eliminar detalles antiguos
-      await prisma.formulaDetalle.deleteMany({
-        where: { idFormula }
-      });
-
-      // Crear nuevos detalles
-      for (const detalle of detalles) {
-        const materiaPrima = await prisma.materiaPrima.findUnique({
-          where: { id: detalle.idMateriaPrima }
-        });
-
-        if (materiaPrima) {
-          await prisma.formulaDetalle.create({
-            data: {
-              idFormula,
-              idMateriaPrima: detalle.idMateriaPrima,
-              cantidadKg: detalle.cantidadKg,
-              porcentajeFormula: (detalle.cantidadKg / 1000) * 100,
-              precioUnitarioMomentoCreacion: materiaPrima.precioPorKilo,
-              costoParcial: detalle.cantidadKg * materiaPrima.precioPorKilo
-            }
-          });
-        }
-      }
-
-      // Recalcular costo total
-      await recalcularCostoFormula(idFormula);
-    }
-
-    res.json(formulaActualizada);
-  } catch (error: any) {
-    console.error('Error actualizando fórmula:', error);
-    res.status(500).json({ error: 'Error al actualizar fórmula' });
-  }
-}
-
-/**
- * Eliminar una fórmula
+ * Eliminar fórmula
  */
 export async function eliminarFormula(req: FormulaRequest, res: Response) {
   try {
     const userId = req.userId;
-    const { idFormula } = req.params;
+    const { idGranja, id } = req.params;
 
     if (!userId) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la fórmula existe y pertenece al usuario
-    const formula = await prisma.formulaCabecera.findUnique({
-      where: { id: idFormula },
-      include: {
-        granja: {
-          select: {
-            idUsuario: true
-          }
-        }
-      }
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Verificar que existe la fórmula
+    const formula = await prisma.formulaCabecera.findFirst({
+      where: { id, idGranja }
     });
 
     if (!formula) {
       return res.status(404).json({ error: 'Fórmula no encontrada' });
     }
 
-    if (formula.granja.idUsuario !== userId) {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    // Verificar si tiene fabricaciones
-    const fabricacionesCount = await prisma.fabricacion.count({
-      where: { idFormula }
-    });
-
-    if (fabricacionesCount > 0) {
-      return res.status(400).json({ 
-        error: 'No se puede eliminar una fórmula que tiene fabricaciones asociadas',
-        fabricaciones: fabricacionesCount
-      });
-    }
-
-    // Eliminar fórmula (soft delete)
-    await prisma.formulaCabecera.update({
-      where: { id: idFormula },
-      data: { activa: false }
+    // Eliminar fórmula (los detalles se eliminan automáticamente por CASCADE)
+    await prisma.formulaCabecera.delete({
+      where: { id }
     });
 
     res.json({ mensaje: 'Fórmula eliminada exitosamente' });
@@ -315,4 +565,3 @@ export async function eliminarFormula(req: FormulaRequest, res: Response) {
     res.status(500).json({ error: 'Error al eliminar fórmula' });
   }
 }
-

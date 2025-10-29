@@ -10,6 +10,10 @@ import {
   eliminarGranja,
   obtenerGranja
 } from '../controllers/granjaController';
+import {
+  importarMateriasPrimasController,
+  importarProveedoresController
+} from '../controllers/importDataController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = express.Router();
@@ -22,6 +26,10 @@ router.post('/', crearGranja);
 router.get('/:idGranja', obtenerGranja);
 router.put('/:idGranja', actualizarGranja);
 router.delete('/:idGranja', eliminarGranja);
+
+// Importar datos
+router.post('/importar/materias-primas', importarMateriasPrimasController);
+router.post('/importar/proveedores', importarProveedoresController);
 
 export default router;
 

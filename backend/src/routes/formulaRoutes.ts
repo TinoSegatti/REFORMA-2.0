@@ -1,29 +1,39 @@
-/**
- * Rutas de Fórmulas
- */
-
-import express from 'express';
-import {
-  crearNuevaFormula,
-  obtenerFormulas,
-  obtenerFormulaDetalle,
-  recalcularFormula,
-  actualizarFormula,
-  eliminarFormula
+import { Router } from 'express';
+import { 
+  obtenerFormulas, 
+  obtenerEstadisticasFormulas,
+  crearFormula, 
+  obtenerFormulaPorId, 
+  eliminarFormula,
+  agregarDetalleFormula,
+  actualizarDetalleFormula,
+  eliminarDetalleFormula
 } from '../controllers/formulaController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
-const router = express.Router();
+const router = Router();
 
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
 
-router.post('/', crearNuevaFormula);
-router.get('/:idGranja', obtenerFormulas);
-router.get('/detalle/:idFormula', obtenerFormulaDetalle);
-router.post('/:idFormula/recalcular', recalcularFormula);
-router.put('/:idFormula', actualizarFormula);
-router.delete('/:idFormula', eliminarFormula);
+// Obtener todas las fórmulas de una granja
+router.get('/granja/:idGranja/formulas', obtenerFormulas);
+
+// Obtener estadísticas de fórmulas
+router.get('/granja/:idGranja/formulas/estadisticas', obtenerEstadisticasFormulas);
+
+// Crear nueva fórmula
+router.post('/granja/:idGranja/formulas', crearFormula);
+
+// Obtener fórmula por ID
+router.get('/granja/:idGranja/formulas/:id', obtenerFormulaPorId);
+
+// Eliminar fórmula
+router.delete('/granja/:idGranja/formulas/:id', eliminarFormula);
+
+// Rutas de detalles de fórmula
+router.post('/granja/:idGranja/formulas/:id/detalles', agregarDetalleFormula);
+router.put('/granja/:idGranja/formulas/:id/detalles/:detalleId', actualizarDetalleFormula);
+router.delete('/granja/:idGranja/formulas/:id/detalles/:detalleId', eliminarDetalleFormula);
 
 export default router;
-

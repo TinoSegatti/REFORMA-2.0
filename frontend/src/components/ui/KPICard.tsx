@@ -3,30 +3,50 @@ import React from 'react';
 interface KPICardProps {
   title: string;
   value: string | number;
-  icon: string;
-  color?: 'blue' | 'red' | 'yellow';
+  icon?: string;
+  color?: 'pink' | 'yellow' | 'green' | 'mint' | 'blue';
+  trend?: {
+    value: number;
+    isPositive: boolean;
+  };
 }
 
-export const KPICard: React.FC<KPICardProps> = ({
-  title,
-  value,
-  icon,
-  color = 'blue'
+export const KPICard: React.FC<KPICardProps> = ({ 
+  title, 
+  value, 
+  icon, 
+  color = 'pink',
+  trend 
 }) => {
   const colorClasses = {
-    blue: 'bg-[#5DADE2]',
-    red: 'bg-[#E74C3C]',
-    yellow: 'bg-[#FFD966]'
+    pink: 'from-[#F5B8DA] to-[#E599C6]',
+    yellow: 'from-[#FAD863] to-[#F8C540]',
+    green: 'from-[#9AAB64] to-[#7B8E54]',
+    mint: 'from-[#B6CCAE] to-[#A8C19F]',
+    blue: 'from-[#B6CAEB] to-[#9DB5D9]'
   };
 
   return (
-    <div className="retro-card">
-      <div className={`${colorClasses[color]} rounded-lg p-6 mb-4 inline-block`}>
-        <span className="text-3xl">{icon}</span>
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-300">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-600 mb-2">{title}</p>
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+          {trend && (
+            <div className="flex items-center gap-1 mt-2">
+              <span className={`text-sm font-medium ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
+              </span>
+              <span className="text-xs text-gray-500">vs mes anterior</span>
+            </div>
+          )}
+        </div>
+        {icon && (
+          <div className={`bg-gradient-to-br ${colorClasses[color]} w-16 h-16 rounded-xl flex items-center justify-center text-2xl shadow-lg`}>
+            {icon}
+          </div>
+        )}
       </div>
-      <h3 className="text-2xl font-bold text-foreground mb-1">{value}</h3>
-      <p className="text-muted-foreground">{title}</p>
     </div>
   );
 };
-
