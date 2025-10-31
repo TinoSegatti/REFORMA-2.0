@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { calcularPrecioAlmacen } from '../services/inventarioService';
 
 interface InventarioRequest extends Request {
   userId?: string;
@@ -197,6 +198,26 @@ export async function inicializarInventario(req: InventarioRequest, res: Respons
         });
       }
 
+      // Registrar inventario inicial (persistir base para cálculos futuros)
+      await prisma.inventarioInicial.upsert({
+        where: {
+          idGranja_idMateriaPrima: {
+            idGranja,
+            idMateriaPrima
+          }
+        },
+        create: {
+          idGranja,
+          idMateriaPrima,
+          cantidadInicial: cantidadReal,
+          precioInicial: precioPorKilo || materiaPrima.precioPorKilo
+        },
+        update: {
+          cantidadInicial: cantidadReal,
+          precioInicial: precioPorKilo || materiaPrima.precioPorKilo
+        }
+      });
+
       // Calcular valores iniciales
       const precioFinal = precioPorKilo || materiaPrima.precioPorKilo;
       const valorStock = cantidadReal * precioFinal;
@@ -370,10 +391,8 @@ export async function recalcularInventario(req: InventarioRequest, res: Response
       // Calcular cantidad en sistema
       const cantidadSistema = cantidadAcumuladaCompras - cantidadUsadaFabricaciones;
 
-      // Calcular precio almacén promedio
-      const precioAlmacen = cantidadAcumuladaCompras > 0 
-        ? totalGastadoCompras / cantidadAcumuladaCompras 
-        : materiaPrima.precioPorKilo;
+      // Calcular precio almacén con el criterio global (promedio simple por evento incluyendo inicialización)
+      const precioAlmacen = await calcularPrecioAlmacen({ idGranja, idMateriaPrima: materiaPrima.id });
 
       // Obtener inventario actual o crear uno nuevo
       let inventario = await prisma.inventario.findFirst({

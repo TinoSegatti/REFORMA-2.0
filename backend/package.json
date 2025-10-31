@@ -12,6 +12,9 @@
     "prisma:studio": "prisma studio",
     "crear-usuarios": "tsx scripts/crear-usuarios.ts",
     "prisma:seed": "tsx prisma/seed.ts",
+    "seed:proveedores": "node scripts/cargar-proveedores.js",
+    "eliminar-compras": "node scripts/eliminar-compras-y-verificar-inventario.js",
+    "probar-flujo": "tsx scripts/probar-compra-inventario.ts",
     "lint": "eslint src --ext .ts",
     "test": "jest",
     "test:watch": "jest --watch"

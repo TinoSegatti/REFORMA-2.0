@@ -634,6 +634,231 @@ export const apiClient = {
   },
 
   // Más métodos según necesites...
+  
+  // ===== COMPRAS =====
+  async getCompras(token: string, idGranja: string, params?: { desde?: string; hasta?: string; materiaPrima?: string; proveedor?: string; numeroFactura?: string; ordenar?: 'fecha_asc' | 'fecha_desc' | 'total_asc' | 'total_desc'; }) {
+    const qs = new URLSearchParams();
+    if (params?.desde) qs.set('desde', params.desde);
+    if (params?.hasta) qs.set('hasta', params.hasta);
+    if (params?.materiaPrima) qs.set('materiaPrima', params.materiaPrima);
+    if (params?.proveedor) qs.set('proveedor', params.proveedor);
+    if (params?.numeroFactura) qs.set('numeroFactura', params.numeroFactura);
+    if (params?.ordenar) qs.set('ordenar', params.ordenar);
+
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras?${qs.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      let message = 'Error al obtener compras';
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const error = await response.json();
+        message = error.error || message;
+      } else {
+        const text = await response.text();
+        message = `${message}: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(message);
+    }
+
+    const ct = response.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return [];
+    return await response.json();
+  },
+
+  async getEstadisticasCompras(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/estadisticas`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { frecuenciaPorMateria: [], totalCompras: 0 };
+      }
+      let message = 'Error al obtener estadísticas de compras';
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const error = await response.json();
+        message = error.error || message;
+      } else {
+        await response.text();
+        message = `${message}: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(message);
+    }
+
+    const ct = response.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return { frecuenciaPorMateria: [], totalCompras: 0 };
+    return await response.json();
+  },
+
+  async crearCompra(token: string, idGranja: string, data: {
+    idProveedor: string;
+    numeroFactura?: string;
+    fechaCompra: string;
+    observaciones?: string;
+    detalles: Array<{
+      idMateriaPrima: string;
+      cantidadComprada: number;
+      precioUnitario: number;
+      subtotal?: number;
+    }>;
+    totalFactura?: number;
+  }) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al crear compra');
+    }
+
+    return await response.json();
+  },
+
+  async getCompraPorId(token: string, idGranja: string, idCompra: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener compra');
+    }
+
+    return await response.json();
+  },
+
+  async editarCabeceraCompra(token: string, idGranja: string, idCompra: string, data: {
+    numeroFactura?: string;
+    fechaCompra?: string;
+    observaciones?: string;
+    idProveedor?: string;
+  }) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al editar compra');
+    }
+
+    return await response.json();
+  },
+
+  async eliminarCompra(token: string, idGranja: string, idCompra: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar compra');
+    }
+
+    return await response.json();
+  },
+
+  async agregarItemCompra(token: string, idGranja: string, idCompra: string, data: {
+    idMateriaPrima: string;
+    cantidadComprada: number;
+    precioUnitario?: number;
+    subtotal?: number;
+  }) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}/items`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al agregar item');
+    }
+
+    return await response.json();
+  },
+
+  async editarItemCompra(token: string, idGranja: string, idCompra: string, detalleId: string, data: {
+    cantidadComprada: number;
+    precioUnitario?: number;
+    subtotal?: number;
+  }) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}/items/${detalleId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al editar item');
+    }
+
+    return await response.json();
+  },
+
+  async eliminarItemCompra(token: string, idGranja: string, idCompra: string, detalleId: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}/items/${detalleId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar item');
+    }
+
+    return await response.json();
+  },
+
+  async getUltimoPrecio(token: string, idGranja: string, idMateriaPrima: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/materia-prima/${idMateriaPrima}/ultimo-precio`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      return null; // No hay último precio, retornar null
+    }
+
+    const data = await response.json();
+    return data.ultimoPrecio as number | null;
+  },
 };
 
 export default apiClient;

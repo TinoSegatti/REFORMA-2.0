@@ -82,6 +82,7 @@ model Granja {
   formulasCab     FormulaCabecera[]
   fabricaciones   Fabricacion[]
   inventario      Inventario[]
+  inventarioInicial InventarioInicial[]
   compras         CompraCabecera[]
   archivos        ArchivoCabecera[]
 
@@ -104,6 +105,7 @@ model MateriaPrima {
   formulasDetalle         FormulaDetalle[]
   comprasDetalle          CompraDetalle[]
   inventario              Inventario[]
+  inventarioInicial       InventarioInicial[]
   detallesFabricacion     DetalleFabricacion[]
   registrosPrecio         RegistroPrecio[]
 
@@ -253,6 +255,22 @@ model Inventario {
   @@unique([idGranja, idMateriaPrima])
   @@index([idGranja])
   @@map("t_inventario")
+}
+
+model InventarioInicial {
+  id               String   @id @default(cuid())
+  idGranja         String
+  idMateriaPrima   String
+  cantidadInicial  Float    @default(0)
+  precioInicial    Float    @default(0)
+  fechaRegistro    DateTime @default(now())
+
+  granja           Granja       @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  materiaPrima     MateriaPrima @relation(fields: [idMateriaPrima], references: [id])
+
+  @@unique([idGranja, idMateriaPrima])
+  @@index([idGranja])
+  @@map("t_inventario_inicial")
 }
 
 model CompraCabecera {

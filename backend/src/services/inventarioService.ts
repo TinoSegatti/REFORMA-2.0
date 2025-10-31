@@ -17,15 +17,23 @@ interface CalcularInventarioParams {
 export async function calcularCantidadAcumulada(params: CalcularInventarioParams): Promise<number> {
   const { idGranja, idMateriaPrima } = params;
 
-  const resultado = await prisma.$queryRaw<[{ cantidad: number }]>`
-    SELECT COALESCE(SUM(cd.cantidad_comprada), 0) as cantidad
+  const resultado = await prisma.$queryRaw<[{ cantidad: unknown }]>`
+    SELECT COALESCE(SUM(cd."cantidadComprada"), 0) as cantidad
     FROM t_compra_detalle cd
-    INNER JOIN t_compra_cabecera cc ON cd.id_compra = cc.id
-    WHERE cc.id_granja = ${idGranja}
-      AND cd.id_materia_prima = ${idMateriaPrima}
+    INNER JOIN t_compra_cabecera cc ON cd."idCompra" = cc.id
+    WHERE cc."idGranja" = ${idGranja}
+      AND cd."idMateriaPrima" = ${idMateriaPrima}
   `;
 
-  return resultado[0]?.cantidad || 0;
+  const sumaCompras = Number(resultado[0]?.cantidad || 0);
+
+  // Incluir base de inicialización persistida
+  const ini = await prisma.inventarioInicial.findUnique({
+    where: { idGranja_idMateriaPrima: { idGranja, idMateriaPrima } }
+  });
+  const baseInicial = Number(ini?.cantidadInicial || 0);
+
+  return baseInicial + sumaCompras;
 }
 
 /**
@@ -40,11 +48,11 @@ export async function calcularCantidadSistema(params: CalcularInventarioParams):
 
   // Salidas totales (fabricaciones)
   const cantidadUsada = await prisma.$queryRaw<[{ cantidad: number }]>`
-    SELECT COALESCE(SUM(df.cantidad_usada), 0) as cantidad
+    SELECT COALESCE(SUM(df."cantidadUsada"), 0) as cantidad
     FROM t_detalle_fabricacion df
-    INNER JOIN t_fabricacion f ON df.id_fabricacion = f.id
-    WHERE f.id_granja = ${idGranja}
-      AND df.id_materia_prima = ${idMateriaPrima}
+    INNER JOIN t_fabricacion f ON df."idFabricacion" = f.id
+    WHERE f."idGranja" = ${idGranja}
+      AND df."idMateriaPrima" = ${idMateriaPrima}
   `;
 
   const cantidad_usada_total = cantidadUsada[0]?.cantidad || 0;
@@ -59,24 +67,38 @@ export async function calcularCantidadSistema(params: CalcularInventarioParams):
 export async function calcularPrecioAlmacen(params: CalcularInventarioParams): Promise<number> {
   const { idGranja, idMateriaPrima } = params;
 
-  const resultado = await prisma.$queryRaw<[{ 
-    total_dinero: number, 
-    total_cantidad: number 
+  // Promedio simple de precios unitarios (no ponderado) + incluir inicialización como 1 evento si existe
+  const comprasAgg = await prisma.$queryRaw<[{ 
+    suma_precios: number,
+    cantidad_eventos: number
   }]>`
     SELECT 
-      COALESCE(SUM(cd.cantidad_comprada * cd.precio_unitario), 0) as total_dinero,
-      COALESCE(SUM(cd.cantidad_comprada), 0) as total_cantidad
+      COALESCE(SUM(cd."precioUnitario"), 0) as suma_precios,
+      COUNT(cd.id) as cantidad_eventos
     FROM t_compra_detalle cd
-    INNER JOIN t_compra_cabecera cc ON cd.id_compra = cc.id
-    WHERE cc.id_granja = ${idGranja}
-      AND cd.id_materia_prima = ${idMateriaPrima}
+    INNER JOIN t_compra_cabecera cc ON cd."idCompra" = cc.id
+    WHERE cc."idGranja" = ${idGranja}
+      AND cd."idMateriaPrima" = ${idMateriaPrima}
   `;
 
-  const { total_dinero = 0, total_cantidad = 0 } = resultado[0] || {};
+  const rawAgg = comprasAgg[0] || ({} as any);
+  const suma_precios = Number((rawAgg as any).suma_precios ?? 0);
+  const cantidad_eventos = Number((rawAgg as any).cantidad_eventos ?? 0);
 
-  if (total_cantidad === 0) return 0;
-  
-  return total_dinero / total_cantidad;
+  // Usar inventario inicial persistido como primer evento
+  const ini = await prisma.inventarioInicial.findUnique({
+    where: { idGranja_idMateriaPrima: { idGranja, idMateriaPrima } }
+  });
+  const tieneInicializacion = !!ini && (ini.cantidadInicial > 0 || ini.precioInicial > 0);
+  const precioInicial = Number(ini?.precioInicial || 0);
+
+  if (!tieneInicializacion && cantidad_eventos === 0) return 0;
+
+  const sumaTotal = suma_precios + (tieneInicializacion ? precioInicial : 0);
+  const eventosTotales = cantidad_eventos + (tieneInicializacion ? 1 : 0);
+
+  if (eventosTotales === 0) return 0;
+  return sumaTotal / eventosTotales;
 }
 
 /**
@@ -117,8 +139,12 @@ export async function recalcularInventario(params: CalcularInventarioParams) {
     }
   });
 
-  // Si no existe inventario, usar cantidad_sistema como cantidad_real inicial
-  const cantidad_real = inventarioActual?.cantidadReal || cantidad_sistema;
+  // Mantener la diferencia manual real - sistema
+  const diferenciaManual = inventarioActual
+    ? (inventarioActual.cantidadReal - inventarioActual.cantidadSistema)
+    : 0;
+  // Si no existe inventario, diferenciaManual = 0 → real = sistema
+  const cantidad_real = cantidad_sistema + diferenciaManual;
 
   // Calcular valores derivados
   const merma = calcularMerma(cantidad_sistema, cantidad_real);
@@ -145,6 +171,7 @@ export async function recalcularInventario(params: CalcularInventarioParams) {
     update: {
       cantidadAcumulada: cantidad_acumulada,
       cantidadSistema: cantidad_sistema,
+      cantidadReal: cantidad_real,
       merma,
       precioAlmacen: precio_almacen,
       valorStock: valor_stock
@@ -232,6 +259,45 @@ export async function obtenerInventarioGranja(idGranja: string) {
       materiaPrima: {
         nombreMateriaPrima: 'asc'
       }
+    }
+  });
+}
+
+export async function sincronizarCantidadRealConSistema(idGranja: string, idMateriaPrima: string) {
+  // Obtener inventario actual
+  const inv = await prisma.inventario.findUnique({
+    where: {
+      idGranja_idMateriaPrima: {
+        idGranja,
+        idMateriaPrima
+      }
+    }
+  });
+
+  if (!inv) {
+    // Si no existe, ejecutar un recálculo completo que lo cree
+    await recalcularInventario({ idGranja, idMateriaPrima });
+    return;
+  }
+
+  // Preservar el ajuste manual del usuario manteniendo constante la diferencia (real - sistema)
+  const diferenciaManual = inv.cantidadReal - inv.cantidadSistema; // puede ser positiva o negativa
+  const cantidadReal = inv.cantidadSistema + diferenciaManual;
+  const valorStock = cantidadReal * inv.precioAlmacen;
+  // Nota: en este servicio merma se definió como (sistema - real)
+  const merma = inv.cantidadSistema - cantidadReal;
+
+  await prisma.inventario.update({
+    where: {
+      idGranja_idMateriaPrima: {
+        idGranja,
+        idMateriaPrima
+      }
+    },
+    data: {
+      cantidadReal,
+      merma,
+      valorStock
     }
   });
 }
