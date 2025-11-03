@@ -6,6 +6,8 @@
 import prisma from '../lib/prisma';
 import { recalcularInventario, sincronizarCantidadRealConSistema } from './inventarioService';
 import { recalcularFormulasPorMateriaPrima } from './formulaService';
+import { registrarAuditoria } from './auditoriaService';
+import { TablaOrigen } from '@prisma/client';
 
 interface CrearCompraParams {
   idGranja: string;
@@ -138,15 +140,39 @@ export async function obtenerComprasGranja(
     materiaPrima?: string;
     proveedor?: string;
     numeroFactura?: string;
+    incluirEliminadas?: boolean;
   }
 ) {
-  const where: any = { idGranja };
+  const where: any = { 
+    idGranja,
+    // Por defecto, solo mostrar compras activas
+    activo: filters?.incluirEliminadas ? undefined : true,
+  };
 
-  if (filters?.desde) {
-    where.fechaCompra = { ...where.fechaCompra, gte: new Date(filters.desde) };
-  }
-  if (filters?.hasta) {
-    where.fechaCompra = { ...where.fechaCompra, lte: new Date(filters.hasta) };
+  // Construir filtro de fechas correctamente
+  // Nota: Los inputs de fecha vienen como YYYY-MM-DD y debemos considerar todo el día
+  if (filters?.desde || filters?.hasta) {
+    where.fechaCompra = {};
+    if (filters?.desde) {
+      // Establecer inicio del día (00:00:00) en UTC para incluir todo el día
+      // Si viene como "YYYY-MM-DD", crear fecha en UTC para evitar problemas de zona horaria
+      const desdeStr = filters.desde.includes('T') ? filters.desde : `${filters.desde}T00:00:00.000Z`;
+      const desdeDate = new Date(desdeStr);
+      console.log('[DEBUG] Filtro desde:', filters.desde, '→', desdeDate.toISOString());
+      where.fechaCompra.gte = desdeDate;
+    }
+    if (filters?.hasta) {
+      // Establecer fin del día (23:59:59) en UTC para incluir todo el día
+      // Si viene como "YYYY-MM-DD", crear fecha fin del día en UTC
+      const hastaStr = filters.hasta.includes('T') ? filters.hasta : `${filters.hasta}T23:59:59.999Z`;
+      const hastaDate = new Date(hastaStr);
+      console.log('[DEBUG] Filtro hasta:', filters.hasta, '→', hastaDate.toISOString());
+      where.fechaCompra.lte = hastaDate;
+    }
+    console.log('[DEBUG] where.fechaCompra completo:', {
+      gte: where.fechaCompra.gte ? where.fechaCompra.gte.toISOString() : undefined,
+      lte: where.fechaCompra.lte ? where.fechaCompra.lte.toISOString() : undefined
+    });
   }
   if (filters?.numeroFactura) {
     where.numeroFactura = { contains: filters.numeroFactura, mode: 'insensitive' };
@@ -160,6 +186,16 @@ export async function obtenerComprasGranja(
     };
   }
 
+  // Debug: mostrar where de forma legible
+  const whereDebug: any = { ...where };
+  if (whereDebug.fechaCompra) {
+    whereDebug.fechaCompra = {
+      gte: whereDebug.fechaCompra.gte?.toISOString(),
+      lte: whereDebug.fechaCompra.lte?.toISOString()
+    };
+  }
+  console.log('[DEBUG] Query where completo:', JSON.stringify(whereDebug, null, 2));
+  
   let compras = await prisma.compraCabecera.findMany({
     where,
     include: {
@@ -171,7 +207,16 @@ export async function obtenerComprasGranja(
       },
       comprasDetalle: {
         select: {
-          id: true // Solo necesitamos el ID para contar items
+          id: true,
+          cantidadComprada: true,
+          precioUnitario: true,
+          subtotal: true,
+          materiaPrima: {
+            select: {
+              codigoMateriaPrima: true,
+              nombreMateriaPrima: true
+            }
+          }
         }
       }
     },
@@ -179,15 +224,36 @@ export async function obtenerComprasGranja(
       fechaCompra: 'desc'
     }
   });
+  
+  console.log('[DEBUG] Compras encontradas:', compras.length);
+  if (compras.length > 0 && where.fechaCompra) {
+    console.log('[DEBUG] Ejemplo de fecha de compra encontrada:', compras[0].fechaCompra.toISOString());
+  }
 
   // Filtrar por materia prima en detalle (post-query)
   // Nota: Para este filtro necesitamos los detalles completos, así que hacemos una consulta adicional
   if (filters?.materiaPrima) {
+    // Asegurar que el filtro de activo se aplique también aquí
+    const whereConActivo = {
+      ...where,
+      activo: filters?.incluirEliminadas ? undefined : true,
+    };
+    
     const comprasConDetalles = await prisma.compraCabecera.findMany({
-      where,
+      where: whereConActivo,
       include: {
+        proveedor: {
+          select: {
+            codigoProveedor: true,
+            nombreProveedor: true
+          }
+        },
         comprasDetalle: {
-          include: {
+          select: {
+            id: true,
+            cantidadComprada: true,
+            precioUnitario: true,
+            subtotal: true,
             materiaPrima: {
               select: {
                 codigoMateriaPrima: true,
@@ -209,11 +275,7 @@ export async function obtenerComprasGranja(
       )
     );
 
-    // Devolver solo los IDs de detalles para mantener consistencia
-    return comprasFiltradas.map(compra => ({
-      ...compra,
-      comprasDetalle: compra.comprasDetalle.map(d => ({ id: d.id }))
-    }));
+    return comprasFiltradas;
   }
 
   return compras;
@@ -223,34 +285,41 @@ export async function obtenerComprasGranja(
  * Obtiene estadísticas de compras
  */
 export async function obtenerEstadisticasCompras(idGranja: string) {
-  // Frecuencia de compras por materia prima (cuántas veces se compró cada MP)
-  const frecuenciaPorMateria = await prisma.$queryRaw<Array<{
+  // Cantidad total comprada por materia prima (suma de todas las cantidades compradas)
+  const cantidadPorMateria = await prisma.$queryRaw<Array<{
     codigo: string;
     nombre: string;
-    vecesComprada: number;
+    cantidad_total: unknown;
+    veces_comprada: unknown;
   }>>`
     SELECT
       mp."codigoMateriaPrima" as codigo,
       mp."nombreMateriaPrima" as nombre,
+      COALESCE(SUM(cd."cantidadComprada"), 0) as cantidad_total,
       COUNT(DISTINCT cd.id) as veces_comprada
     FROM t_compra_detalle cd
     INNER JOIN t_compra_cabecera cc ON cd."idCompra" = cc.id
     INNER JOIN t_materia_prima mp ON cd."idMateriaPrima" = mp.id
     WHERE cc."idGranja" = ${idGranja}
+      AND cc."activo" = true
     GROUP BY mp.id, mp."codigoMateriaPrima", mp."nombreMateriaPrima"
-    ORDER BY veces_comprada DESC
+    ORDER BY cantidad_total DESC
     LIMIT 10
   `;
 
   const totalCompras = await prisma.compraCabecera.count({
-    where: { idGranja }
+    where: { 
+      idGranja,
+      activo: true
+    }
   });
 
   return {
-    frecuenciaPorMateria: frecuenciaPorMateria.map(item => ({
+    frecuenciaPorMateria: cantidadPorMateria.map(item => ({
       codigo: item.codigo,
       nombre: item.nombre,
-      vecesComprada: Number(item.vecesComprada)
+      vecesComprada: Number(item.veces_comprada || 0),
+      cantidadTotal: Number(item.cantidad_total || 0)
     })),
     totalCompras
   };
@@ -301,7 +370,10 @@ export async function obtenerUltimoPrecio(idGranja: string, idMateriaPrima: stri
   const ultimaCompra = await prisma.compraDetalle.findFirst({
     where: {
       materiaPrima: { id: idMateriaPrima },
-      compra: { idGranja }
+      compra: { 
+        idGranja,
+        activo: true
+      }
     },
     orderBy: {
       compra: {
@@ -464,6 +536,20 @@ export async function eliminarItemCompra(idDetalle: string) {
     throw new Error('Detalle de compra no encontrado');
   }
 
+  // Validar que no haya fabricaciones que usen esta materia prima
+  const fabricacionesCount = await prisma.detalleFabricacion.count({
+    where: {
+      idMateriaPrima: detalle.idMateriaPrima,
+      fabricacion: {
+        idGranja: detalle.compra.idGranja
+      }
+    }
+  });
+
+  if (fabricacionesCount > 0) {
+    throw new Error('No se puede eliminar este item de compra porque hay fabricaciones que utilizan esta materia prima. Elimine primero todas las fabricaciones relacionadas.');
+  }
+
   // Guardar datos antes de eliminar
   const { idCompra, idMateriaPrima, compra } = detalle;
 
@@ -506,15 +592,24 @@ export async function eliminarItemCompra(idDetalle: string) {
 }
 
 /**
- * Eliminar una compra y revertir todos los cambios
+ * Eliminar una compra (soft delete)
  * Solo si no tiene items (validar antes)
  */
-export async function eliminarCompra(idCompra: string) {
+export async function eliminarCompra(idCompra: string, idUsuario: string) {
   // Obtener la compra con todos sus detalles
   const compra = await prisma.compraCabecera.findUnique({
     where: { id: idCompra },
     include: {
-      comprasDetalle: true
+      comprasDetalle: {
+        include: {
+          materiaPrima: {
+            select: {
+              codigoMateriaPrima: true,
+              nombreMateriaPrima: true
+            }
+          }
+        }
+      }
     }
   });
 
@@ -527,10 +622,199 @@ export async function eliminarCompra(idCompra: string) {
     throw new Error('No se puede eliminar una compra que tiene items. Elimine primero todos los items.');
   }
 
-  // Eliminar la compra (cascada eliminará los detalles si quedan)
-  await prisma.compraCabecera.delete({
-    where: { id: idCompra }
+  // Validar que no haya fabricaciones activas en la granja (aunque no haya items, verificar por seguridad)
+  const fabricacionesCount = await prisma.fabricacion.count({
+    where: { 
+      idGranja: compra.idGranja,
+      activo: true
+    }
+  });
+
+  if (fabricacionesCount > 0) {
+    throw new Error('No se puede eliminar esta compra porque existen fabricaciones registradas en la granja. Elimine primero todas las fabricaciones.');
+  }
+
+  // Soft delete: marcar como inactiva en lugar de eliminar
+  await prisma.compraCabecera.update({
+    where: { id: idCompra },
+    data: {
+      activo: false,
+      fechaEliminacion: new Date(),
+      eliminadoPor: idUsuario,
+    },
+  });
+
+  // Registrar en auditoría
+  await registrarAuditoria({
+    idUsuario,
+    idGranja: compra.idGranja,
+    tablaOrigen: TablaOrigen.COMPRA,
+    idRegistro: idCompra,
+    accion: 'DELETE',
+    descripcion: `Compra eliminada: Factura ${compra.numeroFactura || 'N/A'}`,
+    datosAnteriores: compra,
   });
 
   return { mensaje: 'Compra eliminada exitosamente' };
+}
+
+/**
+ * Eliminar TODAS las compras de una granja (soft delete)
+ * Solo para administradores
+ * Esta operación afectará el inventario
+ */
+export async function eliminarTodasLasCompras(idGranja: string, idUsuario: string) {
+  // Obtener todas las compras activas de la granja
+  const compras = await prisma.compraCabecera.findMany({
+    where: { 
+      idGranja,
+      activo: true
+    },
+    include: {
+      comprasDetalle: true
+    }
+  });
+
+  // Verificar que todas las compras no tengan items
+  const comprasConItems = compras.filter(c => c.comprasDetalle.length > 0);
+  if (comprasConItems.length > 0) {
+    throw new Error(`No se pueden eliminar todas las compras porque ${comprasConItems.length} compra(s) tienen items. Elimine primero todos los items.`);
+  }
+
+  // Verificar que no haya fabricaciones activas en la granja
+  const fabricacionesCount = await prisma.fabricacion.count({
+    where: { 
+      idGranja,
+      activo: true
+    }
+  });
+
+  if (fabricacionesCount > 0) {
+    throw new Error('No se pueden eliminar todas las compras porque existen fabricaciones registradas en la granja. Elimine primero todas las fabricaciones.');
+  }
+
+  // Soft delete: marcar todas las compras como inactivas
+  const resultado = await prisma.compraCabecera.updateMany({
+    where: { 
+      idGranja,
+      activo: true
+    },
+    data: {
+      activo: false,
+      fechaEliminacion: new Date(),
+      eliminadoPor: idUsuario,
+    },
+  });
+
+  // Registrar en auditoría
+  await registrarAuditoria({
+    idUsuario,
+    idGranja,
+    tablaOrigen: TablaOrigen.COMPRA,
+    idRegistro: 'BULK',
+    accion: 'BULK_DELETE',
+    descripcion: `Eliminación masiva de ${resultado.count} compras`,
+  });
+
+  // Recalcular inventario para todas las materias primas que tuvieron compras
+  // Esto restaurará los precios y cantidades al estado inicial
+  const materiasPrimasAfectadas = await prisma.materiaPrima.findMany({
+    where: { idGranja },
+    select: { id: true }
+  });
+
+  for (const mp of materiasPrimasAfectadas) {
+    // Recalcular inventario (esto restaurará los valores basados solo en inventario inicial)
+    const { recalcularInventario } = await import('./inventarioService');
+    await recalcularInventario({ idGranja, idMateriaPrima: mp.id });
+  }
+
+  return { 
+    mensaje: 'Todas las compras eliminadas exitosamente',
+    eliminadas: resultado.count
+  };
+}
+
+/**
+ * Restaurar una compra eliminada (soft restore)
+ */
+export async function restaurarCompra(idCompra: string, idUsuario: string) {
+  // Verificar que la compra existe y está eliminada
+  const compra = await prisma.compraCabecera.findUnique({
+    where: { id: idCompra },
+    include: {
+      comprasDetalle: true
+    }
+  });
+
+  if (!compra) {
+    throw new Error('Compra no encontrada');
+  }
+
+  if (compra.activo) {
+    throw new Error('La compra ya está activa');
+  }
+
+  // Restaurar la compra
+  await prisma.compraCabecera.update({
+    where: { id: idCompra },
+    data: {
+      activo: true,
+      fechaEliminacion: null,
+      eliminadoPor: null,
+    },
+  });
+
+  // Recalcular inventario para todas las materias primas afectadas
+  const materiasPrimasAfectadas = new Set<string>();
+  for (const detalle of compra.comprasDetalle) {
+    materiasPrimasAfectadas.add(detalle.idMateriaPrima);
+  }
+
+  for (const idMateriaPrima of materiasPrimasAfectadas) {
+    await recalcularInventario({ idGranja: compra.idGranja, idMateriaPrima });
+  }
+
+  // Registrar en auditoría
+  await registrarAuditoria({
+    idUsuario,
+    idGranja: compra.idGranja,
+    tablaOrigen: TablaOrigen.COMPRA,
+    idRegistro: idCompra,
+    accion: 'RESTORE',
+    descripcion: `Compra restaurada: Factura ${compra.numeroFactura || 'N/A'}`,
+    datosNuevos: { activo: true },
+  });
+
+  return { mensaje: 'Compra restaurada exitosamente' };
+}
+
+/**
+ * Obtener compras eliminadas de una granja
+ */
+export async function obtenerComprasEliminadas(idGranja: string) {
+  return await prisma.compraCabecera.findMany({
+    where: {
+      idGranja,
+      activo: false,
+    },
+    include: {
+      proveedor: {
+        select: {
+          codigoProveedor: true,
+          nombreProveedor: true,
+        },
+      },
+      usuario: {
+        select: {
+          nombreUsuario: true,
+          apellidoUsuario: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      fechaEliminacion: 'desc',
+    },
+  });
 }

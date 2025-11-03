@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { Modal } from '@/components/ui';
+import { Moon, Sun, Factory } from 'lucide-react';
 
 interface Granja {
   id: string;
@@ -24,6 +25,29 @@ export default function MisPlantasPage() {
   const [granjaEliminando, setGranjaEliminando] = useState<Granja | null>(null);
   const [nombreGranja, setNombreGranja] = useState('');
   const [creando, setCreando] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      setDarkMode(false);
+      document.documentElement.className = 'light';
+      document.body.style.backgroundColor = '#ffffff';
+    } else {
+      setDarkMode(true);
+      document.documentElement.className = 'dark';
+      document.body.style.backgroundColor = '#0a0a0f';
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    document.documentElement.className = newDarkMode ? 'dark' : 'light';
+    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+    // Actualizar fondo según el tema
+    document.body.style.backgroundColor = newDarkMode ? '#0a0a0f' : '#ffffff';
+  };
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -175,64 +199,73 @@ export default function MisPlantasPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAE4]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#B6CCAE] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
+          <Factory className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
+          <p className="text-foreground/80">Cargando...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAE4]">
+    <div className="min-h-screen">
       {/* Navbar */}
-      <nav className="bg-[#121212] text-white px-8 py-4 shadow-lg">
+      <nav className="bg-black/40 backdrop-blur-xl text-white px-8 py-4 border-b border-white/10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#F5B8DA] to-[#E599C6] rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30">
               <span className="text-white font-bold">R</span>
             </div>
             <h1 className="text-xl font-bold">REFORMA</h1>
           </div>
-          <button
-            onClick={() => {
-              authService.logout();
-              router.push('/login');
-            }}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-          >
-            Salir
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              className="p-2 glass-surface text-white rounded-lg hover:bg-white/10 transition-all"
+              title={darkMode ? 'Modo claro' : 'Modo oscuro'}
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+            <button
+              onClick={() => {
+                authService.logout();
+                router.push('/login');
+              }}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors hover:shadow-lg hover:shadow-red-600/30"
+            >
+              Salir
+            </button>
+          </div>
         </div>
       </nav>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Mis Plantas 🏭
+          <h2 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
+            Mis Plantas <Factory className="h-8 w-8" />
           </h2>
-          <p className="text-gray-600">
+          <p className="text-foreground/70">
             Gestiona tus plantas agropecuarias
           </p>
         </div>
 
         {/* Lista de Granjas */}
         {granjas.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 shadow-sm border border-gray-200 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-[#B6CCAE] to-[#9AAB64] rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-5xl">🏭</span>
+          <div className="glass-card p-12 text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/30">
+              <Factory className="h-12 w-12 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-foreground mb-2">
               No tienes plantas registradas
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-foreground/70 mb-6">
               Crea tu primera planta para comenzar
             </p>
             <button
               onClick={abrirModalCrear}
-              className="px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
             >
               Crear Primera Planta
             </button>
@@ -240,12 +273,12 @@ export default function MisPlantasPage() {
         ) : (
           <>
             <div className="mb-6 flex justify-between items-center">
-              <p className="text-gray-600">
+              <p className="text-foreground/70">
                 Tienes {granjas.length} planta{granjas.length !== 1 ? 's' : ''}
               </p>
               <button
                 onClick={abrirModalCrear}
-                className="px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
               >
                 + Nueva Planta
               </button>
@@ -253,40 +286,40 @@ export default function MisPlantasPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {granjas.map((granja) => (
-                <div key={granja.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group">
+                <div key={granja.id} className="glass-card p-6 group">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-[#F5B8DA] to-[#E599C6] rounded-xl flex items-center justify-center">
-                      <span className="text-3xl">🏭</span>
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                      <Factory className="h-10 w-10 text-white" />
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => abrirModalEditar(granja)}
-                        className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        className="p-2 glass-surface text-purple-400 rounded-lg hover:bg-purple-500/20 transition-colors"
                         title="Editar"
                       >
                         ✏️
                       </button>
                       <button
                         onClick={() => abrirModalEliminar(granja)}
-                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                        className="p-2 glass-surface text-red-400 rounded-lg hover:bg-red-500/20 transition-colors"
                         title="Eliminar"
                       >
                         🗑️
                       </button>
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  <h3 className="text-xl font-bold text-foreground mb-2">
                     {granja.nombreGranja}
                   </h3>
                   {granja.descripcion && (
-                    <p className="text-sm text-gray-600 mb-4">{granja.descripcion}</p>
+                    <p className="text-sm text-foreground/70 mb-4">{granja.descripcion}</p>
                   )}
-                  <p className="text-xs text-gray-500 mb-4">
+                  <p className="text-xs text-foreground/50 mb-4">
                     Creada: {new Date(granja.fechaCreacion).toLocaleDateString()}
                   </p>
                   <button
                     onClick={() => seleccionarGranja(granja)}
-                    className="w-full py-3 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
                   >
                     Abrir Planta
                   </button>
@@ -306,14 +339,14 @@ export default function MisPlantasPage() {
           <>
             <button
               onClick={() => setShowModalCrear(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={crearGranja}
               disabled={!nombreGranja.trim() || creando}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               {creando ? 'Creando...' : 'Crear'}
             </button>
@@ -321,7 +354,7 @@ export default function MisPlantasPage() {
         }
       >
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-foreground/80 mb-2">
             Nombre de la planta
           </label>
           <input
@@ -329,7 +362,7 @@ export default function MisPlantasPage() {
             value={nombreGranja}
             onChange={(e) => setNombreGranja(e.target.value)}
             placeholder="Ej: Planta Agropecuaria Sur"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+            className="glass-input"
             autoFocus
           />
         </div>
@@ -344,14 +377,14 @@ export default function MisPlantasPage() {
           <>
             <button
               onClick={() => setShowModalEditar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={editarGranja}
               disabled={!nombreGranja.trim()}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
             >
               Guardar
             </button>
@@ -359,14 +392,14 @@ export default function MisPlantasPage() {
         }
       >
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-foreground/80 mb-2">
             Nombre de la planta
           </label>
           <input
             type="text"
             value={nombreGranja}
             onChange={(e) => setNombreGranja(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+            className="glass-input"
             autoFocus
           />
         </div>
@@ -381,20 +414,20 @@ export default function MisPlantasPage() {
           <>
             <button
               onClick={() => setShowModalEliminar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={eliminarGranja}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all"
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30"
             >
               Eliminar
             </button>
           </>
         }
       >
-        <p className="text-gray-700">
+        <p className="text-foreground/80">
           ¿Está seguro de que desea eliminar la planta <strong>{granjaEliminando?.nombreGranja}</strong>?
           <br />
           Esta acción no se puede deshacer.

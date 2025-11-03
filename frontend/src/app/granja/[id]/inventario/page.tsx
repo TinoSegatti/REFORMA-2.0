@@ -8,6 +8,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
 import InventarioExistenciasChart from '@/components/charts/InventarioExistenciasChart';
 import InventarioValorChart from '@/components/charts/InventarioValorChart';
+import { Package, Trash2, Rocket, Scale, DollarSign, AlertTriangle } from 'lucide-react';
 
 interface MateriaPrima {
   id: string;
@@ -65,6 +66,8 @@ export default function InventarioPage() {
   const [showModalInicializar, setShowModalInicializar] = useState(false);
   const [showModalVaciar, setShowModalVaciar] = useState(false);
   const [showModalEditar, setShowModalEditar] = useState(false);
+  const [showModalAdvertencia, setShowModalAdvertencia] = useState(false);
+  const [mensajeAdvertencia, setMensajeAdvertencia] = useState('');
   const [editando, setEditando] = useState<InventarioItem | null>(null);
   const [formData, setFormData] = useState({
     cantidadReal: ''
@@ -241,13 +244,22 @@ export default function InventarioPage() {
   const vaciarInventario = async () => {
     try {
       const token = authService.getToken();
-      if (!token) return;
+      if (!token) {
+        setMensajeAdvertencia('No autenticado. Por favor, inicia sesión nuevamente.');
+        setShowModalAdvertencia(true);
+        return;
+      }
 
       await apiClient.vaciarInventario(token, idGranja);
       setShowModalVaciar(false);
       await cargarDatos();
+      setMensajeAdvertencia('Inventario vaciado correctamente.');
+      setShowModalAdvertencia(true);
     } catch (error: unknown) {
       console.error('Error vaciando inventario:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error al vaciar inventario';
+      setMensajeAdvertencia(errorMessage);
+      setShowModalAdvertencia(true);
     }
   };
 
@@ -258,10 +270,10 @@ export default function InventarioPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAE4]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <p className="text-4xl mb-2">📦</p>
-          <p className="text-gray-600 font-medium">Cargando inventario...</p>
+          <Package className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
+          <p className="text-foreground/80 font-medium">Cargando inventario...</p>
         </div>
       </div>
     );
@@ -273,16 +285,16 @@ export default function InventarioPage() {
     Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAE4]">
+    <div className="flex min-h-screen">
       <Sidebar />
       
       <main className="flex-1 ml-64">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-6">
+        <header className="glass-card px-8 py-6 m-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Inventario</h2>
-              <p className="text-gray-600 mt-1">Gestión de stock de materias primas</p>
+              <h2 className="text-3xl font-bold text-foreground">Inventario</h2>
+              <p className="text-foreground/70 mt-1">Gestión de stock de materias primas</p>
             </div>
             
             <div className="flex gap-3">
@@ -290,18 +302,18 @@ export default function InventarioPage() {
               {inventario.length > 0 && (
                 <button
                   onClick={() => setShowModalVaciar(true)}
-                  className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center gap-2"
+                  className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center gap-2 hover:shadow-lg hover:shadow-red-600/30"
                 >
-                  <span>🗑️</span>
+                  <Trash2 className="h-5 w-5" />
                   Vaciar Inventario
                 </button>
               )}
               {inventario.length === 0 && (
                 <button
                   onClick={() => setShowModalInicializar(true)}
-                  className="px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
                 >
-                  <span>🚀</span>
+                  <Rocket className="h-5 w-5" />
                   Inicializar Inventario
                 </button>
               )}
@@ -310,41 +322,41 @@ export default function InventarioPage() {
         </header>
 
         {/* Content */}
-        <div className="max-w-7xl mx-auto p-8 space-y-8">
+        <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
           {/* Cards de estadísticas */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+            <div className="glass-card p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#B6CCAE] to-[#9AAB64] rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">📦</span>
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <Package className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Materias Primas</p>
-                  <p className="text-2xl font-bold text-gray-900">{estadisticas?.totalMateriasPrimas || 0}</p>
+                  <p className="text-sm text-foreground/70">Total Materias Primas</p>
+                  <p className="text-2xl font-bold text-foreground">{estadisticas?.totalMateriasPrimas || 0}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+            <div className="glass-card p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#FAD863] to-[#F8C540] rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">⚖️</span>
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-400 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30">
+                  <Scale className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Kilos Totales</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatNumber(((estadisticas?.toneladasTotales || 0) * 1000), 0)} kg</p>
+                  <p className="text-sm text-foreground/70">Kilos Totales</p>
+                  <p className="text-2xl font-bold text-foreground">{formatNumber(((estadisticas?.toneladasTotales || 0) * 1000), 0)} kg</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+            <div className="glass-card p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#F5B8DA] to-[#E8A87C] rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">💰</span>
+                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-pink-400 rounded-xl flex items-center justify-center shadow-lg shadow-pink-500/30">
+                  <DollarSign className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Costo Total Stock</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(estadisticas?.costoTotalStock || 0)}</p>
+                  <p className="text-sm text-foreground/70">Costo Total Stock</p>
+                  <p className="text-2xl font-bold text-foreground">{formatCurrency(estadisticas?.costoTotalStock || 0)}</p>
                 </div>
               </div>
             </div>
@@ -352,25 +364,28 @@ export default function InventarioPage() {
 
           {/* Alertas de stock */}
           {estadisticas?.alertasStock && estadisticas.alertasStock.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-red-800 mb-4">⚠️ Alertas de Stock</h3>
+            <div className="glass-card p-6 border-red-500/30">
+              <h3 className="text-lg font-bold text-red-400 mb-4 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Alertas de Stock
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {estadisticas.alertasStock.map((alerta, index) => (
-                  <div key={index} className="bg-white rounded-lg p-4 border border-red-200">
+                  <div key={index} className="glass-card p-4 border-red-500/30">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-gray-900">{alerta.codigo}</p>
-                        <p className="text-sm text-gray-600">{alerta.nombre}</p>
+                        <p className="font-medium text-foreground">{alerta.codigo}</p>
+                        <p className="text-sm text-foreground/70">{alerta.nombre}</p>
                       </div>
                       <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                         alerta.tipo === 'NEGATIVO' 
-                          ? 'bg-red-100 text-red-800' 
-                          : 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-red-500/20 text-red-400' 
+                          : 'bg-yellow-500/20 text-yellow-400'
                       }`}>
                         {alerta.tipo === 'NEGATIVO' ? 'NEGATIVO' : 'CERO'}
                       </div>
                     </div>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-foreground/60 mt-2">
                       Cantidad: {alerta.cantidadReal.toFixed(2)} kg
                     </p>
                   </div>
@@ -381,20 +396,20 @@ export default function InventarioPage() {
 
           {/* Gráficos */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+            <div className="glass-card p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Materias Primas con Más Existencias</h3>
-                <span className="text-xs text-gray-500 font-medium">
+                <h3 className="text-lg font-bold text-foreground">Materias Primas con Más Existencias</h3>
+                <span className="text-xs text-foreground/60 font-medium">
                   Top {estadisticas?.materiasMasExistencias?.length || 0}
                 </span>
               </div>
               <InventarioExistenciasChart data={estadisticas?.materiasMasExistencias || []} />
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+            <div className="glass-card p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Materias Primas de Más Valor</h3>
-                <span className="text-xs text-gray-500 font-medium">
+                <h3 className="text-lg font-bold text-foreground">Materias Primas de Más Valor</h3>
+                <span className="text-xs text-foreground/60 font-medium">
                   Top {estadisticas?.materiasMasValor?.length || 0}
                 </span>
               </div>
@@ -403,58 +418,58 @@ export default function InventarioPage() {
           </div>
 
           {/* Filtro */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+          <div className="glass-card p-6">
             <input
               type="text"
               placeholder="Buscar por código o nombre de materia prima..."
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
 
           {/* Tabla */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900">
+                <thead className="bg-white/5">
                   <tr>
-                    <th className="px-6 py-4 text-left font-semibold">Código</th>
-                    <th className="px-6 py-4 text-left font-semibold">Materia Prima</th>
-                  <th className="px-6 py-4 text-left font-semibold">Precio/kg</th>
-                    <th className="px-6 py-4 text-left font-semibold">Cant. Acumulada</th>
-                    <th className="px-6 py-4 text-left font-semibold">Cant. Sistema</th>
-                    <th className="px-6 py-4 text-left font-semibold">Cant. Real</th>
-                    <th className="px-6 py-4 text-left font-semibold">Merma</th>
-                  <th className="px-6 py-4 text-left font-semibold">Costo Stock</th>
-                  <th className="px-6 py-4 text-left font-semibold">Costo Almacén</th>
-                    <th className="px-6 py-4 text-center font-semibold">Acciones</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Código</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Materia Prima</th>
+                  <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Precio/kg</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Cant. Acum.</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Cant. Sistema</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Cant. Real</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Merma</th>
+                  <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Costo Stock</th>
+                  <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Costo Alm.</th>
+                    <th className="px-3 py-3 text-center font-semibold text-foreground/80 text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {inventarioFiltrado.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={10} className="px-3 py-12 text-center text-foreground/60">
                         {filtro ? 'No se encontraron resultados' : 'No hay inventario registrado'}
                       </td>
                     </tr>
                   ) : (
                     inventarioFiltrado.map((item) => (
-                      <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-gray-900 font-medium">{item.materiaPrima.codigoMateriaPrima}</td>
-                        <td className="px-6 py-4 text-gray-900">{item.materiaPrima.nombreMateriaPrima}</td>
-                        <td className="px-6 py-4 text-gray-900 whitespace-nowrap">{formatCurrency(item.materiaPrima.precioPorKilo)}</td>
-                        <td className="px-6 py-4 text-gray-900 whitespace-nowrap">{formatNumber(item.cantidadAcumulada)} kg</td>
-                        <td className="px-6 py-4 text-gray-900 whitespace-nowrap">{formatNumber(item.cantidadSistema)} kg</td>
-                        <td className="px-6 py-4 text-gray-900 whitespace-nowrap">{formatNumber(item.cantidadReal)} kg</td>
-                        <td className={`px-6 py-4 font-medium whitespace-nowrap ${
-                          item.merma > 0 ? 'text-green-600' : item.merma < 0 ? 'text-red-600' : 'text-gray-900'
+                      <tr key={item.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                        <td className="px-3 py-3 text-foreground font-medium text-sm">{item.materiaPrima.codigoMateriaPrima}</td>
+                        <td className="px-3 py-3 text-foreground/90 text-sm">{item.materiaPrima.nombreMateriaPrima}</td>
+                        <td className="px-3 py-3 text-foreground/90 whitespace-nowrap text-sm">{formatCurrency(item.materiaPrima.precioPorKilo)}</td>
+                        <td className="px-3 py-3 text-foreground/90 whitespace-nowrap text-sm">{formatNumber(item.cantidadAcumulada)} kg</td>
+                        <td className="px-3 py-3 text-foreground/90 whitespace-nowrap text-sm">{formatNumber(item.cantidadSistema)} kg</td>
+                        <td className="px-3 py-3 text-foreground/90 whitespace-nowrap text-sm">{formatNumber(item.cantidadReal)} kg</td>
+                        <td className={`px-3 py-3 font-medium whitespace-nowrap text-sm ${
+                          item.merma > 0 ? 'text-green-400' : item.merma < 0 ? 'text-red-400' : 'text-foreground/90'
                         }`}>
                           {formatNumber(item.merma)} kg
                         </td>
-                        <td className="px-6 py-4 text-gray-900 whitespace-nowrap">{formatCurrency(item.valorStock)}</td>
-                        <td className="px-6 py-4 text-gray-900 whitespace-nowrap">{formatCurrency(item.precioAlmacen)}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-3 text-foreground/90 whitespace-nowrap text-sm">{formatCurrency(item.valorStock)}</td>
+                        <td className="px-3 py-3 text-foreground/90 whitespace-nowrap text-sm">{formatCurrency(item.precioAlmacen)}</td>
+                        <td className="px-3 py-3">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => {
@@ -462,7 +477,7 @@ export default function InventarioPage() {
                                 setFormData({ cantidadReal: item.cantidadReal.toString() });
                                 setShowModalEditar(true);
                               }}
-                              className="px-4 py-2 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-lg font-semibold hover:shadow-md transition-all text-sm"
+                              className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-xs"
                             >
                               Editar
                             </button>
@@ -489,13 +504,13 @@ export default function InventarioPage() {
           <>
             <button
               onClick={() => setShowModalInicializar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={inicializarInventario}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
             >
               Inicializar
             </button>
@@ -504,12 +519,12 @@ export default function InventarioPage() {
       >
         <div className="space-y-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <p className="text-gray-700 md:max-w-3xl">
+            <p className="text-foreground/80 md:max-w-3xl">
               Carga las existencias actuales y el costo unitario por materia prima. Estos valores serán el punto de partida del inventario (cantidad acumulada, en sistema y real).
             </p>
             <button
               onClick={agregarLinea}
-              className="px-4 py-2 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-lg font-semibold hover:shadow-md"
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all"
             >
               + Agregar línea
             </button>
@@ -518,10 +533,10 @@ export default function InventarioPage() {
           {/* Vista móvil: tarjetas */}
           <div className="md:hidden space-y-4">
             {lineasInicializacion.map((l, idx) => (
-              <div key={idx} className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
+              <div key={idx} className="glass-card p-4">
                 <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Código MP</label>
+                    <label className="block text-xs text-foreground/70 mb-1">Código MP</label>
                     <div className="relative">
                       <input
                       type="text"
@@ -530,10 +545,10 @@ export default function InventarioPage() {
                       onFocus={() => { setSugIndex(idx); setSugCampo('codigo'); setSugerencias(materiasPrimas.slice(0,8)); }}
                       onBlur={() => setTimeout(() => { setSugIndex(null); setSugCampo(null); }, 150)}
                       placeholder="Ej: MP001"
-                      className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#B6CCAE] focus:outline-none"
+                      className="glass-input"
                       />
                       {sugIndex === idx && sugCampo === 'codigo' && sugerencias.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                        <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
                           {sugerencias.map((mp) => (
                             <button
                               key={mp.id}
@@ -543,9 +558,9 @@ export default function InventarioPage() {
                                 actualizarLinea(idx, 'codigo', mp.codigoMateriaPrima);
                                 setSugIndex(null); setSugCampo(null);
                               }}
-                              className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                              className="w-full text-left px-3 py-2 hover:bg-white/10 text-foreground"
                             >
-                              <span className="font-medium">{mp.codigoMateriaPrima}</span> — <span className="text-gray-600">{mp.nombreMateriaPrima}</span>
+                              <span className="font-medium text-foreground">{mp.codigoMateriaPrima}</span> — <span className="text-foreground/70">{mp.nombreMateriaPrima}</span>
                             </button>
                           ))}
                         </div>
@@ -553,7 +568,7 @@ export default function InventarioPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Nombre MP</label>
+                    <label className="block text-xs text-foreground/70 mb-1">Nombre MP</label>
                     <div className="relative">
                       <input
                       type="text"
@@ -562,10 +577,10 @@ export default function InventarioPage() {
                       onFocus={() => { setSugIndex(idx); setSugCampo('nombre'); setSugerencias(materiasPrimas.slice(0,8)); }}
                       onBlur={() => setTimeout(() => { setSugIndex(null); setSugCampo(null); }, 150)}
                       placeholder="Ej: MAIZ"
-                      className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#B6CCAE] focus:outline-none"
+                      className="glass-input"
                       />
                       {sugIndex === idx && sugCampo === 'nombre' && sugerencias.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                        <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
                           {sugerencias.map((mp) => (
                             <button
                               key={mp.id}
@@ -575,9 +590,9 @@ export default function InventarioPage() {
                                 actualizarLinea(idx, 'nombre', mp.nombreMateriaPrima);
                                 setSugIndex(null); setSugCampo(null);
                               }}
-                              className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                              className="w-full text-left px-3 py-2 hover:bg-white/10 text-foreground"
                             >
-                              <span className="font-medium">{mp.nombreMateriaPrima}</span> — <span className="text-gray-600">{mp.codigoMateriaPrima}</span>
+                              <span className="font-medium text-foreground">{mp.nombreMateriaPrima}</span> — <span className="text-foreground/70">{mp.codigoMateriaPrima}</span>
                             </button>
                           ))}
                         </div>
@@ -586,25 +601,25 @@ export default function InventarioPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Cantidad (kg)</label>
+                      <label className="block text-xs text-foreground/70 mb-1">Cantidad (kg)</label>
                       <input
                         type="number"
                         step="0.01"
                         value={l.cantidadKg}
                         onChange={(e) => actualizarLinea(idx, 'cantidadKg', e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#B6CCAE] focus:outline-none"
+                        className="glass-input"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Costo por kilo ($)</label>
+                      <label className="block text-xs text-foreground/70 mb-1">Costo por kilo ($)</label>
                       <input
                         type="number"
                         step="0.01"
                         value={l.precioPorKilo}
                         onChange={(e) => actualizarLinea(idx, 'precioPorKilo', e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#B6CCAE] focus:outline-none"
+                        className="glass-input"
                       />
                     </div>
                   </div>
@@ -622,20 +637,20 @@ export default function InventarioPage() {
           </div>
 
           {/* Vista escritorio: tabla */}
-          <div className="hidden md:block overflow-x-auto bg-white border border-gray-200 rounded-xl">
+          <div className="hidden md:block overflow-x-auto glass-card rounded-xl">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-white/5">
                 <tr>
-                  <th className="px-5 py-4 text-left font-semibold text-gray-700">Código MP</th>
-                  <th className="px-5 py-4 text-left font-semibold text-gray-700">Nombre MP</th>
-                  <th className="px-5 py-4 text-left font-semibold text-gray-700">Cantidad (kg)</th>
-                  <th className="px-5 py-4 text-left font-semibold text-gray-700">Costo por kilo ($)</th>
-                  <th className="px-5 py-4 text-center font-semibold text-gray-700">Acciones</th>
+                  <th className="px-5 py-4 text-left font-semibold text-foreground/80">Código MP</th>
+                  <th className="px-5 py-4 text-left font-semibold text-foreground/80">Nombre MP</th>
+                  <th className="px-5 py-4 text-left font-semibold text-foreground/80">Cantidad (kg)</th>
+                  <th className="px-5 py-4 text-left font-semibold text-foreground/80">Costo por kilo ($)</th>
+                  <th className="px-5 py-4 text-center font-semibold text-foreground/80">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {lineasInicializacion.map((l, idx) => (
-                  <tr key={idx} className="border-t">
+                  <tr key={idx} className="border-t border-white/10">
                     <td className="px-5 py-3">
                       <div className="relative">
                         <input
@@ -645,10 +660,10 @@ export default function InventarioPage() {
                         onFocus={() => { setSugIndex(idx); setSugCampo('codigo'); setSugerencias(materiasPrimas.slice(0,8)); }}
                         onBlur={() => setTimeout(() => { setSugIndex(null); setSugCampo(null); }, 150)}
                         placeholder="Ej: MP001"
-                        className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#B6CCAE] focus:outline-none"
+                        className="glass-input"
                         />
                         {sugIndex === idx && sugCampo === 'codigo' && sugerencias.length > 0 && (
-                          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                          <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
                             {sugerencias.map((mp) => (
                               <button
                                 key={mp.id}
@@ -658,9 +673,9 @@ export default function InventarioPage() {
                                   actualizarLinea(idx, 'codigo', mp.codigoMateriaPrima);
                                   setSugIndex(null); setSugCampo(null);
                                 }}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-foreground"
                               >
-                                <span className="font-medium">{mp.codigoMateriaPrima}</span> — <span className="text-gray-600">{mp.nombreMateriaPrima}</span>
+                                <span className="font-medium text-foreground">{mp.codigoMateriaPrima}</span> — <span className="text-foreground/70">{mp.nombreMateriaPrima}</span>
                               </button>
                             ))}
                           </div>
@@ -676,10 +691,10 @@ export default function InventarioPage() {
                         onFocus={() => { setSugIndex(idx); setSugCampo('nombre'); setSugerencias(materiasPrimas.slice(0,8)); }}
                         onBlur={() => setTimeout(() => { setSugIndex(null); setSugCampo(null); }, 150)}
                         placeholder="Ej: MAIZ"
-                        className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#B6CCAE] focus:outline-none"
+                        className="glass-input"
                         />
                         {sugIndex === idx && sugCampo === 'nombre' && sugerencias.length > 0 && (
-                          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                          <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
                             {sugerencias.map((mp) => (
                               <button
                                 key={mp.id}
@@ -689,9 +704,9 @@ export default function InventarioPage() {
                                   actualizarLinea(idx, 'nombre', mp.nombreMateriaPrima);
                                   setSugIndex(null); setSugCampo(null);
                                 }}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-foreground"
                               >
-                                <span className="font-medium">{mp.nombreMateriaPrima}</span> — <span className="text-gray-600">{mp.codigoMateriaPrima}</span>
+                                <span className="font-medium text-foreground">{mp.nombreMateriaPrima}</span> — <span className="text-foreground/70">{mp.codigoMateriaPrima}</span>
                               </button>
                             ))}
                           </div>
@@ -705,7 +720,7 @@ export default function InventarioPage() {
                         value={l.cantidadKg}
                         onChange={(e) => actualizarLinea(idx, 'cantidadKg', e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#B6CCAE] focus:outline-none"
+                        className="glass-input"
                       />
                     </td>
                     <td className="px-5 py-3">
@@ -715,7 +730,7 @@ export default function InventarioPage() {
                         value={l.precioPorKilo}
                         onChange={(e) => actualizarLinea(idx, 'precioPorKilo', e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#B6CCAE] focus:outline-none"
+                        className="glass-input"
                       />
                     </td>
                     <td className="px-5 py-3 text-center">
@@ -733,10 +748,10 @@ export default function InventarioPage() {
           </div>
 
           <div className="flex justify-between items-center">
-            <div className="text-xs md:text-sm text-gray-600">
+            <div className="text-xs md:text-sm text-foreground/70">
               Sugerencia: escribe el código o el nombre; se autocompleta si existe en la base.
             </div>
-            <div className="text-right text-sm text-gray-700 hidden md:block">
+            <div className="text-right text-sm text-foreground/80 hidden md:block">
               Total líneas: <span className="font-semibold">{lineasInicializacion.length}</span>
             </div>
           </div>
@@ -752,13 +767,13 @@ export default function InventarioPage() {
           <>
             <button
               onClick={() => setShowModalEditar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={actualizarCantidadReal}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
             >
               Guardar
             </button>
@@ -767,19 +782,19 @@ export default function InventarioPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
               Materia Prima
             </label>
             <input
               type="text"
               value={editando?.materiaPrima.nombreMateriaPrima || ''}
               disabled
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-500"
+              className="glass-input bg-white/[0.02] cursor-not-allowed"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
               Cantidad Real (kg) *
             </label>
             <input
@@ -788,16 +803,16 @@ export default function InventarioPage() {
               value={formData.cantidadReal}
               onChange={(e) => setFormData({ ...formData, cantidadReal: e.target.value })}
               placeholder="0.00"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
 
           {editando && (
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-sm text-gray-600">
+            <div className="glass-surface rounded-xl p-4">
+              <p className="text-sm text-foreground/80">
                 <strong>Cantidad en Sistema:</strong> {editando.cantidadSistema.toFixed(2)} kg
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-foreground/80">
                 <strong>Merma actual:</strong> {editando.merma.toFixed(2)} kg
               </p>
             </div>
@@ -814,13 +829,13 @@ export default function InventarioPage() {
           <>
             <button
               onClick={() => setShowModalVaciar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={vaciarInventario}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all"
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30"
             >
               Vaciar
             </button>
@@ -828,12 +843,39 @@ export default function InventarioPage() {
         }
       >
         <div className="space-y-3">
-          <p className="text-gray-700">
+          <p className="text-foreground/80">
             ¿Está seguro de que desea vaciar todo el inventario de esta granja?
           </p>
-          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+          <div className="p-3 glass-surface border-red-500/30 rounded-xl text-sm text-red-400">
             Esta acción elimina todos los registros del inventario. No se puede deshacer.
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Advertencia */}
+      <Modal
+        isOpen={showModalAdvertencia}
+        onClose={() => {
+          setShowModalAdvertencia(false);
+          setMensajeAdvertencia('');
+        }}
+        title="⚠️ Advertencia"
+        footer={
+          <button
+            onClick={() => {
+              setShowModalAdvertencia(false);
+              setMensajeAdvertencia('');
+            }}
+            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
+          >
+            Entendido
+          </button>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-foreground/80">
+            {mensajeAdvertencia}
+          </p>
         </div>
       </Modal>
     </div>

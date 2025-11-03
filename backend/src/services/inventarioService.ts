@@ -23,6 +23,7 @@ export async function calcularCantidadAcumulada(params: CalcularInventarioParams
     INNER JOIN t_compra_cabecera cc ON cd."idCompra" = cc.id
     WHERE cc."idGranja" = ${idGranja}
       AND cd."idMateriaPrima" = ${idMateriaPrima}
+      AND cc."activo" = true
   `;
 
   const sumaCompras = Number(resultado[0]?.cantidad || 0);
@@ -53,6 +54,7 @@ export async function calcularCantidadSistema(params: CalcularInventarioParams):
     INNER JOIN t_fabricacion f ON df."idFabricacion" = f.id
     WHERE f."idGranja" = ${idGranja}
       AND df."idMateriaPrima" = ${idMateriaPrima}
+      AND f."activo" = true
   `;
 
   const cantidad_usada_total = cantidadUsada[0]?.cantidad || 0;
@@ -79,6 +81,7 @@ export async function calcularPrecioAlmacen(params: CalcularInventarioParams): P
     INNER JOIN t_compra_cabecera cc ON cd."idCompra" = cc.id
     WHERE cc."idGranja" = ${idGranja}
       AND cd."idMateriaPrima" = ${idMateriaPrima}
+      AND cc."activo" = true
   `;
 
   const rawAgg = comprasAgg[0] || ({} as any);
@@ -114,7 +117,8 @@ export function calcularMerma(cantidadSistema: number, cantidadReal: number): nu
  * Cantidad real multiplicada por el precio almacen
  */
 export function calcularValorStock(cantidadReal: number, precioAlmacen: number): number {
-  return cantidadReal * precioAlmacen;
+  const cantidadNoNegativa = Math.max(0, cantidadReal);
+  return cantidadNoNegativa * precioAlmacen;
 }
 
 /**
@@ -211,33 +215,55 @@ export async function actualizarCantidadReal(
   const merma = calcularMerma(cantidad_sistema, cantidadReal);
   const valor_stock = calcularValorStock(cantidadReal, precio_almacen);
 
-  // Actualizar inventario
-  await prisma.inventario.upsert({
+  // Optimistic concurrency con campo version
+  const existente = await prisma.inventario.findUnique({
     where: {
-      idGranja_idMateriaPrima: {
-        idGranja,
-        idMateriaPrima
-      }
-    },
-    create: {
-      idGranja,
-      idMateriaPrima,
-      cantidadAcumulada: cantidad_acumulada,
-      cantidadSistema: cantidad_sistema,
-      cantidadReal: cantidadReal,
-      merma,
-      precioAlmacen: precio_almacen,
-      valorStock: valor_stock
-    },
-    update: {
-      cantidadAcumulada: cantidad_acumulada,
-      cantidadSistema: cantidad_sistema,
-      cantidadReal: cantidadReal,
-      merma,
-      precioAlmacen: precio_almacen,
-      valorStock: valor_stock
+      idGranja_idMateriaPrima: { idGranja, idMateriaPrima }
     }
   });
+
+  if (!existente) {
+    await prisma.inventario.create({
+      data: {
+        idGranja,
+        idMateriaPrima,
+        cantidadAcumulada: cantidad_acumulada,
+        cantidadSistema: cantidad_sistema,
+        cantidadReal: cantidadReal,
+        merma,
+        precioAlmacen: precio_almacen,
+        valorStock: valor_stock,
+        // version inicia en 0 por default
+      }
+    });
+    return;
+  }
+
+  const updated = await prisma.$executeRawUnsafe(
+    `UPDATE "t_inventario"
+     SET "cantidadAcumulada" = $1,
+         "cantidadSistema" = $2,
+         "cantidadReal" = $3,
+         "merma" = $4,
+         "precioAlmacen" = $5,
+         "valorStock" = $6,
+         "version" = "version" + 1
+     WHERE "idGranja" = $7 AND "idMateriaPrima" = $8 AND "version" = $9`,
+    cantidad_acumulada,
+    cantidad_sistema,
+    cantidadReal,
+    merma,
+    precio_almacen,
+    valor_stock,
+    idGranja,
+    idMateriaPrima,
+    existente.version
+  );
+
+  // updated es el número de filas afectadas en PG
+  if ((updated as unknown as number) === 0) {
+    throw new Error('Conflicto de actualización: el inventario fue modificado por otro usuario. Recargue y reintente.');
+  }
 }
 
 /**

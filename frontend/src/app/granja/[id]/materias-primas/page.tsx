@@ -6,6 +6,7 @@ import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
+import { Sprout, Download, Upload, Plus } from 'lucide-react';
 
 interface MateriaPrima {
   id: string;
@@ -154,32 +155,43 @@ export default function MateriasPrimasPage() {
 
   const formatCurrency = (n: number) => Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Sprout className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
+          <p className="text-foreground/80">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen bg-[#FAFAE4]">
+    <div className="flex min-h-screen">
       <Sidebar />
 
       <main className="flex-1 ml-64">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-6">
+        <header className="glass-card px-8 py-6 m-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Materias Primas</h2>
-              <p className="text-gray-600 mt-1">Gestión de materias primas de tu planta</p>
+              <h2 className="text-3xl font-bold text-foreground">Materias Primas</h2>
+              <p className="text-foreground/70 mt-1">Gestión de materias primas de tu planta</p>
             </div>
             <div className="flex gap-3">
-              <button className="px-6 py-3 bg-gradient-to-r from-[#FAD863] to-[#F8C540] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2">
-                <span>📥</span>
+              <button className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2">
+                <Download className="h-5 w-5" />
                 Exportar Datos
               </button>
-              <button className="px-6 py-3 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2">
-                <span>📤</span>
+              <button className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2">
+                <Upload className="h-5 w-5" />
                 Importar Datos
               </button>
               <button
                 onClick={() => abrirModal()}
-                className="px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <span>+</span>
+                <Plus className="h-5 w-5" />
                 Nueva Materia Prima
               </button>
             </div>
@@ -189,63 +201,63 @@ export default function MateriasPrimasPage() {
         {/* Content */}
         <div className="max-w-7xl mx-auto p-8 space-y-6">
           {/* Card Total */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+          <div className="glass-card p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#B6CCAE] to-[#9AAB64] rounded-2xl flex items-center justify-center">
-                  <span className="text-3xl">📦</span>
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-400 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <Sprout className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total de Materias Primas</p>
-                  <p className="text-3xl font-bold text-gray-900">{materiasPrimas.length}</p>
+                  <p className="text-sm text-foreground/70">Total de Materias Primas</p>
+                  <p className="text-3xl font-bold text-foreground">{materiasPrimas.length}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Filtro */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+          <div className="glass-card p-6">
             <input
               type="text"
               placeholder="Buscar por código o nombre..."
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
 
           {/* Tabla */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900">
+                <thead className="bg-white/5">
                   <tr>
-                    <th className="px-6 py-4 text-left font-semibold">Código</th>
-                    <th className="px-6 py-4 text-left font-semibold">Nombre</th>
-                    <th className="px-6 py-4 text-left font-semibold">Precio por Kilo</th>
-                    <th className="px-6 py-4 text-center font-semibold">Acciones</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Código</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Nombre</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Precio por Kilo</th>
+                    <th className="px-6 py-4 text-center font-semibold text-foreground/80">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {materiasFiltradas.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={4} className="px-6 py-12 text-center text-foreground/60">
                         {filtro ? 'No se encontraron resultados' : 'No hay materias primas registradas'}
                       </td>
                     </tr>
                   ) : (
                     materiasFiltradas.map((m) => (
-                      <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-gray-900 font-medium">{m.codigo}</td>
-                        <td className="px-6 py-4 text-gray-900">{m.nombre}</td>
-                        <td className="px-6 py-4 text-gray-900 whitespace-nowrap">
+                      <tr key={m.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 text-foreground font-medium">{m.codigo}</td>
+                        <td className="px-6 py-4 text-foreground/90">{m.nombre}</td>
+                        <td className="px-6 py-4 text-foreground/90 whitespace-nowrap">
                           {m.precioPorKilo > 0 ? formatCurrency(m.precioPorKilo) : '-'}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => abrirModal(m)}
-                              className="px-4 py-2 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-lg font-semibold hover:shadow-md transition-all text-sm"
+                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-sm"
                             >
                               Editar
                             </button>
@@ -279,13 +291,13 @@ export default function MateriasPrimasPage() {
           <>
             <button
               onClick={() => setShowModal(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={guardar}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
             >
               Guardar
             </button>
@@ -294,7 +306,7 @@ export default function MateriasPrimasPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
               Código
             </label>
             <input
@@ -302,12 +314,12 @@ export default function MateriasPrimasPage() {
               value={formData.codigo}
               onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
               placeholder="MP001"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
               Nombre
             </label>
             <input
@@ -315,24 +327,24 @@ export default function MateriasPrimasPage() {
               value={formData.nombre}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
               placeholder="Maíz"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
               Precio por Kilo
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/50 font-semibold">$</span>
               <input
                 type="text"
                 value="Calculado automáticamente"
                 disabled
-                className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed"
+                className="glass-input bg-white/[0.02] cursor-not-allowed"
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-foreground/60 mt-1">
               El precio se calculará automáticamente al registrar la primera compra
             </p>
           </div>
@@ -348,20 +360,20 @@ export default function MateriasPrimasPage() {
           <>
             <button
               onClick={() => setShowModalEliminar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={eliminar}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all"
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30"
             >
               Eliminar
             </button>
           </>
         }
       >
-        <p className="text-gray-700">
+        <p className="text-foreground/80">
           ¿Está seguro de que desea eliminar la materia prima <strong>{eliminando?.nombre}</strong>?
           <br />
           Esta acción no se puede deshacer.

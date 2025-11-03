@@ -60,6 +60,7 @@ model Usuario {
   granjas          Granja[]
   compras          CompraCabecera[]
   fabricaciones    Fabricacion[]
+  auditorias       Auditoria[]
 
   @@map("t_usuarios")
 }
@@ -85,6 +86,7 @@ model Granja {
   inventarioInicial InventarioInicial[]
   compras         CompraCabecera[]
   archivos        ArchivoCabecera[]
+  auditorias     Auditoria[]
 
   @@index([idUsuario])
   @@map("t_granja")
@@ -205,6 +207,10 @@ model Fabricacion {
   fechaCreacion           DateTime            @default(now())
   observaciones           String?
   sinExistencias          Boolean             @default(false)
+  // Soft delete
+  activo                  Boolean             @default(true)
+  fechaEliminacion        DateTime?
+  eliminadoPor            String?
 
   // Relaciones
   granja                  Granja              @relation(fields: [idGranja], references: [id], onDelete: Cascade)
@@ -215,6 +221,7 @@ model Fabricacion {
   @@index([idGranja])
   @@index([idUsuario])
   @@index([idFormula])
+  @@index([activo])
   @@map("t_fabricacion")
 }
 
@@ -245,6 +252,7 @@ model Inventario {
   merma                   Float    @default(0)  // calculado: cantidad_sistema - cantidad_real
   precioAlmacen           Float    @default(0)  // calculado: sum(total_compras) / sum(cantidad_total_adquirida)
   valorStock              Float    @default(0)  // calculado: cantidad_real * precio_materia_prima
+  version                 Int      @default(0)
   fechaUltimaActualizacion DateTime @updatedAt
   observaciones           String?  @db.Text
 
@@ -283,6 +291,10 @@ model CompraCabecera {
   totalFactura      Float      @default(0)
   observaciones      String?    @db.Text
   fechaCreacion      DateTime   @default(now())
+  // Soft delete
+  activo            Boolean     @default(true)
+  fechaEliminacion  DateTime?
+  eliminadoPor      String?
 
   // Relaciones
   granja             Granja          @relation(fields: [idGranja], references: [id], onDelete: Cascade)
@@ -291,6 +303,7 @@ model CompraCabecera {
   comprasDetalle     CompraDetalle[]
 
   @@index([idGranja])
+  @@index([activo])
   @@index([idUsuario])
   @@index([idProveedor])
   @@map("t_compra_cabecera")
@@ -361,5 +374,33 @@ model ArchivoDetalle {
   @@map("t_archivo_detalle")
 }
 
+// ============================================
+// AUDITORÍA
+// ============================================
+
+model Auditoria {
+  id                String        @id @default(cuid())
+  idUsuario         String
+  idGranja           String?
+  tablaOrigen       TablaOrigen
+  idRegistro         String
+  accion             String        // CREATE, UPDATE, DELETE, RESTORE
+  descripcion        String?       @db.Text
+  datosAnteriores    Json?         // Datos antes de la modificación
+  datosNuevos        Json?         // Datos después de la modificación
+  fechaOperacion     DateTime      @default(now())
+  ipAddress          String?
+  userAgent          String?
+
+  // Relaciones
+  usuario            Usuario       @relation(fields: [idUsuario], references: [id])
+  granja             Granja?       @relation(fields: [idGranja], references: [id])
+
+  @@index([idUsuario])
+  @@index([idGranja])
+  @@index([tablaOrigen])
+  @@index([fechaOperacion])
+  @@map("t_auditoria")
+}
 
 

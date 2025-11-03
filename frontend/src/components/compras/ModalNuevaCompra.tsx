@@ -94,14 +94,14 @@ export default function ModalNuevaCompra({ isOpen, onClose, onSuccess, idGranja 
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50"
+            className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading || !formData.idProveedor}
-            className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg disabled:opacity-50"
+            className="flex-1 px-6 py-3 rounded-xl font-semibold bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 hover:shadow-lg disabled:opacity-50"
           >
             {loading ? 'Creando...' : 'Crear Compra'}
           </button>
@@ -110,13 +110,13 @@ export default function ModalNuevaCompra({ isOpen, onClose, onSuccess, idGranja 
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Proveedor <span className="text-red-500">*</span>
           </label>
           <select
             value={formData.idProveedor}
             onChange={(e) => setFormData({ ...formData, idProveedor: e.target.value })}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+            className="glass-input w-full"
             required
           >
             <option value="">Seleccione un proveedor</option>
@@ -130,32 +130,32 @@ export default function ModalNuevaCompra({ isOpen, onClose, onSuccess, idGranja 
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">N° Factura</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">N° Factura</label>
             <input
               type="text"
               value={formData.numeroFactura}
               onChange={(e) => setFormData({ ...formData, numeroFactura: e.target.value })}
               placeholder="Ej: A-0001-000123"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+              className="glass-input"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Fecha de Compra <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
               value={formData.fechaCompra}
               onChange={(e) => setFormData({ ...formData, fechaCompra: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+              className="glass-input"
               required
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Total de la factura (ARS)</label>
+          <label className="block text-sm font-medium text-foreground/80 mb-2">Total de la factura (ARS)</label>
           <input
             type="number"
             step="0.01"
@@ -163,18 +163,18 @@ export default function ModalNuevaCompra({ isOpen, onClose, onSuccess, idGranja 
             value={formData.totalFactura}
             onChange={(e) => setFormData({ ...formData, totalFactura: e.target.value })}
             placeholder="0.00"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+            className="glass-input"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+          <label className="block text-sm font-medium text-foreground/80 mb-2">Observaciones</label>
           <textarea
             value={formData.observaciones}
             onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
             placeholder="Notas adicionales sobre la compra..."
             rows={3}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none resize-none"
+            className="glass-input resize-none"
           />
         </div>
       </form>

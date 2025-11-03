@@ -6,6 +6,7 @@ import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
+import { PiggyBank, Download, Upload, Plus } from 'lucide-react';
 
 interface Animal {
   id: string;
@@ -138,47 +139,47 @@ export default function PiensosPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAE4]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#B6CCAE] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
+          <PiggyBank className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
+          <p className="text-foreground/80">Cargando...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAE4]">
+    <div className="flex min-h-screen">
       <Sidebar />
 
       <main className="flex-1 ml-64">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-6">
+        <header className="glass-card px-8 py-6 m-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Piensos 🐷</h2>
-              <p className="text-gray-600 mt-1">Gestión de tipos de animales (piensos)</p>
+              <h2 className="text-3xl font-bold text-foreground flex items-center gap-3">Piensos <PiggyBank className="h-8 w-8" /></h2>
+              <p className="text-foreground/70 mt-1">Gestión de tipos de animales (piensos)</p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => alert('Función de exportar próximamente')}
-                className="px-6 py-3 bg-gradient-to-r from-[#FAD863] to-[#F8C540] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
               >
-                <span>📥</span>
+                <Download className="h-5 w-5" />
                 Exportar Datos
               </button>
               <button
                 onClick={() => alert('Función de importar próximamente')}
-                className="px-6 py-3 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
               >
-                <span>📤</span>
+                <Upload className="h-5 w-5" />
                 Importar Datos
               </button>
               <button
                 onClick={() => abrirModal()}
-                className="px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <span>+</span>
+                <Plus className="h-5 w-5" />
                 Nuevo Pienso
               </button>
             </div>
@@ -188,41 +189,41 @@ export default function PiensosPage() {
         {/* Content */}
         <div className="max-w-7xl mx-auto p-8 space-y-6">
           {/* Card Total */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+          <div className="glass-card p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#F5B8DA] to-[#E599C6] rounded-2xl flex items-center justify-center">
-                  <span className="text-3xl">🐷</span>
+                <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-pink-400 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-500/30">
+                  <PiggyBank className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total de Piensos</p>
-                  <p className="text-3xl font-bold text-gray-900">{animales.length}</p>
+                  <p className="text-sm text-foreground/70">Total de Piensos</p>
+                  <p className="text-3xl font-bold text-foreground">{animales.length}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Filtro */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+          <div className="glass-card p-6">
             <input
               type="text"
               placeholder="Buscar por código, descripción o categoría..."
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
 
           {/* Tabla */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900">
+                <thead className="bg-white/5">
                   <tr>
-                    <th className="px-6 py-4 text-left font-semibold">Código</th>
-                    <th className="px-6 py-4 text-left font-semibold">Descripción</th>
-                    <th className="px-6 py-4 text-left font-semibold">Categoría</th>
-                    <th className="px-6 py-4 text-center font-semibold">Acciones</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Código</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Descripción</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Categoría</th>
+                    <th className="px-6 py-4 text-center font-semibold text-foreground/80">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -232,7 +233,7 @@ export default function PiensosPage() {
                     a.categoria.toLowerCase().includes(filtro.toLowerCase())
                   ).length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={4} className="px-6 py-12 text-center text-foreground/60">
                         {filtro ? 'No se encontraron resultados' : 'No hay piensos registrados'}
                       </td>
                     </tr>
@@ -242,15 +243,15 @@ export default function PiensosPage() {
                       a.descripcion.toLowerCase().includes(filtro.toLowerCase()) ||
                       a.categoria.toLowerCase().includes(filtro.toLowerCase())
                     ).map((a) => (
-                      <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-gray-900 font-medium">{a.codigo}</td>
-                        <td className="px-6 py-4 text-gray-900">{a.descripcion}</td>
-                        <td className="px-6 py-4 text-gray-900">{a.categoria}</td>
+                      <tr key={a.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 text-foreground font-medium">{a.codigo}</td>
+                        <td className="px-6 py-4 text-foreground/90">{a.descripcion}</td>
+                        <td className="px-6 py-4 text-foreground/90">{a.categoria}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => abrirModal(a)}
-                              className="px-4 py-2 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-lg font-semibold hover:shadow-md transition-all text-sm"
+                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-sm"
                             >
                               Editar
                             </button>
@@ -284,13 +285,13 @@ export default function PiensosPage() {
           <>
             <button
               onClick={() => setShowModal(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={guardar}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
             >
               Guardar
             </button>
@@ -299,7 +300,7 @@ export default function PiensosPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
               Código Animal
             </label>
             <input
@@ -307,12 +308,12 @@ export default function PiensosPage() {
               value={formData.codigo}
               onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
               placeholder="CER01"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
               Descripción
             </label>
             <input
@@ -320,12 +321,12 @@ export default function PiensosPage() {
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
               placeholder="Cerdos en lactancia"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
               Categoría
             </label>
             <input
@@ -333,7 +334,7 @@ export default function PiensosPage() {
               value={formData.categoria}
               onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
               placeholder="Ej: Lactancia, Destete, Crecimiento, etc."
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
         </div>
@@ -348,20 +349,20 @@ export default function PiensosPage() {
           <>
             <button
               onClick={() => setShowModalEliminar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={eliminar}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all"
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30"
             >
               Eliminar
             </button>
           </>
         }
       >
-        <p className="text-gray-700">
+        <p className="text-foreground/80">
           ¿Está seguro de que desea eliminar el pienso <strong>{eliminando?.descripcion}</strong>?
           <br />
           Esta acción no se puede deshacer.

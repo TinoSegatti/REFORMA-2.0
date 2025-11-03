@@ -15,16 +15,12 @@ export const Input: React.FC<InputProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-foreground/90 mb-2">
           {label}
         </label>
       )}
       <input
-        className={`
-          modern-input w-full
-          ${error ? 'border-red-500' : ''}
-          ${className}
-        `}
+        className={`glass-input ${error ? 'ring-2 ring-red-400' : ''} ${className}`}
         {...props}
       />
       {error && (

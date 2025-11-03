@@ -42,6 +42,7 @@ import fabricacionRoutes from './routes/fabricacionRoutes';
 import materiaPrimaRoutes from './routes/materiaPrimaRoutes';
 import proveedorRoutes from './routes/proveedorRoutes';
 import animalRoutes from './routes/animalRoutes';
+import auditoriaRoutes from './routes/auditoriaRoutes';
 
 // Rutas
 app.use('/api/usuarios', usuarioRoutes);
@@ -53,6 +54,7 @@ app.use('/api/fabricaciones', fabricacionRoutes);
 app.use('/api/materias-primas', materiaPrimaRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/animales', animalRoutes);
+app.use('/api/auditoria', auditoriaRoutes);
 
 // Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

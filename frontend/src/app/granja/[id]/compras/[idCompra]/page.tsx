@@ -6,6 +6,7 @@ import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
+import { ShoppingCart } from 'lucide-react';
 
 interface MateriaPrima {
   id: string;
@@ -395,10 +396,10 @@ export default function CompraDetallePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAE4]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#B6CCAE] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
+          <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
+          <p className="text-foreground/80">Cargando...</p>
         </div>
       </div>
     );
@@ -406,10 +407,10 @@ export default function CompraDetallePage() {
 
   if (!compra) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAE4]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <p className="text-gray-600">Compra no encontrada</p>
-          <button onClick={() => router.push(`/granja/${idGranja}/compras`)} className="mt-4 px-4 py-2 bg-[#B6CCAE] text-gray-900 rounded-lg">
+          <p className="text-foreground/70">Compra no encontrada</p>
+          <button onClick={() => router.push(`/granja/${idGranja}/compras`)} className="mt-4 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all">
             Volver a Compras
           </button>
         </div>
@@ -422,28 +423,28 @@ export default function CompraDetallePage() {
   const totalCoincide = Math.abs(diferencia) < 0.01;
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAE4]">
+    <div className="flex min-h-screen ">
       <Sidebar />
       <main className="flex-1 ml-64">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-6">
+        <header className="glass-card px-8 py-6 m-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Detalle de Compra</h2>
-              <p className="text-gray-600 mt-1">
+              <h2 className="text-3xl font-bold text-foreground">Detalle de Compra</h2>
+              <p className="text-foreground/70 mt-1">
                 Factura: {compra.numeroFactura || 'Sin número'} | Proveedor: {compra.proveedor.nombreProveedor}
               </p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => router.push(`/granja/${idGranja}/compras`)}
-                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50"
+                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10"
               >
                 ← Volver
               </button>
               <button
                 onClick={() => setShowModalEditarCabecera(true)}
-                className="px-6 py-3 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-xl font-semibold hover:shadow-lg"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
               >
                 Editar Cabecera
               </button>
@@ -454,30 +455,30 @@ export default function CompraDetallePage() {
         {/* Content */}
         <div className="max-w-7xl mx-auto p-8 space-y-8">
           {/* Resumen */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+          <div className="glass-card p-6">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
-                <p className="text-sm text-gray-600">N° Factura</p>
-                <p className="text-lg font-bold text-gray-900">{compra.numeroFactura || '-'}</p>
+                <p className="text-sm text-foreground/70">N° Factura</p>
+                <p className="text-lg font-bold text-foreground">{compra.numeroFactura || '-'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Fecha</p>
-                <p className="text-lg font-bold text-gray-900">{new Date(compra.fechaCompra).toLocaleDateString('es-AR')}</p>
+                <p className="text-sm text-foreground/70">Fecha</p>
+                <p className="text-lg font-bold text-foreground">{new Date(compra.fechaCompra).toLocaleDateString('es-AR')}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 font-semibold">Total Factura (Cabecera)</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-sm text-foreground/70 font-semibold">Total Factura (Cabecera)</p>
+                <p className="text-lg font-bold text-foreground">
                   {formatCurrency(compra.totalFactura)}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Suma de Subtotales</p>
-                <p className={`text-lg font-bold ${totalCoincide ? 'text-gray-900' : 'text-blue-600'}`}>
+                <p className="text-sm text-foreground/70">Suma de Subtotales</p>
+                <p className={`text-lg font-bold ${totalCoincide ? 'text-foreground' : 'text-blue-600'}`}>
                   {formatCurrency(totalCalculado)}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Diferencia</p>
+                <p className="text-sm text-foreground/70">Diferencia</p>
                 <p className={`text-lg font-bold ${totalCoincide ? 'text-green-600' : diferencia > 0 ? 'text-orange-600' : 'text-red-600'}`}>
                   {totalCoincide 
                     ? '✓ Coincide' 
@@ -488,14 +489,14 @@ export default function CompraDetallePage() {
                 </p>
               </div>
               <div className="md:col-span-5">
-                <p className="text-sm text-gray-600">Items</p>
-                <p className="text-lg font-bold text-gray-900">{compra.comprasDetalle.length}</p>
+                <p className="text-sm text-foreground/70">Items</p>
+                <p className="text-lg font-bold text-foreground">{compra.comprasDetalle.length}</p>
               </div>
             </div>
           </div>
 
           {/* Acciones */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+          <div className="glass-card p-6">
             <button
               onClick={() => {
                 setFormData({ idMateriaPrima: '', codigoMateriaPrima: '', nombreMateriaPrima: '', cantidadComprada: '', precioUnitario: '', subtotal: '' });
@@ -503,17 +504,17 @@ export default function CompraDetallePage() {
                 setUltimoPrecio(null);
                 setShowModalAgregar(true);
               }}
-              className="px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
             >
               + Agregar Item
             </button>
           </div>
 
           {/* Tabla */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900">
+                <thead className="bg-white/5 text-foreground/80">
                   <tr>
                     <th className="px-6 py-4 text-left font-semibold">Código MP</th>
                     <th className="px-6 py-4 text-left font-semibold">Materia Prima</th>
@@ -526,18 +527,18 @@ export default function CompraDetallePage() {
                 <tbody>
                   {compra.comprasDetalle.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={6} className="px-6 py-12 text-center text-foreground/60">
                         No hay items en esta compra. Agregue el primer item.
                       </td>
                     </tr>
                   ) : (
                     compra.comprasDetalle.map((item) => (
-                      <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-gray-900 whitespace-nowrap">{item.materiaPrima.codigoMateriaPrima}</td>
-                        <td className="px-6 py-4 text-gray-900">{item.materiaPrima.nombreMateriaPrima}</td>
-                        <td className="px-6 py-4 text-gray-900 text-right whitespace-nowrap">{Number(item.cantidadComprada).toLocaleString('es-AR', { minimumFractionDigits: 2 })} kg</td>
-                        <td className="px-6 py-4 text-gray-900 text-right whitespace-nowrap">{formatCurrency(item.precioUnitario)}</td>
-                        <td className="px-6 py-4 text-gray-900 text-right whitespace-nowrap font-semibold">{formatCurrency(item.subtotal)}</td>
+                      <tr key={item.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 text-foreground whitespace-nowrap">{item.materiaPrima.codigoMateriaPrima}</td>
+                        <td className="px-6 py-4 text-foreground">{item.materiaPrima.nombreMateriaPrima}</td>
+                        <td className="px-6 py-4 text-foreground text-right whitespace-nowrap">{Number(item.cantidadComprada).toLocaleString('es-AR', { minimumFractionDigits: 2 })} kg</td>
+                        <td className="px-6 py-4 text-foreground text-right whitespace-nowrap">{formatCurrency(item.precioUnitario)}</td>
+                        <td className="px-6 py-4 text-foreground text-right whitespace-nowrap font-semibold">{formatCurrency(item.subtotal)}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -554,7 +555,7 @@ export default function CompraDetallePage() {
                                 setMateriaPrimaSeleccionada(item.materiaPrima);
                                 setShowModalEditar(true);
                               }}
-                              className="px-4 py-2 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-lg font-semibold hover:shadow-md text-sm"
+                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-sm"
                             >
                               Editar
                             </button>
@@ -574,20 +575,20 @@ export default function CompraDetallePage() {
                   )}
                 </tbody>
                 {compra.comprasDetalle.length > 0 && (
-                  <tfoot className="bg-gray-50">
+                  <tfoot className="bg-white/5">
                     <tr>
-                      <td colSpan={4} className="px-6 py-4 text-right font-bold text-gray-900">Suma de Subtotales:</td>
-                      <td className="px-6 py-4 text-right font-bold text-lg text-gray-900">{formatCurrency(totalCalculado)}</td>
+                      <td colSpan={4} className="px-6 py-4 text-right font-bold text-foreground">Suma de Subtotales:</td>
+                      <td className="px-6 py-4 text-right font-bold text-lg text-foreground">{formatCurrency(totalCalculado)}</td>
                       <td></td>
                     </tr>
-                    <tr className="bg-gray-100">
-                      <td colSpan={4} className="px-6 py-4 text-right font-bold text-gray-900">Total Factura (Cabecera):</td>
-                      <td className="px-6 py-4 text-right font-bold text-lg text-gray-900">{formatCurrency(compra.totalFactura)}</td>
+                    <tr className="bg-white/10">
+                      <td colSpan={4} className="px-6 py-4 text-right font-bold text-foreground">Total Factura (Cabecera):</td>
+                      <td className="px-6 py-4 text-right font-bold text-lg text-foreground">{formatCurrency(compra.totalFactura)}</td>
                       <td></td>
                     </tr>
                     {!totalCoincide && (
                       <tr className={diferencia > 0 ? 'bg-orange-50' : 'bg-red-50'}>
-                        <td colSpan={4} className="px-6 py-4 text-right font-bold text-gray-900">
+                        <td colSpan={4} className="px-6 py-4 text-right font-bold text-foreground">
                           {diferencia > 0 ? '⏱ Falta:' : '⚠️ Sobra:'}
                         </td>
                         <td className={`px-6 py-4 text-right font-bold text-lg ${diferencia > 0 ? 'text-orange-600' : 'text-red-600'}`}>
@@ -612,10 +613,10 @@ export default function CompraDetallePage() {
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowModalAgregar(false)} className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50">
+            <button onClick={() => setShowModalAgregar(false)} className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10">
               Cancelar
             </button>
-            <button onClick={agregarItem} className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg">
+            <button onClick={agregarItem} className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all">
               Agregar
             </button>
           </>
@@ -624,7 +625,7 @@ export default function CompraDetallePage() {
         <div className="space-y-4">
           {/* Código MP */}
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Código Materia Prima</label>
+            <label className="block text-sm font-medium text-foreground/90 mb-2">Código Materia Prima</label>
             <input
               type="text"
               value={formData.codigoMateriaPrima}
@@ -637,10 +638,10 @@ export default function CompraDetallePage() {
                 if (formData.codigoMateriaPrima) buscarSugerencias(formData.codigoMateriaPrima, 'codigo');
               }}
               placeholder="Ej: MP001"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+              className="glass-input"
             />
             {sugCampo === 'codigo' && sugerencias.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+              <div className="absolute z-10 w-full mt-1 glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
                 {sugerencias.map((mp) => (
                   <div
                     key={mp.id}
@@ -648,10 +649,10 @@ export default function CompraDetallePage() {
                       e.preventDefault();
                       seleccionarMateriaPrima(mp);
                     }}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    className="px-4 py-2 hover:bg-white/10 cursor-pointer"
                   >
-                    <div className="font-medium">{mp.codigoMateriaPrima}</div>
-                    <div className="text-sm text-gray-600">{mp.nombreMateriaPrima}</div>
+                    <div className="font-medium text-foreground">{mp.codigoMateriaPrima}</div>
+                    <div className="text-sm text-foreground/70">{mp.nombreMateriaPrima}</div>
                   </div>
                 ))}
               </div>
@@ -660,7 +661,7 @@ export default function CompraDetallePage() {
 
           {/* Nombre MP */}
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Materia Prima</label>
+            <label className="block text-sm font-medium text-foreground/90 mb-2">Nombre Materia Prima</label>
             <input
               type="text"
               value={formData.nombreMateriaPrima}
@@ -673,10 +674,10 @@ export default function CompraDetallePage() {
                 if (formData.nombreMateriaPrima) buscarSugerencias(formData.nombreMateriaPrima, 'nombre');
               }}
               placeholder="Ej: MAIZ"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+              className="glass-input"
             />
             {sugCampo === 'nombre' && sugerencias.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+              <div className="absolute z-10 w-full mt-1 glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
                 {sugerencias.map((mp) => (
                   <div
                     key={mp.id}
@@ -684,10 +685,10 @@ export default function CompraDetallePage() {
                       e.preventDefault();
                       seleccionarMateriaPrima(mp);
                     }}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    className="px-4 py-2 hover:bg-white/10 cursor-pointer"
                   >
-                    <div className="font-medium">{mp.codigoMateriaPrima}</div>
-                    <div className="text-sm text-gray-600">{mp.nombreMateriaPrima}</div>
+                    <div className="font-medium text-foreground">{mp.codigoMateriaPrima}</div>
+                    <div className="text-sm text-foreground/70">{mp.nombreMateriaPrima}</div>
                   </div>
                 ))}
               </div>
@@ -695,8 +696,8 @@ export default function CompraDetallePage() {
           </div>
 
           {materiaPrimaSeleccionada && ultimoPrecio !== null && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-              <p className="text-sm text-blue-800">
+            <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3">
+              <p className="text-sm text-blue-300">
                 💡 Último precio pagado: {formatCurrency(ultimoPrecio)}
               </p>
             </div>
@@ -704,7 +705,7 @@ export default function CompraDetallePage() {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Cantidad (kg) <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-foreground/90 mb-2">Cantidad (kg) <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 step="0.0001"
@@ -714,12 +715,12 @@ export default function CompraDetallePage() {
                   setFormData(prev => ({ ...prev, cantidadComprada: e.target.value }));
                 }}
                 onBlur={calcularDesdePrecio}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+                className="glass-input"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Precio Unitario ($/kg)</label>
+              <label className="block text-sm font-medium text-foreground/90 mb-2">Precio Unitario ($/kg)</label>
               <input
                 type="number"
                 step="0.0001"
@@ -729,11 +730,11 @@ export default function CompraDetallePage() {
                   setFormData(prev => ({ ...prev, precioUnitario: e.target.value }));
                 }}
                 onBlur={calcularDesdePrecio}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+                className="glass-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Subtotal ($)</label>
+              <label className="block text-sm font-medium text-foreground/90 mb-2">Subtotal ($)</label>
               <input
                 type="number"
                 step="0.0001"
@@ -743,7 +744,7 @@ export default function CompraDetallePage() {
                   setFormData(prev => ({ ...prev, subtotal: e.target.value }));
                 }}
                 onBlur={calcularDesdeSubtotal}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+                className="glass-input"
               />
             </div>
           </div>
@@ -758,10 +759,10 @@ export default function CompraDetallePage() {
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowModalEditar(false)} className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50">
+            <button onClick={() => setShowModalEditar(false)} className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10">
               Cancelar
             </button>
-            <button onClick={editarItem} className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg">
+            <button onClick={editarItem} className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all">
               Guardar
             </button>
           </>
@@ -769,14 +770,14 @@ export default function CompraDetallePage() {
       >
         {editando && (
           <div className="space-y-4">
-            <div className="bg-gray-50 rounded-xl p-3">
-              <p className="text-sm text-gray-700">
+            <div className="bg-white/5 rounded-xl p-3">
+              <p className="text-sm text-foreground/90">
                 <strong>Materia Prima:</strong> {editando.materiaPrima.codigoMateriaPrima} - {editando.materiaPrima.nombreMateriaPrima}
               </p>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Cantidad (kg) <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-foreground/90 mb-2">Cantidad (kg) <span className="text-red-500">*</span></label>
                 <input
                   type="number"
                   step="0.0001"
@@ -786,12 +787,12 @@ export default function CompraDetallePage() {
                     setFormData(prev => ({ ...prev, cantidadComprada: e.target.value }));
                   }}
                   onBlur={calcularDesdePrecio}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+                  className="glass-input"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Precio Unitario ($/kg)</label>
+                <label className="block text-sm font-medium text-foreground/90 mb-2">Precio Unitario ($/kg)</label>
                 <input
                   type="number"
                   step="0.0001"
@@ -801,11 +802,11 @@ export default function CompraDetallePage() {
                     setFormData(prev => ({ ...prev, precioUnitario: e.target.value }));
                   }}
                   onBlur={calcularDesdePrecio}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+                  className="glass-input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Subtotal ($)</label>
+                <label className="block text-sm font-medium text-foreground/90 mb-2">Subtotal ($)</label>
                 <input
                   type="number"
                   step="0.0001"
@@ -815,7 +816,7 @@ export default function CompraDetallePage() {
                     setFormData(prev => ({ ...prev, subtotal: e.target.value }));
                   }}
                   onBlur={calcularDesdeSubtotal}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+                  className="glass-input"
                 />
               </div>
             </div>
@@ -830,10 +831,10 @@ export default function CompraDetallePage() {
         title="Eliminar Item"
         footer={
           <>
-            <button onClick={() => setShowModalEliminar(false)} className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50">
+            <button onClick={() => setShowModalEliminar(false)} className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10">
               Cancelar
             </button>
-            <button onClick={eliminarItem} className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700">
+            <button onClick={eliminarItem} className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all">
               Eliminar
             </button>
           </>
@@ -841,10 +842,10 @@ export default function CompraDetallePage() {
       >
         {eliminando && (
           <div>
-            <p className="text-gray-700 mb-4">
+            <p className="text-foreground/90 mb-4">
               ¿Está seguro de eliminar este item?
             </p>
-            <div className="bg-gray-50 rounded-xl p-4">
+            <div className="bg-white/5 rounded-xl p-4">
               <p><strong>Materia Prima:</strong> {eliminando.materiaPrima.codigoMateriaPrima} - {eliminando.materiaPrima.nombreMateriaPrima}</p>
               <p><strong>Cantidad:</strong> {eliminando.cantidadComprada} kg</p>
               <p><strong>Subtotal:</strong> {formatCurrency(eliminando.subtotal)}</p>
@@ -861,10 +862,10 @@ export default function CompraDetallePage() {
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowModalEditarCabecera(false)} className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50">
+            <button onClick={() => setShowModalEditarCabecera(false)} className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10">
               Cancelar
             </button>
-            <button onClick={editarCabecera} className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg">
+            <button onClick={editarCabecera} className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all">
               Guardar
             </button>
           </>
@@ -872,11 +873,11 @@ export default function CompraDetallePage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Proveedor</label>
+            <label className="block text-sm font-medium text-foreground/90 mb-2">Proveedor</label>
             <select
               value={cabeceraData.idProveedor}
               onChange={(e) => setCabeceraData({ ...cabeceraData, idProveedor: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+              className="glass-input"
             >
               {proveedores.map((prov) => (
                 <option key={prov.id} value={prov.id}>
@@ -887,32 +888,32 @@ export default function CompraDetallePage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">N° Factura</label>
+              <label className="block text-sm font-medium text-foreground/90 mb-2">N° Factura</label>
               <input
                 type="text"
                 value={cabeceraData.numeroFactura}
                 onChange={(e) => setCabeceraData({ ...cabeceraData, numeroFactura: e.target.value })}
                 placeholder="Ej: A-0001-000123"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+                className="glass-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Compra</label>
+              <label className="block text-sm font-medium text-foreground/90 mb-2">Fecha de Compra</label>
               <input
                 type="date"
                 value={cabeceraData.fechaCompra}
                 onChange={(e) => setCabeceraData({ ...cabeceraData, fechaCompra: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none"
+                className="glass-input"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+            <label className="block text-sm font-medium text-foreground/90 mb-2">Observaciones</label>
             <textarea
               value={cabeceraData.observaciones}
               onChange={(e) => setCabeceraData({ ...cabeceraData, observaciones: e.target.value })}
               rows={3}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none resize-none"
+              className="glass-input resize-none"
             />
           </div>
         </div>
@@ -924,12 +925,12 @@ export default function CompraDetallePage() {
         onClose={() => setShowModalConfirmacion(false)}
         title=""
         footer={
-          <button onClick={() => setShowModalConfirmacion(false)} className="w-full px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg">
+          <button onClick={() => setShowModalConfirmacion(false)} className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg">
             Aceptar
           </button>
         }
       >
-        <p className="text-gray-700 whitespace-pre-line">{mensajeConfirmacion}</p>
+        <p className="text-foreground/90 whitespace-pre-line">{mensajeConfirmacion}</p>
       </Modal>
     </div>
   );

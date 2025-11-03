@@ -15,7 +15,10 @@ import {
   agregarItemCompra,
   editarItemCompra,
   eliminarItemCompra,
-  eliminarCompra
+  eliminarCompra,
+  eliminarTodasLasCompras,
+  restaurarCompra,
+  obtenerComprasEliminadas
 } from '../services/compraService';
 
 interface CompraRequest extends Request {
@@ -506,7 +509,7 @@ export async function eliminarCompraEndpoint(req: CompraRequest, res: Response) 
       return res.status(400).json({ error: 'No se puede eliminar una compra que tiene items. Elimine primero todos los items.' });
     }
 
-    const resultado = await eliminarCompra(idCompra);
+    const resultado = await eliminarCompra(idCompra, userId);
 
     res.json(resultado);
   } catch (error: any) {
@@ -566,5 +569,121 @@ export async function editarCabeceraCompra(req: CompraRequest, res: Response) {
   } catch (error: any) {
     console.error('Error editando cabecera:', error);
     res.status(500).json({ error: 'Error al editar cabecera de compra', detalle: error.message });
+  }
+}
+
+/**
+ * Eliminar TODAS las compras de una granja
+ * Solo para administradores
+ */
+export async function eliminarTodasLasComprasCtrl(req: CompraRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+    const { confirmacion } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar que el usuario es administrador
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: userId },
+      select: { tipoUsuario: true }
+    });
+
+    if (!usuario || usuario.tipoUsuario !== 'ADMINISTRADOR') {
+      return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de administrador para eliminar todas las compras.' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Verificar confirmación
+    if (confirmacion !== 'SI DESEO ELIMINAR TODAS LAS COMPRAS REGISTRADAS') {
+      return res.status(400).json({ error: 'Confirmación incorrecta. Debe escribir exactamente: "SI DESEO ELIMINAR TODAS LAS COMPRAS REGISTRADAS"' });
+    }
+
+    const resultado = await eliminarTodasLasCompras(idGranja, userId);
+
+    res.json(resultado);
+  } catch (error: any) {
+    console.error('Error eliminando todas las compras:', error);
+    res.status(500).json({ error: error.message || 'Error al eliminar todas las compras' });
+  }
+}
+
+/**
+ * Restaurar una compra eliminada
+ */
+export async function restaurarCompraCtrl(req: CompraRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar que la compra pertenece a una granja del usuario
+    const compra = await prisma.compraCabecera.findUnique({
+      where: { id },
+      include: {
+        granja: {
+          select: { idUsuario: true }
+        }
+      }
+    });
+
+    if (!compra) {
+      return res.status(404).json({ error: 'Compra no encontrada' });
+    }
+
+    if (compra.granja.idUsuario !== userId) {
+      return res.status(403).json({ error: 'No tienes permiso para restaurar esta compra' });
+    }
+
+    const resultado = await restaurarCompra(id, userId);
+
+    res.json(resultado);
+  } catch (error: any) {
+    console.error('Error restaurando compra:', error);
+    res.status(500).json({ error: error.message || 'Error al restaurar compra' });
+  }
+}
+
+/**
+ * Obtener compras eliminadas de una granja
+ */
+export async function obtenerComprasEliminadasCtrl(req: CompraRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    const comprasEliminadas = await obtenerComprasEliminadas(idGranja);
+
+    res.json(comprasEliminadas);
+  } catch (error: any) {
+    console.error('Error obteniendo compras eliminadas:', error);
+    res.status(500).json({ error: 'Error al obtener compras eliminadas' });
   }
 }

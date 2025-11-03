@@ -16,12 +16,12 @@ export const Select: React.FC<SelectProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block mb-2 text-foreground font-medium">
+        <label className="block mb-2 text-foreground/90 font-medium">
           {label}
         </label>
       )}
       <select
-        className={`retro-select w-full ${className}`}
+        className={`glass-input pr-8 w-full bg-white/5 ${className}`}
         {...props}
       >
         {options.map((option) => (

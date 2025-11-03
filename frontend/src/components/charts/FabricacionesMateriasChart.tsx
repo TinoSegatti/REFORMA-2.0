@@ -2,12 +2,11 @@
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
-interface InventarioExistenciasChartProps {
+interface FabricacionesMateriasChartProps {
   data: Array<{
     codigo: string;
     nombre: string;
-    cantidad: number; // en kg
-    toneladas: number;
+    cantidadTotal: number; // en kg
   }>;
 }
 
@@ -17,20 +16,20 @@ const COLORS = [
   '#FAA381', '#D4A574'
 ];
 
-export default function InventarioExistenciasChart({ data }: InventarioExistenciasChartProps) {
+export default function FabricacionesMateriasChart({ data }: FabricacionesMateriasChartProps) {
   const chartData = data.map((item) => ({
     name: `${item.codigo} - ${item.nombre}`,
-    value: Number(item.cantidad || 0), // usamos kg
+    value: Number(item.cantidadTotal || 0), // usamos kg
     code: item.codigo,
   }));
 
   if (chartData.length === 0) {
     return (
-      <div className="h-64 flex items-center justify-center bg-gradient-to-br from-[#FAD863]/10 to-[#F5B8DA]/10 rounded-xl border-2 border-dashed border-gray-300">
+      <div className="h-64 flex items-center justify-center glass-surface rounded-xl border-2 border-dashed border-white/20">
         <div className="text-center">
           <p className="text-4xl mb-2">📦</p>
-          <p className="text-gray-600 font-medium">Sin datos</p>
-          <p className="text-sm text-gray-500">Inicializa tu inventario</p>
+          <p className="text-foreground/90 font-medium">Sin datos</p>
+          <p className="text-sm text-foreground/60">Registra fabricaciones para ver las materias primas más utilizadas</p>
         </div>
       </div>
     );
@@ -50,7 +49,7 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
   })();
 
   return (
-    <div className="h-64 w-full glass-card p-4">
+    <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie

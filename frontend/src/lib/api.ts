@@ -427,7 +427,19 @@ export const apiClient = {
     return await response.json();
   },
 
-  async createFormula(token: string, idGranja: string, data: any) {
+  async createFormula(
+    token: string,
+    idGranja: string,
+    data: {
+      idAnimal: string;
+      codigoFormula: string;
+      descripcionFormula: string;
+      detalles: Array<{
+        idMateriaPrima: string;
+        cantidadKg: number;
+      }>;
+    }
+  ) {
     const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas`, {
       method: 'POST',
       headers: {
@@ -661,7 +673,7 @@ export const apiClient = {
         const error = await response.json();
         message = error.error || message;
       } else {
-        const text = await response.text();
+        await response.text();
         message = `${message}: ${response.status} ${response.statusText}`;
       }
       throw new Error(message);
@@ -858,6 +870,303 @@ export const apiClient = {
 
     const data = await response.json();
     return data.ultimoPrecio as number | null;
+  },
+
+  // Fabricaciones
+  async getFabricaciones(token: string, idGranja: string, filters?: {
+    desde?: string;
+    hasta?: string;
+    descripcionFormula?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.desde) params.append('desde', filters.desde);
+    if (filters?.hasta) params.append('hasta', filters.hasta);
+    if (filters?.descripcionFormula) params.append('descripcionFormula', filters.descripcionFormula);
+
+    const queryString = params.toString();
+    const url = `${API_URL}/api/fabricaciones/${idGranja}${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al obtener fabricaciones');
+      } else {
+        throw new Error(`Error al obtener fabricaciones: ${response.status} ${response.statusText}`);
+      }
+    }
+
+    return await response.json();
+  },
+
+  async getEstadisticasFabricaciones(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/${idGranja}/estadisticas`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al obtener estadísticas');
+      } else {
+        return {
+          totalFabricaciones: 0,
+          totalKgFabricados: 0,
+          totalCosto: 0,
+          fabricacionesSinExistencias: 0,
+          promedioCostoPorKg: 0,
+          materiasMasUtilizadas: [],
+          formulasMasProducidas: []
+        };
+      }
+    }
+
+    return await response.json();
+  },
+
+  async crearFabricacion(token: string, data: {
+    idGranja: string;
+    idFormula: string;
+    descripcionFabricacion: string;
+    cantidadFabricacion: number;
+    fechaFabricacion: string;
+    observaciones?: string;
+  }) {
+    const response = await fetch(`${API_URL}/api/fabricaciones`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al crear fabricación');
+    }
+
+    return await response.json();
+  },
+
+  async getFabricacionPorId(token: string, idFabricacion: string) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/detalle/${idFabricacion}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener fabricación');
+    }
+
+    return await response.json();
+  },
+
+  async editarFabricacion(token: string, idFabricacion: string, data: {
+    idFormula?: string;
+    descripcionFabricacion?: string;
+    cantidadFabricacion?: number;
+    fechaFabricacion?: string;
+    observaciones?: string;
+  }) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/${idFabricacion}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al editar fabricación');
+    }
+
+    return await response.json();
+  },
+
+  async eliminarFabricacion(token: string, idFabricacion: string) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/${idFabricacion}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar fabricación');
+    }
+
+    return await response.json();
+  },
+
+  async eliminarTodasLasFabricaciones(token: string, idGranja: string, confirmacion: string) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/${idGranja}/todas`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ confirmacion }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar todas las fabricaciones');
+    }
+
+    return await response.json();
+  },
+
+  async eliminarTodasLasCompras(token: string, idGranja: string, confirmacion: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ confirmacion }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar todas las compras');
+    }
+
+    return await response.json();
+  },
+
+  async obtenerComprasEliminadas(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/eliminadas`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener compras eliminadas');
+    }
+
+    return await response.json();
+  },
+
+  async restaurarCompra(token: string, idGranja: string, idCompra: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}/restaurar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al restaurar compra');
+    }
+
+    return await response.json();
+  },
+
+  async obtenerFabricacionesEliminadas(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/${idGranja}/eliminadas`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener fabricaciones eliminadas');
+    }
+
+    return await response.json();
+  },
+
+  async restaurarFabricacion(token: string, idFabricacion: string) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/${idFabricacion}/restaurar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al restaurar fabricación');
+    }
+
+    return await response.json();
+  },
+
+  // ============================================
+  // AUDITORÍA
+  // ============================================
+
+  async obtenerAuditoria(
+    token: string,
+    idGranja: string,
+    filters?: {
+      tablaOrigen?: 'COMPRA' | 'FABRICACION' | 'INVENTARIO';
+      accion?: string;
+      desde?: string;
+      hasta?: string;
+      limit?: number;
+    }
+  ) {
+    const params = new URLSearchParams();
+    if (filters?.tablaOrigen) params.append('tablaOrigen', filters.tablaOrigen);
+    if (filters?.accion) params.append('accion', filters.accion);
+    if (filters?.desde) params.append('desde', filters.desde);
+    if (filters?.hasta) params.append('hasta', filters.hasta);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+
+    const queryString = params.toString();
+    const url = `${API_URL}/api/auditoria/granja/${idGranja}${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener auditoría');
+    }
+
+    return await response.json();
+  },
+
+  async obtenerEstadisticasAuditoria(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/auditoria/granja/${idGranja}/estadisticas`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener estadísticas de auditoría');
+    }
+
+    return await response.json();
   },
 };
 

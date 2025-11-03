@@ -93,6 +93,12 @@ export async function crearFormula(data: {
 }) {
   const { idGranja, idAnimal, codigoFormula, descripcionFormula, detalles } = data;
 
+  // Validación estricta: total de la fórmula debe ser 1000 kg
+  const totalKg = detalles.reduce((s, d) => s + Number(d.cantidadKg || 0), 0);
+  if (Math.abs(totalKg - 1000) > 0.001) {
+    throw new Error(`La suma de cantidades de la fórmula debe ser 1000 kg. Actual: ${totalKg}`);
+  }
+
   // Verificar duplicado de código
   const existe = await prisma.formulaCabecera.findUnique({
     where: {

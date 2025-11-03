@@ -38,7 +38,7 @@ export default function InventarioValorChart({ data }: InventarioValorChartProps
   }
 
   return (
-    <div className="h-64 w-full">
+    <div className="h-64 w-full glass-card p-4">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
@@ -63,10 +63,11 @@ export default function InventarioValorChart({ data }: InventarioValorChartProps
             tickFormatter={(value: number) => value.toLocaleString('es-AR')}
           />
           <Tooltip
-            cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+            cursor={{ fill: 'rgba(255,255,255,0.06)' }}
             contentStyle={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e5e7eb',
+              background: 'rgba(255,255,255,0.12)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.2)',
               borderRadius: '12px',
               boxShadow: '0 6px 12px -2px rgba(0, 0, 0, 0.1), 0 3px 7px -3px rgba(0, 0, 0, 0.05)',
               padding: '12px'

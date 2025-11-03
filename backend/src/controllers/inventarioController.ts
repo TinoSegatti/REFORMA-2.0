@@ -475,6 +475,45 @@ export async function vaciarInventario(req: InventarioRequest, res: Response) {
       return res.status(404).json({ error: 'Granja no encontrada' });
     }
 
+    // Validar que no haya compras registradas (solo activas)
+    const comprasCount = await prisma.compraCabecera.count({
+      where: { 
+        idGranja,
+        activo: true
+      }
+    });
+
+    if (comprasCount > 0) {
+      return res.status(400).json({ 
+        error: 'No se puede vaciar el inventario mientras existan compras registradas. Elimine primero todas las compras.' 
+      });
+    }
+
+    // Validar que no haya fabricaciones registradas (solo activas)
+    const fabricacionesCount = await prisma.fabricacion.count({
+      where: { 
+        idGranja,
+        activo: true
+      }
+    });
+
+    if (fabricacionesCount > 0) {
+      return res.status(400).json({ 
+        error: 'No se puede vaciar el inventario mientras existan fabricaciones registradas. Elimine primero todas las fabricaciones.' 
+      });
+    }
+
+    // También eliminar inventario inicial si existe
+    await prisma.inventarioInicial.deleteMany({
+      where: { idGranja }
+    });
+
+    // Resetear precios de todas las materias primas de la granja a $0
+    await prisma.materiaPrima.updateMany({
+      where: { idGranja },
+      data: { precioPorKilo: 0 }
+    });
+
     const resultado = await prisma.inventario.deleteMany({
       where: { idGranja }
     });
@@ -482,6 +521,6 @@ export async function vaciarInventario(req: InventarioRequest, res: Response) {
     res.json({ message: 'Inventario vaciado correctamente', eliminados: resultado.count });
   } catch (error: any) {
     console.error('Error vaciando inventario:', error);
-    res.status(500).json({ error: 'Error al vaciar inventario' });
+    res.status(500).json({ error: error.message || 'Error al vaciar inventario' });
   }
 }

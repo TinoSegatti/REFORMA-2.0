@@ -14,19 +14,6 @@ interface MateriaPrima {
   precioPorKilo: number;
 }
 
-interface Formula {
-  id: string;
-  codigoFormula: string;
-  descripcionFormula: string;
-}
-
-interface DetalleFormula {
-  id: string;
-  codigoMateriaPrima: string;
-  nombreMateriaPrima: string;
-  precioPorKilo: number;
-}
-
 interface DetalleFormula {
   id: string;
   cantidadKg: number;
@@ -331,10 +318,10 @@ export default function FormulaDetallePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAE4]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#B6CCAE] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-foreground/80">Cargando...</p>
         </div>
       </div>
     );
@@ -342,12 +329,12 @@ export default function FormulaDetallePage() {
 
   if (!formula) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAE4]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <p className="text-gray-600">Fórmula no encontrada</p>
+          <p className="text-foreground/80">Fórmula no encontrada</p>
           <button
             onClick={() => router.push(`/granja/${idGranja}/formulas`)}
-            className="mt-4 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+            className="mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
           >
             Volver a Fórmulas
           </button>
@@ -357,18 +344,18 @@ export default function FormulaDetallePage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAE4]">
+    <div className="flex min-h-screen ">
       <Sidebar />
 
       <main className="flex-1 ml-64">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-6">
+        <header className="glass-card m-4 mb-6">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">
+              <h2 className="text-3xl font-bold text-foreground">
                 Detalle de Fórmula: {formula.codigoFormula}
               </h2>
-              <p className="text-gray-600 mt-1">
+              <p className="text-foreground/70 mt-1">
                 {formula.descripcionFormula || 'Sin descripción'} - {formula.animal.descripcionAnimal}
               </p>
             </div>
@@ -376,14 +363,14 @@ export default function FormulaDetallePage() {
             <div className="flex gap-3">
               <button
                 onClick={imprimirFormula}
-                className="px-6 py-3 bg-gradient-to-r from-[#FAD863] to-[#F8C540] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-400 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
               >
                 <span>🖨️</span>
                 Imprimir
               </button>
               <button
                 onClick={() => setShowModalAgregar(true)}
-                className="px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all flex items-center gap-2"
               >
                 <span>+</span>
                 Añadir Materia Prima
@@ -396,7 +383,7 @@ export default function FormulaDetallePage() {
         <div className="max-w-7xl mx-auto p-8 space-y-8">
           {/* Navegación */}
           {formulas.length > 1 && (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+            <div className="glass-card p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <button
@@ -404,16 +391,16 @@ export default function FormulaDetallePage() {
                     disabled={getIndiceActual() === 1}
                     className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
                       getIndiceActual() === 1
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 hover:shadow-md'
+                        ? 'glass-surface text-foreground/40 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:shadow-md hover:shadow-purple-500/30'
                     }`}
                   >
                     <span>←</span>
                     <span className="text-sm">Anterior</span>
                   </button>
                   
-                  <div className="px-4 py-2 bg-gray-100 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700">
+                  <div className="px-4 py-2 glass-surface rounded-lg">
+                    <span className="text-sm font-medium text-foreground">
                       {getIndiceActual()} de {formulas.length}
                     </span>
                   </div>
@@ -423,8 +410,8 @@ export default function FormulaDetallePage() {
                     disabled={getIndiceActual() === formulas.length}
                     className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
                       getIndiceActual() === formulas.length
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 hover:shadow-md'
+                        ? 'glass-surface text-foreground/40 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:shadow-md hover:shadow-purple-500/30'
                     }`}
                   >
                     <span className="text-sm">Siguiente</span>
@@ -436,42 +423,42 @@ export default function FormulaDetallePage() {
           )}
 
           {/* Tabla de detalles */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900">
+                <thead className="bg-white/5">
                   <tr>
-                    <th className="px-6 py-4 text-left font-semibold">Código</th>
-                    <th className="px-6 py-4 text-left font-semibold">Nombre</th>
-                    <th className="px-6 py-4 text-left font-semibold">Cantidad (kg)</th>
-                    <th className="px-6 py-4 text-left font-semibold">Precio Unit.</th>
-                    <th className="px-6 py-4 text-left font-semibold">Subtotal</th>
-                    <th className="px-6 py-4 text-center font-semibold">Acciones</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Código</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Nombre</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Cantidad (kg)</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Precio Unit.</th>
+                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Subtotal</th>
+                    <th className="px-6 py-4 text-center font-semibold text-foreground/80">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {formula.formulasDetalle.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={6} className="px-6 py-12 text-center text-foreground/60">
                         No hay materias primas agregadas
                       </td>
                     </tr>
                   ) : (
                     formula.formulasDetalle.map((detalle) => (
-                      <tr key={detalle.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-gray-900 font-medium">
+                      <tr key={detalle.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 text-foreground font-medium">
                           {detalle.materiaPrima.codigoMateriaPrima}
                         </td>
-                        <td className="px-6 py-4 text-gray-900">
+                        <td className="px-6 py-4 text-foreground">
                           {detalle.materiaPrima.nombreMateriaPrima}
                         </td>
-                        <td className="px-6 py-4 text-gray-900">
+                        <td className="px-6 py-4 text-foreground/90">
                           {detalle.cantidadKg.toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 text-gray-900">
+                        <td className="px-6 py-4 text-foreground/90">
                           ${detalle.precioUnitarioMomentoCreacion.toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 text-gray-900 font-medium">
+                        <td className="px-6 py-4 text-foreground font-medium">
                           ${detalle.costoParcial.toFixed(2)}
                         </td>
                         <td className="px-6 py-4">
@@ -487,7 +474,7 @@ export default function FormulaDetallePage() {
                                 });
                                 setShowModalEditar(true);
                               }}
-                              className="px-4 py-2 bg-gradient-to-r from-[#B6CAEB] to-[#9DB5D9] text-gray-900 rounded-lg font-semibold hover:shadow-md transition-all text-sm"
+                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md hover:shadow-purple-500/30 transition-all text-sm"
                             >
                               Editar
                             </button>
@@ -496,7 +483,7 @@ export default function FormulaDetallePage() {
                                 setEliminando(detalle);
                                 setShowModalEliminar(true);
                               }}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-colors text-sm"
                             >
                               Eliminar
                             </button>
@@ -511,31 +498,31 @@ export default function FormulaDetallePage() {
           </div>
 
           {/* Informe de costos */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Informe de Fórmula</h3>
+          <div className="glass-card p-6">
+            <h3 className="text-xl font-bold text-foreground mb-4">Informe de Fórmula</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                  <span className="text-gray-700 font-medium">Peso Total:</span>
-                  <span className={`text-lg font-bold ${pesoCorrecto ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="flex justify-between items-center p-4 glass-surface rounded-xl">
+                  <span className="text-foreground/70 font-medium">Peso Total:</span>
+                  <span className={`text-lg font-bold ${pesoCorrecto ? 'text-green-400' : 'text-red-400'}`}>
                     {pesoTotal.toFixed(2)} kg
                   </span>
                 </div>
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                  <span className="text-gray-700 font-medium">Costo Total:</span>
-                  <span className="text-lg font-bold text-gray-900">
+                <div className="flex justify-between items-center p-4 glass-surface rounded-xl">
+                  <span className="text-foreground/70 font-medium">Costo Total:</span>
+                  <span className="text-lg font-bold text-foreground">
                     ${costoTotal.toFixed(2)}
                   </span>
                 </div>
               </div>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                  <span className="text-gray-700 font-medium">Peso Objetivo:</span>
-                  <span className="text-lg font-bold text-gray-900">1000.00 kg</span>
+                <div className="flex justify-between items-center p-4 glass-surface rounded-xl">
+                  <span className="text-foreground/70 font-medium">Peso Objetivo:</span>
+                  <span className="text-lg font-bold text-foreground">1000.00 kg</span>
                 </div>
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                  <span className="text-gray-700 font-medium">Diferencia:</span>
-                  <span className={`text-lg font-bold ${pesoCorrecto ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="flex justify-between items-center p-4 glass-surface rounded-xl">
+                  <span className="text-foreground/70 font-medium">Diferencia:</span>
+                  <span className={`text-lg font-bold ${pesoCorrecto ? 'text-green-400' : 'text-red-400'}`}>
                     {(pesoTotal - 1000).toFixed(2)} kg
                   </span>
                 </div>
@@ -543,10 +530,10 @@ export default function FormulaDetallePage() {
             </div>
             
             {!pesoCorrecto && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="mt-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl">
                 <div className="flex items-center gap-2">
-                  <span className="text-red-600 text-xl">⚠️</span>
-                  <p className="text-red-700 font-medium">
+                  <span className="text-red-400 text-xl">⚠️</span>
+                  <p className="text-red-300 font-medium">
                     El peso total debe ser exactamente 1000 kg. Actualmente es {pesoTotal.toFixed(2)} kg.
                     {pesoTotal < 1000 ? ' Necesitas agregar más materias primas.' : ' Necesitas reducir la cantidad de materias primas.'}
                   </p>
@@ -566,13 +553,13 @@ export default function FormulaDetallePage() {
           <>
             <button
               onClick={() => setShowModalAgregar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={agregarMateriaPrima}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
             >
               Agregar
             </button>
@@ -581,7 +568,7 @@ export default function FormulaDetallePage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Código Materia Prima *
             </label>
             <div className="relative">
@@ -592,10 +579,10 @@ export default function FormulaDetallePage() {
                 onFocus={() => { setSugCampo('codigo'); setSugerencias(materiasPrimas.slice(0,8)); }}
                 onBlur={() => setTimeout(() => { setSugCampo(null); }, 150)}
                 placeholder="Ej: MP001"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+                className="glass-input"
               />
               {sugCampo === 'codigo' && sugerencias.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-50 mt-1 w-full glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
                   {sugerencias.map((mp) => (
                     <button
                       key={mp.id}
@@ -606,9 +593,9 @@ export default function FormulaDetallePage() {
                         setMateriaPrimaSeleccionada(mp);
                         setSugCampo(null);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50"
+                      className="w-full text-left px-4 py-2 hover:bg-white/10 text-foreground"
                     >
-                      <span className="font-medium">{mp.codigoMateriaPrima}</span> — <span className="text-gray-600">{mp.nombreMateriaPrima}</span>
+                      <span className="font-medium">{mp.codigoMateriaPrima}</span> — <span className="text-foreground/70">{mp.nombreMateriaPrima}</span>
                     </button>
                   ))}
                 </div>
@@ -617,7 +604,7 @@ export default function FormulaDetallePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Nombre Materia Prima *
             </label>
             <div className="relative">
@@ -628,10 +615,10 @@ export default function FormulaDetallePage() {
                 onFocus={() => { setSugCampo('nombre'); setSugerencias(materiasPrimas.slice(0,8)); }}
                 onBlur={() => setTimeout(() => { setSugCampo(null); }, 150)}
                 placeholder="Ej: MAIZ"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+                className="glass-input"
               />
               {sugCampo === 'nombre' && sugerencias.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-50 mt-1 w-full glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
                   {sugerencias.map((mp) => (
                     <button
                       key={mp.id}
@@ -642,9 +629,9 @@ export default function FormulaDetallePage() {
                         setMateriaPrimaSeleccionada(mp);
                         setSugCampo(null);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50"
+                      className="w-full text-left px-4 py-2 hover:bg-white/10 text-foreground"
                     >
-                      <span className="font-medium">{mp.nombreMateriaPrima}</span> — <span className="text-gray-600">{mp.codigoMateriaPrima}</span>
+                      <span className="font-medium">{mp.nombreMateriaPrima}</span> — <span className="text-foreground/70">{mp.codigoMateriaPrima}</span>
                     </button>
                   ))}
                 </div>
@@ -653,15 +640,15 @@ export default function FormulaDetallePage() {
           </div>
 
           {materiaPrimaSeleccionada && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-xl">
-              <p className="text-sm text-green-800">
+            <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl">
+              <p className="text-sm text-emerald-300">
                 <strong>Precio por kilo:</strong> ${materiaPrimaSeleccionada.precioPorKilo.toFixed(2)}
               </p>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Cantidad (kg) *
             </label>
             <input
@@ -670,10 +657,10 @@ export default function FormulaDetallePage() {
               value={formData.cantidadKg}
               onChange={(e) => setFormData({ ...formData, cantidadKg: e.target.value })}
               placeholder="0.00"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
             {materiaPrimaSeleccionada && formData.cantidadKg && (
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-foreground/60 mt-2">
                 Subtotal estimado: ${(parseFloat(formData.cantidadKg) * materiaPrimaSeleccionada.precioPorKilo).toFixed(2)}
               </p>
             )}
@@ -690,13 +677,13 @@ export default function FormulaDetallePage() {
           <>
             <button
               onClick={() => setShowModalEditar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={editarMateriaPrima}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
             >
               Guardar
             </button>
@@ -705,19 +692,19 @@ export default function FormulaDetallePage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Materia Prima
             </label>
             <input
               type="text"
               value={editando?.materiaPrima.nombreMateriaPrima || ''}
               disabled
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-500"
+              className="glass-input bg-white/[0.02] cursor-not-allowed"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Cantidad (kg) *
             </label>
             <input
@@ -726,7 +713,7 @@ export default function FormulaDetallePage() {
               value={formData.cantidadKg}
               onChange={(e) => setFormData({ ...formData, cantidadKg: e.target.value })}
               placeholder="0.00"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#B6CCAE] focus:outline-none transition-all"
+              className="glass-input"
             />
           </div>
         </div>
@@ -741,20 +728,20 @@ export default function FormulaDetallePage() {
           <>
             <button
               onClick={() => setShowModalEliminar(false)}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={eliminarMateriaPrima}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all"
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all"
             >
               Eliminar
             </button>
           </>
         }
       >
-        <p className="text-gray-700">
+        <p className="text-foreground/90">
           ¿Está seguro de que desea eliminar <strong>{eliminando?.materiaPrima.nombreMateriaPrima}</strong> de esta fórmula?
           <br />
           Esta acción no se puede deshacer.
@@ -768,14 +755,14 @@ export default function FormulaDetallePage() {
         footer={
           <button
             onClick={() => setShowModalConfirmacion(false)}
-            className="w-full px-6 py-3 bg-gradient-to-r from-[#B6CCAE] to-[#9AAB64] text-gray-900 rounded-xl font-semibold hover:shadow-lg transition-all"
+            className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
           >
             Aceptar
           </button>
         }
       >
         <div className="p-4">
-          <p className="text-gray-700 whitespace-pre-line">{mensajeConfirmacion}</p>
+          <p className="text-foreground/90 whitespace-pre-line">{mensajeConfirmacion}</p>
         </div>
       </Modal>
     </div>

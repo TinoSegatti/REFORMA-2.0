@@ -7,16 +7,20 @@ interface TableProps {
 
 export const Table: React.FC<TableProps> = ({ columns, children }) => {
   return (
-    <div className="retro-table-container">
-      <table className="retro-table">
-        <thead>
+    <div className="glass-card overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-white/5">
           <tr>
             {columns.map((column, index) => (
-              <th key={index}>{column}</th>
+              <th key={index} className="text-left px-4 py-3 font-semibold text-foreground/80">
+                {column}
+              </th>
             ))}
           </tr>
         </thead>
-        <tbody>{children}</tbody>
+        <tbody className="divide-y divide-white/10">
+          {children}
+        </tbody>
       </table>
     </div>
   );
@@ -28,7 +32,7 @@ interface TableRowProps {
 }
 
 export const TableRow: React.FC<TableRowProps> = ({ children, className = '' }) => {
-  return <tr className={className}>{children}</tr>;
+  return <tr className={`hover:bg-white/5 transition ${className}`}>{children}</tr>;
 };
 
 interface TableCellProps {
@@ -37,6 +41,6 @@ interface TableCellProps {
 }
 
 export const TableCell: React.FC<TableCellProps> = ({ children, className = '' }) => {
-  return <td className={className}>{children}</td>;
+  return <td className={`px-4 py-3 text-foreground/90 ${className}`}>{children}</td>;
 };
 
