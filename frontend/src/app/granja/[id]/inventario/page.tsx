@@ -8,7 +8,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
 import InventarioExistenciasChart from '@/components/charts/InventarioExistenciasChart';
 import InventarioValorChart from '@/components/charts/InventarioValorChart';
-import { Package, Trash2, Rocket, Scale, DollarSign, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Trash2, Rocket, Scale, DollarSign, AlertTriangle, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface MateriaPrima {
   id: string;
@@ -87,6 +87,10 @@ export default function InventarioPage() {
   const [sugerencias, setSugerencias] = useState<MateriaPrima[]>([]);
   const [sugIndex, setSugIndex] = useState<number | null>(null);
   const [sugCampo, setSugCampo] = useState<'codigo' | 'nombre' | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -121,9 +125,15 @@ export default function InventarioPage() {
   };
 
   const inicializarInventario = async () => {
+    if (isInitializing) return; // Prevenir múltiples clicks
+
+    setIsInitializing(true);
     try {
       const token = authService.getToken();
-      if (!token) return;
+      if (!token) {
+        setIsInitializing(false);
+        return;
+      }
 
       // Construir payload solo con líneas válidas
       const datosIniciales = lineasInicializacion
@@ -144,7 +154,10 @@ export default function InventarioPage() {
         })
         .filter(Boolean) as Array<{ idMateriaPrima: string; cantidadReal: number; precioPorKilo?: number }>;
 
-      if (datosIniciales.length === 0) return;
+      if (datosIniciales.length === 0) {
+        setIsInitializing(false);
+        return;
+      }
 
       await apiClient.inicializarInventario(token, idGranja, datosIniciales);
       setShowModalInicializar(false);
@@ -152,6 +165,8 @@ export default function InventarioPage() {
       await cargarDatos();
     } catch (error: unknown) {
       console.error('Error inicializando inventario:', error);
+    } finally {
+      setIsInitializing(false);
     }
   };
 
@@ -213,10 +228,15 @@ export default function InventarioPage() {
 
   const actualizarCantidadReal = async () => {
     if (!editando || !formData.cantidadReal) return;
+    if (isSaving) return; // Prevenir múltiples clicks
 
+    setIsSaving(true);
     try {
       const token = authService.getToken();
-      if (!token) return;
+      if (!token) {
+        setIsSaving(false);
+        return;
+      }
 
       const cantidadReal = parseFloat(formData.cantidadReal);
       await apiClient.actualizarCantidadReal(token, idGranja, editando.id, cantidadReal);
@@ -227,6 +247,8 @@ export default function InventarioPage() {
       await cargarDatos();
     } catch (error: unknown) {
       console.error('Error actualizando cantidad real:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -264,10 +286,94 @@ export default function InventarioPage() {
     }
   };
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // Si ya está ordenado por esta columna, cambiar dirección
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Nueva columna, ordenar ascendente por defecto
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-4 w-4 inline-block ml-1 text-foreground/50" />;
+    }
+    if (sortDirection === 'asc') {
+      return <ArrowUp className="h-4 w-4 inline-block ml-1 text-foreground/80" />;
+    }
+    return <ArrowDown className="h-4 w-4 inline-block ml-1 text-foreground/80" />;
+  };
+
   const inventarioFiltrado = inventario.filter(item =>
     item.materiaPrima.codigoMateriaPrima.toLowerCase().includes(filtro.toLowerCase()) ||
     item.materiaPrima.nombreMateriaPrima.toLowerCase().includes(filtro.toLowerCase())
   );
+
+  // Aplicar ordenamiento
+  const inventarioOrdenado = [...inventarioFiltrado].sort((a, b) => {
+    if (!sortColumn) return 0;
+
+    let aValue: any;
+    let bValue: any;
+
+    switch (sortColumn) {
+      case 'codigo':
+        aValue = a.materiaPrima.codigoMateriaPrima.toLowerCase();
+        bValue = b.materiaPrima.codigoMateriaPrima.toLowerCase();
+        break;
+      case 'materiaPrima':
+        aValue = a.materiaPrima.nombreMateriaPrima.toLowerCase();
+        bValue = b.materiaPrima.nombreMateriaPrima.toLowerCase();
+        break;
+      case 'precio':
+        aValue = a.materiaPrima.precioPorKilo;
+        bValue = b.materiaPrima.precioPorKilo;
+        break;
+      case 'cantidadAcumulada':
+        aValue = a.cantidadAcumulada;
+        bValue = b.cantidadAcumulada;
+        break;
+      case 'cantidadSistema':
+        aValue = a.cantidadSistema;
+        bValue = b.cantidadSistema;
+        break;
+      case 'cantidadReal':
+        aValue = a.cantidadReal;
+        bValue = b.cantidadReal;
+        break;
+      case 'merma':
+        aValue = a.merma;
+        bValue = b.merma;
+        break;
+      case 'valorStock':
+        aValue = a.valorStock;
+        bValue = b.valorStock;
+        break;
+      case 'precioAlmacen':
+        aValue = a.precioAlmacen;
+        bValue = b.precioAlmacen;
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      if (sortDirection === 'asc') {
+        return aValue.localeCompare(bValue);
+      } else {
+        return bValue.localeCompare(aValue);
+      }
+    } else {
+      if (sortDirection === 'asc') {
+        return aValue - bValue;
+      } else {
+        return bValue - aValue;
+      }
+    }
+  });
 
   if (loading) {
     return (
@@ -450,27 +556,72 @@ export default function InventarioPage() {
               <table className="w-full">
                 <thead className="bg-white/5">
                   <tr>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Código</th>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Materia Prima</th>
-                  <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Precio/kg</th>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Cant. Acum.</th>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Cant. Sistema</th>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Cant. Real</th>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Merma</th>
-                  <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Costo Stock</th>
-                  <th className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm">Costo Alm.</th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('codigo')}
+                    >
+                      Código{getSortIcon('codigo')}
+                    </th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('materiaPrima')}
+                    >
+                      Materia Prima{getSortIcon('materiaPrima')}
+                    </th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('precio')}
+                    >
+                      Precio/kg{getSortIcon('precio')}
+                    </th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('cantidadAcumulada')}
+                    >
+                      Cant. Acum.{getSortIcon('cantidadAcumulada')}
+                    </th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('cantidadSistema')}
+                    >
+                      Cant. Sistema{getSortIcon('cantidadSistema')}
+                    </th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('cantidadReal')}
+                    >
+                      Cant. Real{getSortIcon('cantidadReal')}
+                    </th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('merma')}
+                    >
+                      Merma{getSortIcon('merma')}
+                    </th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('valorStock')}
+                    >
+                      Costo Stock{getSortIcon('valorStock')}
+                    </th>
+                    <th 
+                      className="px-3 py-3 text-left font-semibold text-foreground/80 text-sm cursor-pointer hover:bg-white/10 transition-colors select-none"
+                      onClick={() => handleSort('precioAlmacen')}
+                    >
+                      Costo Alm.{getSortIcon('precioAlmacen')}
+                    </th>
                     <th className="px-3 py-3 text-center font-semibold text-foreground/80 text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {inventarioFiltrado.length === 0 ? (
+                  {inventarioOrdenado.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="px-3 py-12 text-center text-foreground/60">
                         {filtro ? 'No se encontraron resultados' : 'No hay inventario registrado'}
                       </td>
                     </tr>
                   ) : (
-                    inventarioFiltrado.map((item) => (
+                    inventarioOrdenado.map((item) => (
                       <tr key={item.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
                         <td className="px-3 py-3 text-foreground font-medium text-sm">{item.materiaPrima.codigoMateriaPrima}</td>
                         <td className="px-3 py-3 text-foreground/90 text-sm">{item.materiaPrima.nombreMateriaPrima}</td>
@@ -512,23 +663,38 @@ export default function InventarioPage() {
       {/* Modal Inicializar Inventario */}
       <Modal
         isOpen={showModalInicializar}
-        onClose={() => setShowModalInicializar(false)}
+        onClose={() => {
+          setShowModalInicializar(false);
+          setIsInitializing(false);
+        }}
         title="Inicializar Inventario"
         size="full"
         bodyClassName="p-1 md:p-0"
         footer={
           <>
             <button
-              onClick={() => setShowModalInicializar(false)}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModalInicializar(false);
+                setIsInitializing(false);
+              }}
+              disabled={isInitializing}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={inicializarInventario}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+              disabled={isInitializing}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Inicializar
+              {isInitializing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Inicializando...
+                </>
+              ) : (
+                'Inicializar'
+              )}
             </button>
           </>
         }
@@ -540,7 +706,8 @@ export default function InventarioPage() {
             </p>
             <button
               onClick={agregarLinea}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all"
+              disabled={isInitializing}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               + Agregar línea
             </button>
@@ -562,6 +729,7 @@ export default function InventarioPage() {
                       onBlur={() => setTimeout(() => { setSugIndex(null); setSugCampo(null); }, 150)}
                       placeholder="Ej: MP001"
                       className="glass-input"
+                      disabled={isInitializing}
                       />
                       {sugIndex === idx && sugCampo === 'codigo' && sugerencias.length > 0 && (
                         <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
@@ -594,6 +762,7 @@ export default function InventarioPage() {
                       onBlur={() => setTimeout(() => { setSugIndex(null); setSugCampo(null); }, 150)}
                       placeholder="Ej: MAIZ"
                       className="glass-input"
+                      disabled={isInitializing}
                       />
                       {sugIndex === idx && sugCampo === 'nombre' && sugerencias.length > 0 && (
                         <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
@@ -625,6 +794,7 @@ export default function InventarioPage() {
                         onChange={(e) => actualizarLinea(idx, 'cantidadKg', e.target.value)}
                         placeholder="0.00"
                         className="glass-input"
+                        disabled={isInitializing}
                       />
                     </div>
                     <div>
@@ -636,13 +806,15 @@ export default function InventarioPage() {
                         onChange={(e) => actualizarLinea(idx, 'precioPorKilo', e.target.value)}
                         placeholder="0.00"
                         className="glass-input"
+                        disabled={isInitializing}
                       />
                     </div>
                   </div>
                   <div className="flex justify-end">
                     <button
                       onClick={() => eliminarLinea(idx)}
-                      className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700"
+                      disabled={isInitializing}
+                      className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Eliminar línea
                     </button>
@@ -677,6 +849,7 @@ export default function InventarioPage() {
                         onBlur={() => setTimeout(() => { setSugIndex(null); setSugCampo(null); }, 150)}
                         placeholder="Ej: MP001"
                         className="glass-input"
+                        disabled={isInitializing}
                         />
                         {sugIndex === idx && sugCampo === 'codigo' && sugerencias.length > 0 && (
                           <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
@@ -708,6 +881,7 @@ export default function InventarioPage() {
                         onBlur={() => setTimeout(() => { setSugIndex(null); setSugCampo(null); }, 150)}
                         placeholder="Ej: MAIZ"
                         className="glass-input"
+                        disabled={isInitializing}
                         />
                         {sugIndex === idx && sugCampo === 'nombre' && sugerencias.length > 0 && (
                           <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
@@ -737,6 +911,7 @@ export default function InventarioPage() {
                         onChange={(e) => actualizarLinea(idx, 'cantidadKg', e.target.value)}
                         placeholder="0.00"
                         className="glass-input"
+                        disabled={isInitializing}
                       />
                     </td>
                     <td className="px-5 py-3">
@@ -747,12 +922,14 @@ export default function InventarioPage() {
                         onChange={(e) => actualizarLinea(idx, 'precioPorKilo', e.target.value)}
                         placeholder="0.00"
                         className="glass-input"
+                        disabled={isInitializing}
                       />
                     </td>
                     <td className="px-5 py-3 text-center">
                       <button
                         onClick={() => eliminarLinea(idx)}
-                        className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700"
+                        disabled={isInitializing}
+                        className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Eliminar
                       </button>
@@ -777,21 +954,36 @@ export default function InventarioPage() {
       {/* Modal Editar Cantidad Real */}
       <Modal
         isOpen={showModalEditar}
-        onClose={() => setShowModalEditar(false)}
+        onClose={() => {
+          setShowModalEditar(false);
+          setIsSaving(false);
+        }}
         title="Editar Cantidad Real"
         footer={
           <>
             <button
-              onClick={() => setShowModalEditar(false)}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModalEditar(false);
+                setIsSaving(false);
+              }}
+              disabled={isSaving}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={actualizarCantidadReal}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+              disabled={isSaving}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Guardar
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Guardando...
+                </>
+              ) : (
+                'Guardar'
+              )}
             </button>
           </>
         }
@@ -820,6 +1012,7 @@ export default function InventarioPage() {
               onChange={(e) => setFormData({ ...formData, cantidadReal: e.target.value })}
               placeholder="0.00"
               className="glass-input"
+              disabled={isSaving}
             />
           </div>
 
