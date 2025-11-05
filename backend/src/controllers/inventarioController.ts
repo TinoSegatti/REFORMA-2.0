@@ -89,16 +89,16 @@ export async function obtenerEstadisticasInventario(req: InventarioRequest, res:
     const toneladasTotales = inventario.reduce((sum, item) => sum + item.cantidadReal, 0) / 1000;
     const costoTotalStock = inventario.reduce((sum, item) => sum + item.valorStock, 0);
 
-    // Materias primas con más existencias (por cantidad en sistema)
+    // Materias primas con más existencias (por cantidad real, para coincidir con toneladasTotales)
     const materiasMasExistencias = inventario
-      .filter(item => item.cantidadSistema > 0)
-      .sort((a, b) => b.cantidadSistema - a.cantidadSistema)
+      .filter(item => item.cantidadReal > 0)
+      .sort((a, b) => b.cantidadReal - a.cantidadReal)
       .slice(0, 10)
       .map(item => ({
         codigo: item.materiaPrima.codigoMateriaPrima,
         nombre: item.materiaPrima.nombreMateriaPrima,
-        cantidad: item.cantidadSistema,
-        toneladas: item.cantidadSistema / 1000
+        cantidad: item.cantidadReal,
+        toneladas: item.cantidadReal / 1000
       }));
 
     // Materias primas de más valor (por valor total del stock)

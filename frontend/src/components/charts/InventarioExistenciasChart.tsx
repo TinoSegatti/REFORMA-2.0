@@ -142,8 +142,8 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
             data={processed}
             dataKey="value"
             nameKey="name"
-            innerRadius={70}
-            outerRadius={110}
+            innerRadius={45}
+            outerRadius={80}
             paddingAngle={2}
             labelLine={false}
             label={(entry: any) => {
@@ -155,7 +155,7 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
               return '';
             }}
             labelStyle={{
-              fontSize: '12px',
+              fontSize: '11px',
               fontWeight: 'bold',
               fill: '#111827',
             }}
