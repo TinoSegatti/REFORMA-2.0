@@ -92,6 +92,9 @@ export default function FabricacionesPage() {
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
   const [showEliminadas, setShowEliminadas] = useState(false);
   const [fabricacionesEliminadas, setFabricacionesEliminadas] = useState<FabricacionEliminada[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [restaurandoId, setRestaurandoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -150,11 +153,14 @@ export default function FabricacionesPage() {
 
   const handleEliminar = async () => {
     if (!fabricacionAEliminar) return;
+    if (isDeleting) return; // Prevenir múltiples clicks
 
+    setIsDeleting(true);
     try {
       const token = authService.getToken();
       if (!token) {
         alert('No autenticado');
+        setIsDeleting(false);
         return;
       }
 
@@ -167,6 +173,8 @@ export default function FabricacionesPage() {
     } catch (error: unknown) {
       console.error('Error eliminando fabricación:', error);
       alert(error instanceof Error ? error.message : 'Error al eliminar fabricación');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -340,10 +348,13 @@ export default function FabricacionesPage() {
                             <td className="px-6 py-4">
                               <button
                                 onClick={async () => {
+                                  if (restaurandoId === fabricacion.id) return; // Prevenir múltiples clicks
+                                  setRestaurandoId(fabricacion.id);
                                   try {
                                     const token = authService.getToken();
                                     if (!token) {
                                       alert('No autenticado');
+                                      setRestaurandoId(null);
                                       return;
                                     }
                                     await apiClient.restaurarFabricacion(token, fabricacion.id);
@@ -354,12 +365,24 @@ export default function FabricacionesPage() {
                                   } catch (error: unknown) {
                                     console.error('Error restaurando fabricación:', error);
                                     alert(error instanceof Error ? error.message : 'Error al restaurar fabricación');
+                                  } finally {
+                                    setRestaurandoId(null);
                                   }
                                 }}
-                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg font-semibold hover:shadow-md text-sm flex items-center gap-2"
+                                disabled={restaurandoId === fabricacion.id}
+                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg font-semibold hover:shadow-md text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <RotateCcw className="h-4 w-4" />
-                                Restaurar
+                                {restaurandoId === fabricacion.id ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Restaurando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RotateCcw className="h-4 w-4" />
+                                    Restaurar
+                                  </>
+                                )}
                               </button>
                             </td>
                           </tr>
@@ -509,8 +532,10 @@ export default function FabricacionesPage() {
                 onClick={() => {
                   setShowModalEliminarTodas(false);
                   setConfirmacionTexto('');
+                  setIsDeletingAll(false);
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isDeletingAll}
               >
                 Cancelar
               </button>
@@ -520,11 +545,14 @@ export default function FabricacionesPage() {
                     alert('El texto de confirmación no coincide. Por favor, escriba exactamente: "SI DESEO ELIMINAR TODAS LAS FABRICACIONES REGISTRADAS"');
                     return;
                   }
+                  if (isDeletingAll) return; // Prevenir múltiples clicks
 
+                  setIsDeletingAll(true);
                   try {
                     const token = authService.getToken();
                     if (!token) {
                       alert('No autenticado');
+                      setIsDeletingAll(false);
                       return;
                     }
 
@@ -538,12 +566,21 @@ export default function FabricacionesPage() {
                   } catch (error: unknown) {
                     console.error('Error eliminando todas las fabricaciones:', error);
                     alert(error instanceof Error ? error.message : 'Error al eliminar todas las fabricaciones');
+                  } finally {
+                    setIsDeletingAll(false);
                   }
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                disabled={confirmacionTexto !== 'SI DESEO ELIMINAR TODAS LAS FABRICACIONES REGISTRADAS'}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={confirmacionTexto !== 'SI DESEO ELIMINAR TODAS LAS FABRICACIONES REGISTRADAS' || isDeletingAll}
               >
-                Eliminar Todas las Fabricaciones
+                {isDeletingAll ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Eliminando...
+                  </>
+                ) : (
+                  'Eliminar Todas las Fabricaciones'
+                )}
               </button>
             </div>
           </div>
@@ -590,16 +627,26 @@ export default function FabricacionesPage() {
                 onClick={() => {
                   setShowModalEliminar(false);
                   setFabricacionAEliminar(null);
+                  setIsDeleting(false);
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isDeleting}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleEliminar}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Eliminar
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Eliminando...
+                  </>
+                ) : (
+                  'Eliminar'
+                )}
               </button>
             </div>
           </div>
@@ -678,6 +725,7 @@ function ModalNuevaFabricacion({
               onChange={(e) => setFormData({ ...formData, idFormula: e.target.value })}
               className="glass-input"
               required
+              disabled={loading}
             >
               <option value="">Seleccionar fórmula...</option>
               {formulas.map((formula) => (
@@ -698,6 +746,7 @@ function ModalNuevaFabricacion({
               onChange={(e) => setFormData({ ...formData, descripcionFabricacion: e.target.value })}
               className="glass-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -713,6 +762,7 @@ function ModalNuevaFabricacion({
               onChange={(e) => setFormData({ ...formData, cantidadFabricacion: e.target.value })}
               className="glass-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -726,6 +776,7 @@ function ModalNuevaFabricacion({
               onChange={(e) => setFormData({ ...formData, fechaFabricacion: e.target.value })}
               className="glass-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -738,6 +789,7 @@ function ModalNuevaFabricacion({
               onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
               rows={3}
               className="glass-input"
+              disabled={loading}
             />
           </div>
         </div>
@@ -746,17 +798,24 @@ function ModalNuevaFabricacion({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 glass-surface text-foreground rounded-lg font-semibold hover:bg-white/10 transition-all"
+            className="px-4 py-2 glass-surface text-foreground rounded-lg font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg hover:brightness-110 transition-all"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             disabled={loading}
           >
-            {loading ? 'Guardando...' : 'Crear Fabricación'}
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Guardando...
+              </>
+            ) : (
+              'Crear Fabricación'
+            )}
           </button>
         </div>
       </form>
@@ -837,6 +896,7 @@ function ModalEditarFabricacion({
               onChange={(e) => setFormData({ ...formData, idFormula: e.target.value })}
               className="glass-input"
               required
+              disabled={loading}
             >
               <option value="">Seleccionar fórmula...</option>
               {formulas.map((formula) => (
@@ -857,6 +917,7 @@ function ModalEditarFabricacion({
               onChange={(e) => setFormData({ ...formData, descripcionFabricacion: e.target.value })}
               className="glass-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -872,6 +933,7 @@ function ModalEditarFabricacion({
               onChange={(e) => setFormData({ ...formData, cantidadFabricacion: e.target.value })}
               className="glass-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -885,6 +947,7 @@ function ModalEditarFabricacion({
               onChange={(e) => setFormData({ ...formData, fechaFabricacion: e.target.value })}
               className="glass-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -897,6 +960,7 @@ function ModalEditarFabricacion({
               onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
               rows={3}
               className="glass-input"
+              disabled={loading}
             />
           </div>
         </div>
@@ -905,17 +969,24 @@ function ModalEditarFabricacion({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 glass-surface text-foreground rounded-lg font-semibold hover:bg-white/10 transition-all"
+            className="px-4 py-2 glass-surface text-foreground rounded-lg font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg hover:brightness-110 transition-all"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             disabled={loading}
           >
-            {loading ? 'Guardando...' : 'Guardar Cambios'}
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Guardando...
+              </>
+            ) : (
+              'Guardar Cambios'
+            )}
           </button>
         </div>
       </form>
