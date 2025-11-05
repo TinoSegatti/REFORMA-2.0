@@ -164,10 +164,17 @@ export default function ConfiguracionPage() {
               )}
 
               <div className="flex gap-3 pt-2">
-                <Button onClick={save} disabled={saving}>
-                  {saving ? 'Guardando…' : 'Guardar'}
+                <Button onClick={save} disabled={saving} className="flex items-center justify-center gap-2">
+                  {saving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Guardando…
+                    </>
+                  ) : (
+                    'Guardar'
+                  )}
                 </Button>
-                <Button variant="neutral" onClick={reset}>Restablecer</Button>
+                <Button variant="neutral" onClick={reset} disabled={saving}>Restablecer</Button>
               </div>
 
               {message && <p className="text-sm text-foreground/80">{message}</p>}
