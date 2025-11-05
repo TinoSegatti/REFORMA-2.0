@@ -109,23 +109,58 @@ export default function ProveedoresPage() {
         return;
       }
 
+      let proveedorActualizado;
       if (editando) {
-        await apiClient.updateProveedor(token, idGranja, editando.id, {
+        // Editar: actualizar solo ese proveedor en el estado
+        proveedorActualizado = await apiClient.updateProveedor(token, idGranja, editando.id, {
           codigoProveedor: formData.codigo,
           nombreProveedor: formData.nombre,
           direccionProveedor: formData.direccion || '',
           localidadProveedor: formData.localidad || '',
         });
+        
+        // Actualizar solo ese proveedor en el estado (sin recargar todo)
+        setProveedores(prev => prev.map(p => 
+          p.id === editando.id 
+            ? {
+                id: proveedorActualizado.id,
+                codigo: proveedorActualizado.codigoProveedor,
+                nombre: proveedorActualizado.nombreProveedor,
+                direccion: proveedorActualizado.direccion,
+                localidad: proveedorActualizado.localidad,
+              }
+            : p
+        ));
       } else {
-        await apiClient.createProveedor(token, idGranja, {
+        // Crear: agregar solo el nuevo proveedor al estado
+        proveedorActualizado = await apiClient.createProveedor(token, idGranja, {
           codigoProveedor: formData.codigo,
           nombreProveedor: formData.nombre,
           direccionProveedor: formData.direccion || '',
           localidadProveedor: formData.localidad || '',
         });
+        
+        // Agregar solo el nuevo proveedor al estado (sin recargar estadísticas)
+        const nuevoProveedor = {
+          id: proveedorActualizado.id,
+          codigo: proveedorActualizado.codigoProveedor,
+          nombre: proveedorActualizado.nombreProveedor,
+          direccion: proveedorActualizado.direccion,
+          localidad: proveedorActualizado.localidad,
+        };
+        setProveedores(prev => [...prev, nuevoProveedor].sort((a, b) => 
+          a.nombre.localeCompare(b.nombre)
+        ));
+        
+        // Actualizar solo el contador de estadísticas (sin recargar las queries complejas)
+        if (estadisticas) {
+          setEstadisticas(prev => ({
+            ...prev,
+            cantidadProveedores: (prev?.cantidadProveedores || 0) + 1
+          }));
+        }
       }
 
-      await cargarDatos();
       setShowModal(false);
       setFormData({ codigo: '', nombre: '', direccion: '', localidad: '' });
       setEditando(null);
@@ -150,7 +185,31 @@ export default function ProveedoresPage() {
       }
 
       await apiClient.deleteProveedor(token, idGranja, eliminando.id);
-      await cargarDatos();
+      
+      // Eliminar solo ese proveedor del estado (sin recargar todo)
+      setProveedores(prev => prev.filter(p => p.id !== eliminando.id));
+      
+      // Actualizar contador de estadísticas
+      if (estadisticas) {
+        setEstadisticas(prev => ({
+          ...prev,
+          cantidadProveedores: Math.max(0, (prev?.cantidadProveedores || 0) - 1)
+        }));
+        
+        // Recalcular estadísticas solo si el proveedor tenía compras (verificar en las estadísticas actuales)
+        const proveedorEnStats = estadisticas.comprasPorProveedor?.some(
+          (p: any) => p.id === eliminando.id
+        ) || estadisticas.gastosPorProveedor?.some(
+          (p: any) => p.id === eliminando.id && Number(p.total_gastado) > 0
+        );
+        
+        // Solo recargar estadísticas si el proveedor tenía compras asociadas
+        if (proveedorEnStats) {
+          const stats = await apiClient.getEstadisticasProveedores(token, idGranja);
+          setEstadisticas(stats);
+        }
+      }
+      
       setShowModalEliminar(false);
       setEliminando(null);
     } catch (error: unknown) {
