@@ -6,6 +6,7 @@ import {
   obtenerFormulaPorId, 
   eliminarFormula,
   agregarDetalleFormula,
+  agregarMultiplesDetallesFormula,
   actualizarDetalleFormula,
   eliminarDetalleFormula
 } from '../controllers/formulaController';
@@ -33,6 +34,7 @@ router.delete('/granja/:idGranja/formulas/:id', eliminarFormula);
 
 // Rutas de detalles de fórmula
 router.post('/granja/:idGranja/formulas/:id/detalles', agregarDetalleFormula);
+router.post('/granja/:idGranja/formulas/:id/detalles/multiples', agregarMultiplesDetallesFormula);
 router.put('/granja/:idGranja/formulas/:id/detalles/:detalleId', actualizarDetalleFormula);
 router.delete('/granja/:idGranja/formulas/:id/detalles/:detalleId', eliminarDetalleFormula);
 

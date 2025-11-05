@@ -385,6 +385,161 @@ export async function agregarItem(req: CompraRequest, res: Response) {
 }
 
 /**
+ * Agregar múltiples items de compra en un solo insert
+ */
+export async function agregarMultiplesItems(req: CompraRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, id } = req.params;
+    const { items } = req.body; // Array de { idMateriaPrima, cantidadComprada, precioUnitario, subtotal? }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un array de items' });
+    }
+
+    // Verificar que la compra pertenece al usuario
+    const compra = await prisma.compraCabecera.findUnique({
+      where: { id },
+      include: { granja: true }
+    });
+
+    if (!compra || compra.idGranja !== idGranja || compra.granja.idUsuario !== userId) {
+      return res.status(404).json({ error: 'Compra no encontrada' });
+    }
+
+    // Validar que no haya duplicados en el array de items
+    const idsMateriasPrimas = items.map((item: any) => item.idMateriaPrima);
+    const idsUnicos = new Set(idsMateriasPrimas);
+    if (idsUnicos.size !== idsMateriasPrimas.length) {
+      return res.status(400).json({ error: 'No se pueden agregar materias primas duplicadas en el mismo lote' });
+    }
+
+    // Verificar que no existan ya estos items
+    const itemsExistentes = await prisma.compraDetalle.findMany({
+      where: {
+        idCompra: id,
+        idMateriaPrima: { in: idsMateriasPrimas }
+      },
+      include: {
+        materiaPrima: true
+      }
+    });
+
+    if (itemsExistentes.length > 0) {
+      const mpDuplicadas = itemsExistentes.map(d => d.materiaPrima.codigoMateriaPrima);
+      return res.status(400).json({ 
+        error: `Las siguientes materias primas ya están en la compra: ${mpDuplicadas.join(', ')}` 
+      });
+    }
+
+    // Procesar todos los items
+    const itemsProcesados = await Promise.all(
+      items.map(async (item: any) => {
+        const cantidadComprada = parseFloat(item.cantidadComprada);
+        const precioUnitario = parseFloat(item.precioUnitario);
+        const subtotalCalculado = cantidadComprada * precioUnitario;
+
+        // Validar subtotal si viene
+        if (item.subtotal !== undefined) {
+          const subtotalRecibido = parseFloat(item.subtotal);
+          if (Math.abs(subtotalCalculado - subtotalRecibido) > 0.001) {
+            throw new Error(`El subtotal del item no coincide: esperado ${subtotalCalculado.toFixed(2)}, recibido ${subtotalRecibido.toFixed(2)}`);
+          }
+        }
+
+        // Obtener materia prima y precio anterior
+        const materiaPrima = await prisma.materiaPrima.findUnique({
+          where: { id: item.idMateriaPrima }
+        });
+
+        if (!materiaPrima) {
+          throw new Error(`Materia prima ${item.idMateriaPrima} no encontrada`);
+        }
+
+        const precioAnterior = materiaPrima.precioPorKilo || 0;
+
+        return {
+          idCompra: id,
+          idMateriaPrima: item.idMateriaPrima,
+          cantidadComprada,
+          precioUnitario,
+          subtotal: subtotalCalculado,
+          precioAnteriorMateriaPrima: precioAnterior
+        };
+      })
+    );
+
+    // Crear todos los items en una transacción
+    await prisma.$transaction(async (tx) => {
+      // Crear items
+      await tx.compraDetalle.createMany({
+        data: itemsProcesados
+      });
+
+      // Actualizar precios de materias primas
+      for (const item of itemsProcesados) {
+        await tx.materiaPrima.update({
+          where: { id: item.idMateriaPrima },
+          data: { precioPorKilo: item.precioUnitario }
+        });
+
+        // Registrar historial de precio si cambió
+        if (item.precioAnteriorMateriaPrima !== item.precioUnitario) {
+          const diferenciaPorcentual = item.precioAnteriorMateriaPrima > 0
+            ? ((item.precioUnitario - item.precioAnteriorMateriaPrima) / item.precioAnteriorMateriaPrima) * 100
+            : 0;
+          await tx.registroPrecio.create({
+            data: {
+              idMateriaPrima: item.idMateriaPrima,
+              precioAnterior: item.precioAnteriorMateriaPrima,
+              precioNuevo: item.precioUnitario,
+              diferenciaPorcentual,
+              motivo: `Actualización por compra - Agregar múltiples items en compra ${id}`
+            }
+          });
+        }
+      }
+    });
+
+    // Recalcular inventario para todas las materias primas afectadas
+    const materiasPrimasAfectadas = new Set(itemsProcesados.map(i => i.idMateriaPrima));
+    for (const idMateriaPrima of materiasPrimasAfectadas) {
+      const { recalcularInventario, sincronizarCantidadRealConSistema } = await import('../services/inventarioService');
+      await recalcularInventario({ idGranja, idMateriaPrima });
+      await sincronizarCantidadRealConSistema(idGranja, idMateriaPrima);
+      
+      const { recalcularFormulasPorMateriaPrima } = await import('../services/formulaService');
+      await recalcularFormulasPorMateriaPrima(idMateriaPrima);
+    }
+
+    // Actualizar total de la compra
+    const todosLosItems = await prisma.compraDetalle.findMany({
+      where: { idCompra: id }
+    });
+
+    const nuevoTotal = todosLosItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    await prisma.compraCabecera.update({
+      where: { id },
+      data: { totalFactura: nuevoTotal }
+    });
+
+    res.status(201).json({ 
+      mensaje: `${items.length} items agregados exitosamente`,
+      agregados: items.length,
+      nuevoTotal
+    });
+  } catch (error: any) {
+    console.error('Error agregando múltiples items:', error);
+    res.status(500).json({ error: error.message || 'Error al agregar items' });
+  }
+}
+
+/**
  * Editar un item de compra
  */
 export async function editarItem(req: CompraRequest, res: Response) {

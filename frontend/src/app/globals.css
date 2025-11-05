@@ -452,11 +452,6 @@ html {
   animation: float4 35s ease-in-out infinite;
 }
 
-/* Sidebar Collapse */
-body.sidebar-collapsed main.ml-64 {
-  margin-left: 4rem !important;
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .modern-button-primary,

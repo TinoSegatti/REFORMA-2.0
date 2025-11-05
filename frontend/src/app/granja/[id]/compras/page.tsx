@@ -31,6 +31,14 @@ interface CompraCabecera {
   comprasDetalle?: CompraDetalle[];
 }
 
+interface CompraEliminada extends Omit<CompraCabecera, 'comprasDetalle'> {
+  usuario?: {
+    nombreUsuario: string;
+    apellidoUsuario: string;
+  };
+  fechaEliminacion: string | null;
+}
+
 export default function ComprasPage() {
   const router = useRouter();
   const params = useParams();
@@ -52,7 +60,7 @@ export default function ComprasPage() {
   const [showModalEliminarTodas, setShowModalEliminarTodas] = useState(false);
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
   const [showEliminadas, setShowEliminadas] = useState(false);
-  const [comprasEliminadas, setComprasEliminadas] = useState<CompraCabecera[]>([]);
+  const [comprasEliminadas, setComprasEliminadas] = useState<CompraEliminada[]>([]);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -272,7 +280,7 @@ export default function ComprasPage() {
             <div className="md:col-span-4 flex flex-wrap gap-3 items-end">
               <div>
                 <label className="block text-sm text-foreground/70 mb-2">Ordenar por</label>
-                <select value={orden} onChange={(e) => setOrden(e.target.value as any)} className="glass-input">
+                <select value={orden} onChange={(e) => setOrden(e.target.value as 'fecha_desc' | 'fecha_asc' | 'total_desc' | 'total_asc')} className="glass-input">
                   <option value="fecha_desc">Más nueva → más antigua</option>
                   <option value="fecha_asc">Más antigua → más nueva</option>
                   <option value="total_desc">Más cara → más barata</option>
@@ -310,7 +318,7 @@ export default function ComprasPage() {
                           </td>
                         </tr>
                       ) : (
-                        comprasEliminadas.map((compra: any) => (
+                        comprasEliminadas.map((compra) => (
                           <tr key={compra.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
                             <td className="px-6 py-4 text-foreground font-medium">{compra.numeroFactura || '-'}</td>
                             <td className="px-6 py-4 text-foreground/90 whitespace-nowrap">{formatDate(compra.fechaCompra)}</td>

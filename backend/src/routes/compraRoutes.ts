@@ -12,6 +12,7 @@ import {
   obtenerHistorialPreciosMateriaPrima,
   obtenerUltimoPrecioMateriaPrima,
   agregarItem,
+  agregarMultiplesItems,
   editarItem,
   eliminarItem,
   editarCabeceraCompra,
@@ -41,6 +42,7 @@ router.delete('/granja/:idGranja/compras/:id', eliminarCompraEndpoint);
 
 // Rutas de items de compra
 router.post('/granja/:idGranja/compras/:id/items', agregarItem);
+router.post('/granja/:idGranja/compras/:id/items/multiples', agregarMultiplesItems);
 router.put('/granja/:idGranja/compras/:id/items/:detalleId', editarItem);
 router.delete('/granja/:idGranja/compras/:id/items/:detalleId', eliminarItem);
 

@@ -38,6 +38,14 @@ interface Fabricacion {
   detallesFabricacion?: DetalleFabricacion[];
 }
 
+interface FabricacionEliminada extends Omit<Fabricacion, 'detallesFabricacion'> {
+  usuario?: {
+    nombreUsuario: string;
+    apellidoUsuario: string;
+  };
+  fechaEliminacion: string | null;
+}
+
 interface Estadisticas {
   totalFabricaciones: number;
   totalKgFabricados: number;
@@ -83,7 +91,7 @@ export default function FabricacionesPage() {
   const [showModalEliminarTodas, setShowModalEliminarTodas] = useState(false);
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
   const [showEliminadas, setShowEliminadas] = useState(false);
-  const [fabricacionesEliminadas, setFabricacionesEliminadas] = useState<Fabricacion[]>([]);
+  const [fabricacionesEliminadas, setFabricacionesEliminadas] = useState<FabricacionEliminada[]>([]);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -309,7 +317,7 @@ export default function FabricacionesPage() {
                           </td>
                         </tr>
                       ) : (
-                        fabricacionesEliminadas.map((fabricacion: any) => (
+                        fabricacionesEliminadas.map((fabricacion) => (
                           <tr key={fabricacion.id} className="hover:bg-white/5">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                               {formatDate(fabricacion.fechaFabricacion)}

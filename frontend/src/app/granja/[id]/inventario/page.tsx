@@ -8,7 +8,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
 import InventarioExistenciasChart from '@/components/charts/InventarioExistenciasChart';
 import InventarioValorChart from '@/components/charts/InventarioValorChart';
-import { Package, Trash2, Rocket, Scale, DollarSign, AlertTriangle } from 'lucide-react';
+import { Package, Trash2, Rocket, Scale, DollarSign, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface MateriaPrima {
   id: string;
@@ -72,6 +72,7 @@ export default function InventarioPage() {
   const [formData, setFormData] = useState({
     cantidadReal: ''
   });
+  const [alertasMinimizadas, setAlertasMinimizadas] = useState(false);
 
   // Estado para inicialización manual por líneas
   const [lineasInicializacion, setLineasInicializacion] = useState<Array<{
@@ -365,32 +366,47 @@ export default function InventarioPage() {
           {/* Alertas de stock */}
           {estadisticas?.alertasStock && estadisticas.alertasStock.length > 0 && (
             <div className="glass-card p-6 border-red-500/30">
-              <h3 className="text-lg font-bold text-red-400 mb-4 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Alertas de Stock
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {estadisticas.alertasStock.map((alerta, index) => (
-                  <div key={index} className="glass-card p-4 border-red-500/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-foreground">{alerta.codigo}</p>
-                        <p className="text-sm text-foreground/70">{alerta.nombre}</p>
+              <button
+                onClick={() => setAlertasMinimizadas(!alertasMinimizadas)}
+                className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition-opacity"
+              >
+                <h3 className="text-lg font-bold text-red-400 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Alertas de Stock
+                  <span className="text-sm font-normal text-red-400/70">
+                    ({estadisticas.alertasStock.length})
+                  </span>
+                </h3>
+                {alertasMinimizadas ? (
+                  <ChevronDown className="h-5 w-5 text-red-400" />
+                ) : (
+                  <ChevronUp className="h-5 w-5 text-red-400" />
+                )}
+              </button>
+              {!alertasMinimizadas && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {estadisticas.alertasStock.map((alerta, index) => (
+                    <div key={index} className="glass-card p-4 border-red-500/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-foreground">{alerta.codigo}</p>
+                          <p className="text-sm text-foreground/70">{alerta.nombre}</p>
+                        </div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          alerta.tipo === 'NEGATIVO' 
+                            ? 'bg-red-500/20 text-red-400' 
+                            : 'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {alerta.tipo === 'NEGATIVO' ? 'NEGATIVO' : 'CERO'}
+                        </div>
                       </div>
-                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        alerta.tipo === 'NEGATIVO' 
-                          ? 'bg-red-500/20 text-red-400' 
-                          : 'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {alerta.tipo === 'NEGATIVO' ? 'NEGATIVO' : 'CERO'}
-                      </div>
+                      <p className="text-sm text-foreground/60 mt-2">
+                        Cantidad: {alerta.cantidadReal.toFixed(2)} kg
+                      </p>
                     </div>
-                    <p className="text-sm text-foreground/60 mt-2">
-                      Cantidad: {alerta.cantidadReal.toFixed(2)} kg
-                    </p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

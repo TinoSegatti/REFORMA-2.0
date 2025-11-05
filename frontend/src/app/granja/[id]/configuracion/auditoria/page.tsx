@@ -15,8 +15,8 @@ interface AuditoriaRegistro {
   tablaOrigen: 'COMPRA' | 'FABRICACION' | 'INVENTARIO';
   descripcion: string | null;
   idRegistro: string;
-  datosAnteriores: any;
-  datosNuevos: any;
+  datosAnteriores: Record<string, unknown> | null;
+  datosNuevos: Record<string, unknown> | null;
   usuario: {
     nombreUsuario: string;
     apellidoUsuario: string;
@@ -55,7 +55,13 @@ export default function AuditoriaPage() {
       const token = authService.getToken();
       if (!token || !idGranja) return;
 
-      const filters: any = {};
+      const filters: {
+        tablaOrigen?: 'COMPRA' | 'FABRICACION' | 'INVENTARIO';
+        accion?: string;
+        desde?: string;
+        hasta?: string;
+        limit: number;
+      } = { limit: 500 };
       if (tablaOrigen !== 'TODAS') {
         filters.tablaOrigen = tablaOrigen;
       }
@@ -68,7 +74,6 @@ export default function AuditoriaPage() {
       if (hasta) {
         filters.hasta = hasta;
       }
-      filters.limit = 500;
 
       const datos = await apiClient.obtenerAuditoria(token, idGranja, filters);
       setAuditoria(datos);
@@ -179,7 +184,7 @@ export default function AuditoriaPage() {
                 <label className="block text-sm text-foreground/70 mb-2">Tabla</label>
                 <select
                   value={tablaOrigen}
-                  onChange={(e) => setTablaOrigen(e.target.value as any)}
+                  onChange={(e) => setTablaOrigen(e.target.value as 'COMPRA' | 'FABRICACION' | 'INVENTARIO' | 'TODAS')}
                   className="glass-input w-full"
                 >
                   <option value="TODAS">Todas las tablas</option>

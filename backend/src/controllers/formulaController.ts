@@ -99,6 +99,117 @@ export async function agregarDetalleFormula(req: FormulaRequest, res: Response) 
 }
 
 /**
+ * Agregar múltiples detalles de fórmula en un solo insert
+ */
+export async function agregarMultiplesDetallesFormula(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, id } = req.params;
+    const { detalles } = req.body; // Array de { idMateriaPrima, cantidadKg }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!detalles || !Array.isArray(detalles) || detalles.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un array de detalles' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Verificar que existe la fórmula
+    const formula = await prisma.formulaCabecera.findFirst({
+      where: { id, idGranja }
+    });
+
+    if (!formula) {
+      return res.status(404).json({ error: 'Fórmula no encontrada' });
+    }
+
+    // Validar que no haya duplicados en el array de detalles
+    const idsMateriasPrimas = detalles.map((d: any) => d.idMateriaPrima);
+    const idsUnicos = new Set(idsMateriasPrimas);
+    if (idsUnicos.size !== idsMateriasPrimas.length) {
+      return res.status(400).json({ error: 'No se pueden agregar materias primas duplicadas en el mismo lote' });
+    }
+
+    // Verificar que no existan ya estos detalles
+    const detallesExistentes = await prisma.formulaDetalle.findMany({
+      where: {
+        idFormula: id,
+        idMateriaPrima: { in: idsMateriasPrimas }
+      }
+    });
+
+    if (detallesExistentes.length > 0) {
+      const mpDuplicadas = detallesExistentes.map(d => d.idMateriaPrima);
+      return res.status(400).json({ 
+        error: `Las siguientes materias primas ya están en la fórmula: ${mpDuplicadas.join(', ')}` 
+      });
+    }
+
+    // Obtener materias primas y calcular detalles
+    const detallesConPrecios = await Promise.all(
+      detalles.map(async (detalle: any) => {
+        const materiaPrima = await prisma.materiaPrima.findFirst({
+          where: { id: detalle.idMateriaPrima, idGranja }
+        });
+
+        if (!materiaPrima) {
+          throw new Error(`Materia prima ${detalle.idMateriaPrima} no encontrada`);
+        }
+
+        const cantidad = parseFloat(detalle.cantidadKg);
+        const porcentaje = (cantidad / formula.pesoTotalFormula) * 100;
+        const precioUnitario = materiaPrima.precioPorKilo || 0;
+        const costoParcial = cantidad * precioUnitario;
+
+        return {
+          idFormula: id,
+          idMateriaPrima: detalle.idMateriaPrima,
+          cantidadKg: cantidad,
+          porcentajeFormula: porcentaje,
+          precioUnitarioMomentoCreacion: precioUnitario,
+          costoParcial
+        };
+      })
+    );
+
+    // Crear todos los detalles en una transacción
+    const detallesCreados = await prisma.formulaDetalle.createMany({
+      data: detallesConPrecios
+    });
+
+    // Actualizar costo total de la fórmula
+    const todosLosDetalles = await prisma.formulaDetalle.findMany({
+      where: { idFormula: id }
+    });
+
+    const costoTotal = todosLosDetalles.reduce((sum, d) => sum + d.costoParcial, 0);
+
+    await prisma.formulaCabecera.update({
+      where: { id },
+      data: { costoTotalFormula: costoTotal }
+    });
+
+    res.status(201).json({ 
+      mensaje: `${detallesCreados.count} detalles agregados exitosamente`,
+      agregados: detallesCreados.count
+    });
+  } catch (error: any) {
+    console.error('Error agregando múltiples detalles:', error);
+    res.status(500).json({ error: error.message || 'Error al agregar detalles' });
+  }
+}
+
+/**
  * Actualizar detalle de fórmula
  */
 export async function actualizarDetalleFormula(req: FormulaRequest, res: Response) {

@@ -508,6 +508,24 @@ export const apiClient = {
     return await response.json();
   },
 
+  async agregarMultiplesDetallesFormula(token: string, idGranja: string, idFormula: string, detalles: Array<{ idMateriaPrima: string; cantidadKg: number }>) {
+    const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas/${idFormula}/detalles/multiples`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ detalles }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al agregar detalles');
+    }
+
+    return await response.json();
+  },
+
   async actualizarDetalleFormula(token: string, idGranja: string, idFormula: string, detalleId: string, data: { cantidadKg: number }) {
     const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas/${idFormula}/detalles/${detalleId}`, {
       method: 'PUT',
@@ -814,6 +832,29 @@ export const apiClient = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al agregar item');
+    }
+
+    return await response.json();
+  },
+
+  async agregarMultiplesItemsCompra(token: string, idGranja: string, idCompra: string, items: Array<{
+    idMateriaPrima: string;
+    cantidadComprada: number;
+    precioUnitario: number;
+    subtotal?: number;
+  }>) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}/items/multiples`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ items }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al agregar items');
     }
 
     return await response.json();

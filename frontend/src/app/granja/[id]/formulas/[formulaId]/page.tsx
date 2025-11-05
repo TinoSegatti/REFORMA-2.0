@@ -6,6 +6,7 @@ import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface MateriaPrima {
   id: string;

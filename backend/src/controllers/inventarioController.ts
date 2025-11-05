@@ -101,10 +101,10 @@ export async function obtenerEstadisticasInventario(req: InventarioRequest, res:
         toneladas: item.cantidadSistema / 1000
       }));
 
-    // Materias primas de más valor (por costo almacén)
+    // Materias primas de más valor (por valor total del stock)
     const materiasMasValor = inventario
-      .filter(item => item.precioAlmacen > 0)
-      .sort((a, b) => b.precioAlmacen - a.precioAlmacen)
+      .filter(item => item.valorStock > 0)
+      .sort((a, b) => b.valorStock - a.valorStock)
       .slice(0, 10)
       .map(item => ({
         codigo: item.materiaPrima.codigoMateriaPrima,
