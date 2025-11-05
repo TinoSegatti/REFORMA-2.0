@@ -31,6 +31,7 @@ interface Formula {
   pesoTotalFormula: number;
   costoTotalFormula: number;
   animal: {
+    id: string;
     codigoAnimal: string;
     descripcionAnimal: string;
     categoriaAnimal: string;
@@ -56,12 +57,40 @@ export default function FormulaDetallePage() {
   const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
   const [editando, setEditando] = useState<DetalleFormula | null>(null);
   const [eliminando, setEliminando] = useState<DetalleFormula | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showModalEditarCabecera, setShowModalEditarCabecera] = useState(false);
+  const [isEditingCabecera, setIsEditingCabecera] = useState(false);
+  const [animales, setAnimales] = useState<Array<{ id: string; codigoAnimal: string; descripcionAnimal: string; categoriaAnimal: string }>>([]);
+  const [cabeceraData, setCabeceraData] = useState({
+    codigoFormula: '',
+    descripcionFormula: '',
+    idAnimal: '',
+  });
   const [formData, setFormData] = useState({
     idMateriaPrima: '',
     codigoMateriaPrima: '',
     nombreMateriaPrima: '',
     cantidadKg: '',
   });
+  const [itemsData, setItemsData] = useState<Array<{
+    idMateriaPrima: string;
+    codigoMateriaPrima: string;
+    nombreMateriaPrima: string;
+    cantidadKg: string;
+    materiaPrimaSeleccionada: MateriaPrima | null;
+  }>>([{
+    idMateriaPrima: '',
+    codigoMateriaPrima: '',
+    nombreMateriaPrima: '',
+    cantidadKg: '',
+    materiaPrimaSeleccionada: null,
+  }]);
+  const [sugerenciasMultiples, setSugerenciasMultiples] = useState<Array<{
+    sugerencias: MateriaPrima[];
+    campo: 'codigo' | 'nombre' | null;
+  }>>([{ sugerencias: [], campo: null }]);
   const [materiaPrimaSeleccionada, setMateriaPrimaSeleccionada] = useState<MateriaPrima | null>(null);
   const [sugerencias, setSugerencias] = useState<MateriaPrima[]>([]);
   const [sugCampo, setSugCampo] = useState<'codigo' | 'nombre' | null>(null);
@@ -92,6 +121,19 @@ export default function FormulaDetallePage() {
         // Cargar materias primas disponibles
         const materiasData = await apiClient.getMateriasPrimas(token, idGranja);
         setMateriasPrimas(materiasData);
+
+        // Cargar animales para el dropdown
+        const animalesData = await apiClient.getAnimales(token, idGranja);
+        setAnimales(animalesData);
+
+        // Inicializar datos de cabecera
+        if (formulaData) {
+          setCabeceraData({
+            codigoFormula: formulaData.codigoFormula,
+            descripcionFormula: formulaData.descripcionFormula || '',
+            idAnimal: formulaData.animal.id || '',
+          });
+        }
       }
     } catch (error) {
       console.error('Error cargando datos:', error);
@@ -163,54 +205,170 @@ export default function FormulaDetallePage() {
     setSugerencias(sug);
     setSugCampo('nombre');
   };
+
+  // Funciones para múltiples items
+  const agregarFilaItem = () => {
+    setItemsData(prev => [...prev, {
+      idMateriaPrima: '',
+      codigoMateriaPrima: '',
+      nombreMateriaPrima: '',
+      cantidadKg: '',
+      materiaPrimaSeleccionada: null,
+    }]);
+    setSugerenciasMultiples(prev => [...prev, { sugerencias: [], campo: null }]);
+  };
+
+  const eliminarFilaItem = (index: number) => {
+    if (itemsData.length === 1) return; // No permitir eliminar la última fila
+    setItemsData(prev => prev.filter((_, i) => i !== index));
+    setSugerenciasMultiples(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const actualizarItemData = (index: number, campo: string, valor: string | MateriaPrima | null) => {
+    setItemsData(prev => prev.map((item, i) => {
+      if (i === index) {
+        if (campo === 'materiaPrimaSeleccionada') {
+          return { ...item, materiaPrimaSeleccionada: valor as MateriaPrima | null };
+        } else {
+          return { ...item, [campo]: valor };
+        }
+      }
+      return item;
+    }));
+  };
+
+  const buscarSugerenciasMultiples = (valor: string, campo: 'codigo' | 'nombre', index: number) => {
+    if (valor.length < 1) {
+      setSugerenciasMultiples(prev => prev.map((sug, i) => 
+        i === index ? { sugerencias: [], campo: null } : sug
+      ));
+      actualizarItemData(index, 'idMateriaPrima', '');
+      actualizarItemData(index, 'codigoMateriaPrima', campo === 'codigo' ? '' : itemsData[index].codigoMateriaPrima);
+      actualizarItemData(index, 'nombreMateriaPrima', campo === 'nombre' ? '' : itemsData[index].nombreMateriaPrima);
+      actualizarItemData(index, 'materiaPrimaSeleccionada', null);
+      return;
+    }
+
+    setSugerenciasMultiples(prev => prev.map((sug, i) => 
+      i === index ? { ...sug, campo } : sug
+    ));
+
+    const busqueda = valor.toLowerCase();
+    const filtradas = materiasPrimas.filter((mp) => {
+      if (campo === 'codigo') {
+        return mp.codigoMateriaPrima.toLowerCase().includes(busqueda);
+      } else {
+        return mp.nombreMateriaPrima.toLowerCase().includes(busqueda);
+      }
+    });
+
+    setSugerenciasMultiples(prev => prev.map((sug, i) => 
+      i === index ? { sugerencias: filtradas.slice(0, 10), campo } : sug
+    ));
+  };
+
+  const seleccionarMateriaPrimaMultiples = (mp: MateriaPrima, index: number) => {
+    actualizarItemData(index, 'materiaPrimaSeleccionada', mp);
+    actualizarItemData(index, 'idMateriaPrima', mp.id);
+    actualizarItemData(index, 'codigoMateriaPrima', mp.codigoMateriaPrima);
+    actualizarItemData(index, 'nombreMateriaPrima', mp.nombreMateriaPrima);
+    
+    setSugerenciasMultiples(prev => prev.map((sug, i) => 
+      i === index ? { sugerencias: [], campo: null } : sug
+    ));
+  };
   const agregarMateriaPrima = async () => {
-    if (!materiaPrimaSeleccionada || !formData.cantidadKg) {
-      setMensajeConfirmacion('Todos los campos son requeridos');
+    if (isAdding) return; // Prevenir múltiples clicks
+
+    // Validar todos los items
+    const itemsValidos: Array<{
+      idMateriaPrima: string;
+      cantidadKg: number;
+    }> = [];
+
+    for (let i = 0; i < itemsData.length; i++) {
+      const item = itemsData[i];
+      
+      if (!item.materiaPrimaSeleccionada || !item.cantidadKg) {
+        setMensajeConfirmacion(`Fila ${i + 1}: Complete todos los campos requeridos`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      // Evitar duplicados: si la MP ya existe en el detalle
+      const yaExiste = formula?.formulasDetalle.some(d => d.materiaPrima.id === item.materiaPrimaSeleccionada!.id);
+      if (yaExiste) {
+        setMensajeConfirmacion(`Fila ${i + 1}: La materia prima "${item.materiaPrimaSeleccionada.codigoMateriaPrima}" ya está incluida en la fórmula`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      // Evitar duplicados dentro del mismo formulario
+      const duplicadoEnFormulario = itemsData.slice(0, i).some(otherItem => 
+        otherItem.materiaPrimaSeleccionada?.id === item.materiaPrimaSeleccionada.id
+      );
+      if (duplicadoEnFormulario) {
+        setMensajeConfirmacion(`Fila ${i + 1}: La materia prima "${item.materiaPrimaSeleccionada.codigoMateriaPrima}" ya está en otra fila`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      const cantidad = parseFloat(item.cantidadKg);
+      if (isNaN(cantidad) || cantidad <= 0) {
+        setMensajeConfirmacion(`Fila ${i + 1}: La cantidad debe ser mayor a 0`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      itemsValidos.push({
+        idMateriaPrima: item.materiaPrimaSeleccionada.id,
+        cantidadKg: cantidad,
+      });
+    }
+
+    if (itemsValidos.length === 0) {
+      setMensajeConfirmacion('Agregue al menos un item válido');
       setShowModalConfirmacion(true);
       return;
     }
 
+    setIsAdding(true);
     try {
       const token = authService.getToken();
       if (!token) {
         setMensajeConfirmacion('No autenticado');
         setShowModalConfirmacion(true);
+        setIsAdding(false);
         return;
       }
 
-      const cantidad = parseFloat(formData.cantidadKg);
-      
-      // Agregar detalle a la fórmula
-      await apiClient.agregarDetalleFormula(token, idGranja, idFormula, {
-        idMateriaPrima: materiaPrimaSeleccionada.id,
-        cantidadKg: cantidad,
-      });
+      // Agregar todos los items
+      for (const item of itemsValidos) {
+        await apiClient.agregarDetalleFormula(token, idGranja, idFormula, item);
+      }
 
-      setMensajeConfirmacion(
-        `✅ Materia prima agregada exitosamente:\n\n` +
-        `Código: ${materiaPrimaSeleccionada.codigoMateriaPrima}\n` +
-        `Nombre: ${materiaPrimaSeleccionada.nombreMateriaPrima}\n` +
-        `Cantidad: ${cantidad} kg\n` +
-        `Precio: $${materiaPrimaSeleccionada.precioPorKilo}/kg\n` +
-        `Subtotal: $${(cantidad * materiaPrimaSeleccionada.precioPorKilo).toFixed(2)}`
-      );
+      setMensajeConfirmacion(`✅ ${itemsValidos.length} materia(s) prima(s) agregada(s) exitosamente`);
       setShowModalConfirmacion(true);
       
       setShowModalAgregar(false);
-      setFormData({ 
-        idMateriaPrima: '', 
-        codigoMateriaPrima: '', 
+      // Resetear a una sola fila vacía
+      setItemsData([{
+        idMateriaPrima: '',
+        codigoMateriaPrima: '',
         nombreMateriaPrima: '',
-        cantidadKg: '' 
-      });
-      setMateriaPrimaSeleccionada(null);
+        cantidadKg: '',
+        materiaPrimaSeleccionada: null,
+      }]);
+      setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
       
-      // Recargar datos para mostrar el nuevo detalle
+      // Recargar datos para mostrar los nuevos detalles
       await cargarDatos();
     } catch (error: unknown) {
-      console.error('Error agregando materia prima:', error);
-      setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al agregar materia prima');
+      console.error('Error agregando materias primas:', error);
+      setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al agregar materias primas');
       setShowModalConfirmacion(true);
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -221,11 +379,15 @@ export default function FormulaDetallePage() {
       return;
     }
 
+    if (isEditing) return; // Prevenir múltiples clicks
+
+    setIsEditing(true);
     try {
       const token = authService.getToken();
       if (!token) {
         setMensajeConfirmacion('No autenticado');
         setShowModalConfirmacion(true);
+        setIsEditing(false);
         return;
       }
 
@@ -261,17 +423,55 @@ export default function FormulaDetallePage() {
       console.error('Error editando materia prima:', error);
       setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al editar materia prima');
       setShowModalConfirmacion(true);
+    } finally {
+      setIsEditing(false);
     }
   };
 
-  const eliminarMateriaPrima = async () => {
-    if (!eliminando) return;
+  const editarCabecera = async () => {
+    if (isEditingCabecera) return; // Prevenir múltiples clicks
 
+    setIsEditingCabecera(true);
     try {
       const token = authService.getToken();
       if (!token) {
         setMensajeConfirmacion('No autenticado');
         setShowModalConfirmacion(true);
+        setIsEditingCabecera(false);
+        return;
+      }
+
+      await apiClient.updateFormula(token, idGranja, idFormula, {
+        codigoFormula: cabeceraData.codigoFormula || undefined,
+        descripcionFormula: cabeceraData.descripcionFormula || undefined,
+        idAnimal: cabeceraData.idAnimal || undefined,
+      });
+
+      setMensajeConfirmacion(`✅ Cabecera de fórmula actualizada exitosamente`);
+      setShowModalConfirmacion(true);
+
+      setShowModalEditarCabecera(false);
+      await cargarDatos();
+    } catch (error: unknown) {
+      console.error('Error editando cabecera:', error);
+      setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al editar cabecera de fórmula');
+      setShowModalConfirmacion(true);
+    } finally {
+      setIsEditingCabecera(false);
+    }
+  };
+
+  const eliminarMateriaPrima = async () => {
+    if (!eliminando) return;
+    if (isDeleting) return; // Prevenir múltiples clicks
+
+    setIsDeleting(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        setMensajeConfirmacion('No autenticado');
+        setShowModalConfirmacion(true);
+        setIsDeleting(false);
         return;
       }
 
@@ -296,6 +496,8 @@ export default function FormulaDetallePage() {
       console.error('Error eliminando materia prima:', error);
       setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al eliminar materia prima');
       setShowModalConfirmacion(true);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -370,7 +572,32 @@ export default function FormulaDetallePage() {
                 Imprimir
               </button>
               <button
-                onClick={() => setShowModalAgregar(true)}
+                onClick={() => {
+                  if (formula) {
+                    setCabeceraData({
+                      codigoFormula: formula.codigoFormula,
+                      descripcionFormula: formula.descripcionFormula || '',
+                      idAnimal: formula.animal.id || '',
+                    });
+                  }
+                  setShowModalEditarCabecera(true);
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all flex items-center gap-2"
+              >
+                Editar Cabecera
+              </button>
+              <button
+                onClick={() => {
+                  setItemsData([{
+                    idMateriaPrima: '',
+                    codigoMateriaPrima: '',
+                    nombreMateriaPrima: '',
+                    cantidadKg: '',
+                    materiaPrimaSeleccionada: null,
+                  }]);
+                  setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
+                  setShowModalAgregar(true);
+                }}
                 className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all flex items-center gap-2"
               >
                 <span>+</span>
@@ -548,123 +775,196 @@ export default function FormulaDetallePage() {
       {/* Modal Agregar Materia Prima */}
       <Modal
         isOpen={showModalAgregar}
-        onClose={() => setShowModalAgregar(false)}
+        onClose={() => {
+          setShowModalAgregar(false);
+          setIsAdding(false);
+          // Resetear a una sola fila vacía al cerrar
+          setItemsData([{
+            idMateriaPrima: '',
+            codigoMateriaPrima: '',
+            nombreMateriaPrima: '',
+            cantidadKg: '',
+            materiaPrimaSeleccionada: null,
+          }]);
+          setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
+        }}
         title="Añadir Materia Prima"
+        size="lg"
         footer={
           <>
             <button
-              onClick={() => setShowModalAgregar(false)}
-              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModalAgregar(false);
+                setIsAdding(false);
+                setItemsData([{
+                  idMateriaPrima: '',
+                  codigoMateriaPrima: '',
+                  nombreMateriaPrima: '',
+                  cantidadKg: '',
+                  materiaPrimaSeleccionada: null,
+                }]);
+                setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
+              }}
+              disabled={isAdding}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={agregarMateriaPrima}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
+              disabled={isAdding}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Agregar
+              {isAdding ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Agregando...
+                </>
+              ) : (
+                'Agregar'
+              )}
             </button>
           </>
         }
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Código Materia Prima *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={formData.codigoMateriaPrima}
-                onChange={(e) => handleCodigoChange(e.target.value)}
-                onFocus={() => { setSugCampo('codigo'); setSugerencias(materiasPrimas.slice(0,8)); }}
-                onBlur={() => setTimeout(() => { setSugCampo(null); }, 150)}
-                placeholder="Ej: MP001"
-                className="glass-input"
-              />
-              {sugCampo === 'codigo' && sugerencias.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
-                  {sugerencias.map((mp) => (
-                    <button
-                      key={mp.id}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setFormData({ ...formData, codigoMateriaPrima: mp.codigoMateriaPrima, nombreMateriaPrima: mp.nombreMateriaPrima, idMateriaPrima: mp.id });
-                        setMateriaPrimaSeleccionada(mp);
-                        setSugCampo(null);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-white/10 text-foreground"
-                    >
-                      <span className="font-medium">{mp.codigoMateriaPrima}</span> — <span className="text-foreground/70">{mp.nombreMateriaPrima}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+        <div className="space-y-6">
+          {/* Botón para agregar fila */}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={agregarFilaItem}
+              disabled={isAdding}
+              className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <span>+</span>
+              Agregar Fila
+            </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Nombre Materia Prima *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={formData.nombreMateriaPrima}
-                onChange={(e) => handleNombreChange(e.target.value)}
-                onFocus={() => { setSugCampo('nombre'); setSugerencias(materiasPrimas.slice(0,8)); }}
-                onBlur={() => setTimeout(() => { setSugCampo(null); }, 150)}
-                placeholder="Ej: MAIZ"
-                className="glass-input"
-              />
-              {sugCampo === 'nombre' && sugerencias.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
-                  {sugerencias.map((mp) => (
+          {/* Filas de items */}
+          <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+            {itemsData.map((item, index) => (
+              <div key={index} className="glass-card p-4 border border-white/10 rounded-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-foreground/90">Fila {index + 1}</h3>
+                  {itemsData.length > 1 && (
                     <button
-                      key={mp.id}
                       type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setFormData({ ...formData, codigoMateriaPrima: mp.codigoMateriaPrima, nombreMateriaPrima: mp.nombreMateriaPrima, idMateriaPrima: mp.id });
-                        setMateriaPrimaSeleccionada(mp);
-                        setSugCampo(null);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-white/10 text-foreground"
+                      onClick={() => eliminarFilaItem(index)}
+                      disabled={isAdding}
+                      className="px-3 py-1 bg-red-600/20 text-red-400 rounded-lg font-semibold hover:bg-red-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                     >
-                      <span className="font-medium">{mp.nombreMateriaPrima}</span> — <span className="text-foreground/70">{mp.codigoMateriaPrima}</span>
+                      Eliminar
                     </button>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
 
-          {materiaPrimaSeleccionada && (
-            <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl">
-              <p className="text-sm text-emerald-300">
-                <strong>Precio por kilo:</strong> ${materiaPrimaSeleccionada.precioPorKilo.toFixed(2)}
-              </p>
-            </div>
-          )}
+                <div className="space-y-4">
+                  {/* Código MP */}
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-foreground/90 mb-2">Código Materia Prima</label>
+                    <input
+                      type="text"
+                      value={item.codigoMateriaPrima}
+                      onChange={(e) => {
+                        const nuevoValor = e.target.value;
+                        actualizarItemData(index, 'codigoMateriaPrima', nuevoValor);
+                        buscarSugerenciasMultiples(nuevoValor, 'codigo', index);
+                      }}
+                      onFocus={() => {
+                        if (item.codigoMateriaPrima) buscarSugerenciasMultiples(item.codigoMateriaPrima, 'codigo', index);
+                      }}
+                      placeholder="Ej: MP001"
+                      className="glass-input"
+                      disabled={isAdding}
+                    />
+                    {sugerenciasMultiples[index]?.campo === 'codigo' && sugerenciasMultiples[index]?.sugerencias.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
+                        {sugerenciasMultiples[index].sugerencias.map((mp) => (
+                          <div
+                            key={mp.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              seleccionarMateriaPrimaMultiples(mp, index);
+                            }}
+                            className="px-4 py-2 hover:bg-white/10 cursor-pointer"
+                          >
+                            <div className="font-medium text-foreground">{mp.codigoMateriaPrima}</div>
+                            <div className="text-sm text-foreground/70">{mp.nombreMateriaPrima}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-          <div>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Cantidad (kg) *
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.cantidadKg}
-              onChange={(e) => setFormData({ ...formData, cantidadKg: e.target.value })}
-              placeholder="0.00"
-              className="glass-input"
-            />
-            {materiaPrimaSeleccionada && formData.cantidadKg && (
-              <p className="text-sm text-foreground/60 mt-2">
-                Subtotal estimado: ${(parseFloat(formData.cantidadKg) * materiaPrimaSeleccionada.precioPorKilo).toFixed(2)}
-              </p>
-            )}
+                  {/* Nombre MP */}
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-foreground/90 mb-2">Nombre Materia Prima</label>
+                    <input
+                      type="text"
+                      value={item.nombreMateriaPrima}
+                      onChange={(e) => {
+                        const nuevoValor = e.target.value;
+                        actualizarItemData(index, 'nombreMateriaPrima', nuevoValor);
+                        buscarSugerenciasMultiples(nuevoValor, 'nombre', index);
+                      }}
+                      onFocus={() => {
+                        if (item.nombreMateriaPrima) buscarSugerenciasMultiples(item.nombreMateriaPrima, 'nombre', index);
+                      }}
+                      placeholder="Ej: MAIZ"
+                      className="glass-input"
+                      disabled={isAdding}
+                    />
+                    {sugerenciasMultiples[index]?.campo === 'nombre' && sugerenciasMultiples[index]?.sugerencias.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
+                        {sugerenciasMultiples[index].sugerencias.map((mp) => (
+                          <div
+                            key={mp.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              seleccionarMateriaPrimaMultiples(mp, index);
+                            }}
+                            className="px-4 py-2 hover:bg-white/10 cursor-pointer"
+                          >
+                            <div className="font-medium text-foreground">{mp.codigoMateriaPrima}</div>
+                            <div className="text-sm text-foreground/70">{mp.nombreMateriaPrima}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {item.materiaPrimaSeleccionada && (
+                    <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl">
+                      <p className="text-sm text-emerald-300">
+                        <strong>Precio por kilo:</strong> ${item.materiaPrimaSeleccionada.precioPorKilo.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2">Cantidad (kg) <span className="text-red-500">*</span></label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.cantidadKg}
+                      onChange={(e) => {
+                        actualizarItemData(index, 'cantidadKg', e.target.value);
+                      }}
+                      placeholder="0.00"
+                      className="glass-input"
+                      required
+                      disabled={isAdding}
+                    />
+                    {item.materiaPrimaSeleccionada && item.cantidadKg && (
+                      <p className="text-sm text-foreground/60 mt-2">
+                        Subtotal estimado: ${(parseFloat(item.cantidadKg) * item.materiaPrimaSeleccionada.precioPorKilo).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </Modal>
@@ -672,21 +972,36 @@ export default function FormulaDetallePage() {
       {/* Modal Editar Materia Prima */}
       <Modal
         isOpen={showModalEditar}
-        onClose={() => setShowModalEditar(false)}
+        onClose={() => {
+          setShowModalEditar(false);
+          setIsEditing(false);
+        }}
         title="Editar Materia Prima"
         footer={
           <>
             <button
-              onClick={() => setShowModalEditar(false)}
-              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModalEditar(false);
+                setIsEditing(false);
+              }}
+              disabled={isEditing}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={editarMateriaPrima}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
+              disabled={isEditing}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Guardar
+              {isEditing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Guardando...
+                </>
+              ) : (
+                'Guardar'
+              )}
             </button>
           </>
         }
@@ -715,6 +1030,7 @@ export default function FormulaDetallePage() {
               onChange={(e) => setFormData({ ...formData, cantidadKg: e.target.value })}
               placeholder="0.00"
               className="glass-input"
+              disabled={isEditing}
             />
           </div>
         </div>
@@ -723,21 +1039,36 @@ export default function FormulaDetallePage() {
       {/* Modal Eliminar Materia Prima */}
       <Modal
         isOpen={showModalEliminar}
-        onClose={() => setShowModalEliminar(false)}
+        onClose={() => {
+          setShowModalEliminar(false);
+          setIsDeleting(false);
+        }}
         title="Eliminar Materia Prima"
         footer={
           <>
             <button
-              onClick={() => setShowModalEliminar(false)}
-              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModalEliminar(false);
+                setIsDeleting(false);
+              }}
+              disabled={isDeleting}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={eliminarMateriaPrima}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all"
+              disabled={isDeleting}
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Eliminar
+              {isDeleting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
             </button>
           </>
         }
@@ -748,6 +1079,88 @@ export default function FormulaDetallePage() {
           Esta acción no se puede deshacer.
         </p>
       </Modal>
+      {/* Modal Editar Cabecera */}
+      <Modal
+        isOpen={showModalEditarCabecera}
+        onClose={() => {
+          setShowModalEditarCabecera(false);
+          setIsEditingCabecera(false);
+        }}
+        title="Editar Cabecera de Fórmula"
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowModalEditarCabecera(false);
+                setIsEditingCabecera(false);
+              }}
+              disabled={isEditingCabecera}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={editarCabecera}
+              disabled={isEditingCabecera}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isEditingCabecera ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Guardando...
+                </>
+              ) : (
+                'Guardar'
+              )}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground/90 mb-2">Código de Fórmula *</label>
+            <input
+              type="text"
+              value={cabeceraData.codigoFormula}
+              onChange={(e) => setCabeceraData({ ...cabeceraData, codigoFormula: e.target.value })}
+              placeholder="Ej: F001"
+              className="glass-input"
+              disabled={isEditingCabecera}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground/90 mb-2">Descripción (Opcional)</label>
+            <input
+              type="text"
+              value={cabeceraData.descripcionFormula}
+              onChange={(e) => setCabeceraData({ ...cabeceraData, descripcionFormula: e.target.value })}
+              placeholder="Ej: Fórmula para lechones"
+              className="glass-input"
+              disabled={isEditingCabecera}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground/90 mb-2">Pienso *</label>
+            <select
+              value={cabeceraData.idAnimal}
+              onChange={(e) => setCabeceraData({ ...cabeceraData, idAnimal: e.target.value })}
+              className="glass-input"
+              disabled={isEditingCabecera}
+            >
+              <option value="">Seleccionar pienso...</option>
+              {animales.map((animal) => (
+                <option key={animal.id} value={animal.id}>
+                  {animal.codigoAnimal} - {animal.descripcionAnimal} ({animal.categoriaAnimal})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Modal>
+
       {/* Modal Confirmación */}
       <Modal
         isOpen={showModalConfirmacion}

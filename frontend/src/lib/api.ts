@@ -473,6 +473,24 @@ export const apiClient = {
     return await response.json();
   },
 
+  async updateFormula(token: string, idGranja: string, id: string, data: { codigoFormula?: string; descripcionFormula?: string; idAnimal?: string }) {
+    const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al actualizar fórmula');
+    }
+
+    return await response.json();
+  },
+
   async deleteFormula(token: string, idGranja: string, id: string) {
     const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas/${id}`, {
       method: 'DELETE',

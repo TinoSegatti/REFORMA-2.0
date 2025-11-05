@@ -52,6 +52,8 @@ export default function FormulasPage() {
   const [showModalEliminar, setShowModalEliminar] = useState(false);
   const [eliminando, setEliminando] = useState<Formula | null>(null);
   const [animales, setAnimales] = useState<Animal[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     codigoFormula: '',
     descripcionFormula: '',
@@ -94,11 +96,14 @@ export default function FormulasPage() {
 
   const eliminar = async () => {
     if (!eliminando) return;
+    if (isDeleting) return; // Prevenir múltiples clicks
 
+    setIsDeleting(true);
     try {
       const token = authService.getToken();
       if (!token) {
         alert('No autenticado');
+        setIsDeleting(false);
         return;
       }
 
@@ -109,6 +114,8 @@ export default function FormulasPage() {
     } catch (error: unknown) {
       console.error('Error eliminando:', error);
       alert(error instanceof Error ? error.message : 'Error al eliminar la fórmula');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -126,10 +133,14 @@ export default function FormulasPage() {
       return;
     }
 
+    if (isCreating) return; // Prevenir múltiples clicks
+
+    setIsCreating(true);
     try {
       const token = authService.getToken();
       if (!token) {
         alert('No autenticado');
+        setIsCreating(false);
         return;
       }
 
@@ -140,11 +151,16 @@ export default function FormulasPage() {
         detalles: [] // Se llenará en el detalle
       });
 
+      // Cerrar modal y limpiar formulario
+      setShowModal(false);
+      setFormData({ codigoFormula: '', descripcionFormula: '', idAnimal: '' });
+      
       // Redirigir al detalle de la fórmula
       router.push(`/granja/${idGranja}/formulas/${nuevaFormula.id}`);
     } catch (error: unknown) {
       console.error('Error creando fórmula:', error);
       alert(error instanceof Error ? error.message : 'Error al crear la fórmula');
+      setIsCreating(false);
     }
   };
 
@@ -314,24 +330,38 @@ export default function FormulasPage() {
       {/* Modal Crear Fórmula */}
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          if (!isCreating) {
+            setShowModal(false);
+            setIsCreating(false);
+          }
+        }}
         title="Nueva Fórmula"
         footer={
           <>
             <button
-              onClick={() => setShowModal(false)}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModal(false);
+                setIsCreating(false);
+              }}
+              disabled={isCreating}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
-              onClick={() => {
-                crearFormula();
-                setShowModal(false);
-              }}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+              onClick={crearFormula}
+              disabled={isCreating}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Crear
+              {isCreating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Creando...
+                </>
+              ) : (
+                'Crear'
+              )}
             </button>
           </>
         }
@@ -347,6 +377,7 @@ export default function FormulasPage() {
               onChange={(e) => setFormData({ ...formData, codigoFormula: e.target.value })}
               placeholder="Ej: F001"
               className="glass-input"
+              disabled={isCreating}
             />
           </div>
 
@@ -360,6 +391,7 @@ export default function FormulasPage() {
               onChange={(e) => setFormData({ ...formData, descripcionFormula: e.target.value })}
               placeholder="Ej: Fórmula para lechones"
               className="glass-input"
+              disabled={isCreating}
             />
           </div>
 
@@ -371,6 +403,7 @@ export default function FormulasPage() {
               value={formData.idAnimal}
               onChange={(e) => setFormData({ ...formData, idAnimal: e.target.value })}
               className="glass-input"
+              disabled={isCreating}
             >
               <option value="">Seleccionar pienso...</option>
               {animales.map((animal) => (
@@ -386,21 +419,36 @@ export default function FormulasPage() {
       {/* Modal Eliminar */}
       <Modal
         isOpen={showModalEliminar}
-        onClose={() => setShowModalEliminar(false)}
+        onClose={() => {
+          setShowModalEliminar(false);
+          setIsDeleting(false);
+        }}
         title="Eliminar Fórmula"
         footer={
           <>
             <button
-              onClick={() => setShowModalEliminar(false)}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModalEliminar(false);
+                setIsDeleting(false);
+              }}
+              disabled={isDeleting}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={eliminar}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30"
+              disabled={isDeleting}
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Eliminar
+              {isDeleting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
             </button>
           </>
         }

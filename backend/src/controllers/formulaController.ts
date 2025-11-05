@@ -605,6 +605,7 @@ export async function obtenerFormulaPorId(req: FormulaRequest, res: Response) {
       include: {
         animal: {
           select: {
+            id: true,
             codigoAnimal: true,
             descripcionAnimal: true,
             categoriaAnimal: true
@@ -632,6 +633,102 @@ export async function obtenerFormulaPorId(req: FormulaRequest, res: Response) {
   } catch (error: any) {
     console.error('Error obteniendo fórmula:', error);
     res.status(500).json({ error: 'Error al obtener fórmula' });
+  }
+}
+
+/**
+ * Actualizar cabecera de fórmula
+ */
+export async function actualizarFormula(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, id } = req.params;
+    const { codigoFormula, descripcionFormula, idAnimal } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Verificar que existe la fórmula
+    const formula = await prisma.formulaCabecera.findFirst({
+      where: { id, idGranja }
+    });
+
+    if (!formula) {
+      return res.status(404).json({ error: 'Fórmula no encontrada' });
+    }
+
+    // Si se está actualizando el código, verificar que no esté duplicado
+    if (codigoFormula && codigoFormula !== formula.codigoFormula) {
+      const existe = await prisma.formulaCabecera.findUnique({
+        where: {
+          idGranja_codigoFormula: {
+            idGranja,
+            codigoFormula
+          }
+        }
+      });
+
+      if (existe) {
+        return res.status(400).json({ error: 'Ya existe una fórmula con ese código' });
+      }
+    }
+
+    // Si se está actualizando el animal, verificar que existe
+    if (idAnimal) {
+      const animal = await prisma.animal.findFirst({
+        where: { id: idAnimal, idGranja }
+      });
+
+      if (!animal) {
+        return res.status(404).json({ error: 'Animal no encontrado' });
+      }
+    }
+
+    // Actualizar la fórmula
+    const formulaActualizada = await prisma.formulaCabecera.update({
+      where: { id },
+      data: {
+        ...(codigoFormula && { codigoFormula }),
+        ...(descripcionFormula !== undefined && { descripcionFormula }),
+        ...(idAnimal && { idAnimal }),
+      },
+      include: {
+        animal: {
+          select: {
+            id: true,
+            codigoAnimal: true,
+            descripcionAnimal: true,
+            categoriaAnimal: true
+          }
+        },
+        formulasDetalle: {
+          include: {
+            materiaPrima: {
+              select: {
+                codigoMateriaPrima: true,
+                nombreMateriaPrima: true,
+                precioPorKilo: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json(formulaActualizada);
+  } catch (error: any) {
+    console.error('Error actualizando fórmula:', error);
+    res.status(500).json({ error: 'Error al actualizar fórmula' });
   }
 }
 

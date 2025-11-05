@@ -3,7 +3,8 @@ import {
   obtenerFormulas, 
   obtenerEstadisticasFormulas,
   crearFormula, 
-  obtenerFormulaPorId, 
+  obtenerFormulaPorId,
+  actualizarFormula,
   eliminarFormula,
   agregarDetalleFormula,
   agregarMultiplesDetallesFormula,
@@ -28,6 +29,9 @@ router.post('/granja/:idGranja/formulas', crearFormula);
 
 // Obtener fórmula por ID
 router.get('/granja/:idGranja/formulas/:id', obtenerFormulaPorId);
+
+// Actualizar cabecera de fórmula
+router.put('/granja/:idGranja/formulas/:id', actualizarFormula);
 
 // Eliminar fórmula
 router.delete('/granja/:idGranja/formulas/:id', eliminarFormula);
