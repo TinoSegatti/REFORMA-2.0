@@ -58,6 +58,10 @@ export default function CompraDetallePage() {
   const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
   const [editando, setEditando] = useState<CompraDetalle | null>(null);
   const [eliminando, setEliminando] = useState<CompraDetalle | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditingCabecera, setIsEditingCabecera] = useState(false);
   const [formData, setFormData] = useState({
     idMateriaPrima: '',
     codigoMateriaPrima: '',
@@ -66,6 +70,29 @@ export default function CompraDetallePage() {
     precioUnitario: '',
     subtotal: '',
   });
+  const [itemsData, setItemsData] = useState<Array<{
+    idMateriaPrima: string;
+    codigoMateriaPrima: string;
+    nombreMateriaPrima: string;
+    cantidadComprada: string;
+    precioUnitario: string;
+    subtotal: string;
+    materiaPrimaSeleccionada: MateriaPrima | null;
+    ultimoPrecio: number | null;
+  }>>([{
+    idMateriaPrima: '',
+    codigoMateriaPrima: '',
+    nombreMateriaPrima: '',
+    cantidadComprada: '',
+    precioUnitario: '',
+    subtotal: '',
+    materiaPrimaSeleccionada: null,
+    ultimoPrecio: null,
+  }]);
+  const [sugerenciasMultiples, setSugerenciasMultiples] = useState<Array<{
+    sugerencias: MateriaPrima[];
+    campo: 'codigo' | 'nombre' | null;
+  }>>([{ sugerencias: [], campo: null }]);
   const [cabeceraData, setCabeceraData] = useState({
     numeroFactura: '',
     fechaCompra: '',
@@ -209,77 +236,238 @@ export default function CompraDetallePage() {
     }
   };
 
+  // Funciones para múltiples items
+  const agregarFilaItem = () => {
+    setItemsData(prev => [...prev, {
+      idMateriaPrima: '',
+      codigoMateriaPrima: '',
+      nombreMateriaPrima: '',
+      cantidadComprada: '',
+      precioUnitario: '',
+      subtotal: '',
+      materiaPrimaSeleccionada: null,
+      ultimoPrecio: null,
+    }]);
+    setSugerenciasMultiples(prev => [...prev, { sugerencias: [], campo: null }]);
+  };
+
+  const eliminarFilaItem = (index: number) => {
+    if (itemsData.length === 1) return; // No permitir eliminar la última fila
+    setItemsData(prev => prev.filter((_, i) => i !== index));
+    setSugerenciasMultiples(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const actualizarItemData = (index: number, campo: string, valor: string | MateriaPrima | null | number) => {
+    setItemsData(prev => prev.map((item, i) => {
+      if (i === index) {
+        if (campo === 'materiaPrimaSeleccionada') {
+          return { ...item, materiaPrimaSeleccionada: valor as MateriaPrima | null };
+        } else if (campo === 'ultimoPrecio') {
+          return { ...item, ultimoPrecio: valor as number | null };
+        } else {
+          return { ...item, [campo]: valor };
+        }
+      }
+      return item;
+    }));
+  };
+
+  const buscarSugerenciasMultiples = (valor: string, campo: 'codigo' | 'nombre', index: number) => {
+    if (valor.length < 1) {
+      setSugerenciasMultiples(prev => prev.map((sug, i) => 
+        i === index ? { sugerencias: [], campo: null } : sug
+      ));
+      actualizarItemData(index, 'idMateriaPrima', '');
+      actualizarItemData(index, 'codigoMateriaPrima', campo === 'codigo' ? '' : itemsData[index].codigoMateriaPrima);
+      actualizarItemData(index, 'nombreMateriaPrima', campo === 'nombre' ? '' : itemsData[index].nombreMateriaPrima);
+      actualizarItemData(index, 'materiaPrimaSeleccionada', null);
+      actualizarItemData(index, 'ultimoPrecio', null);
+      return;
+    }
+
+    setSugerenciasMultiples(prev => prev.map((sug, i) => 
+      i === index ? { ...sug, campo } : sug
+    ));
+
+    const busqueda = valor.toLowerCase();
+    const filtradas = materiasPrimas.filter((mp) => {
+      if (campo === 'codigo') {
+        return mp.codigoMateriaPrima.toLowerCase().includes(busqueda);
+      } else {
+        return mp.nombreMateriaPrima.toLowerCase().includes(busqueda);
+      }
+    });
+
+    setSugerenciasMultiples(prev => prev.map((sug, i) => 
+      i === index ? { sugerencias: filtradas.slice(0, 10), campo } : sug
+    ));
+  };
+
+  const seleccionarMateriaPrimaMultiples = async (mp: MateriaPrima, index: number) => {
+    actualizarItemData(index, 'materiaPrimaSeleccionada', mp);
+    actualizarItemData(index, 'idMateriaPrima', mp.id);
+    actualizarItemData(index, 'codigoMateriaPrima', mp.codigoMateriaPrima);
+    actualizarItemData(index, 'nombreMateriaPrima', mp.nombreMateriaPrima);
+    
+    setSugerenciasMultiples(prev => prev.map((sug, i) => 
+      i === index ? { sugerencias: [], campo: null } : sug
+    ));
+
+    // Cargar último precio
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+      const precio = await apiClient.getUltimoPrecio(token, idGranja, mp.id);
+      actualizarItemData(index, 'ultimoPrecio', precio);
+      if (precio !== null && precio !== undefined) {
+        actualizarItemData(index, 'precioUnitario', precio.toFixed(4));
+      }
+    } catch (error) {
+      console.error('Error cargando último precio:', error);
+    }
+  };
+
+  const calcularDesdePrecioMultiples = (index: number) => {
+    const item = itemsData[index];
+    const cantidad = parseFloat(item.cantidadComprada);
+    const precio = parseFloat(item.precioUnitario);
+    if (!isNaN(cantidad) && !isNaN(precio) && cantidad > 0 && precio >= 0) {
+      const subtotal = cantidad * precio;
+      actualizarItemData(index, 'subtotal', subtotal.toFixed(4));
+    }
+  };
+
+  const calcularDesdeSubtotalMultiples = (index: number) => {
+    const item = itemsData[index];
+    const cantidad = parseFloat(item.cantidadComprada);
+    const subtotal = parseFloat(item.subtotal);
+    if (!isNaN(cantidad) && !isNaN(subtotal) && cantidad > 0 && subtotal >= 0) {
+      const precio = subtotal / cantidad;
+      actualizarItemData(index, 'precioUnitario', precio.toFixed(4));
+    }
+  };
+
   const agregarItem = async () => {
-    if (!materiaPrimaSeleccionada || !formData.cantidadComprada) {
-      setMensajeConfirmacion('Complete todos los campos requeridos');
+    if (isAdding) return; // Prevenir múltiples clicks
+
+    // Validar todos los items
+    const itemsValidos: Array<{
+      idMateriaPrima: string;
+      cantidadComprada: number;
+      precioUnitario: number;
+      subtotal: number;
+    }> = [];
+
+    for (let i = 0; i < itemsData.length; i++) {
+      const item = itemsData[i];
+      
+      if (!item.materiaPrimaSeleccionada || !item.cantidadComprada) {
+        setMensajeConfirmacion(`Fila ${i + 1}: Complete todos los campos requeridos`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      // Evitar duplicados: si la MP ya existe en el detalle
+      const yaExiste = compra?.comprasDetalle.some(d => d.materiaPrima.id === item.materiaPrimaSeleccionada!.id);
+      if (yaExiste) {
+        setMensajeConfirmacion(`Fila ${i + 1}: La materia prima "${item.materiaPrimaSeleccionada.codigoMateriaPrima}" ya está incluida en la factura`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      // Evitar duplicados dentro del mismo formulario
+      const duplicadoEnFormulario = itemsData.slice(0, i).some(otherItem => 
+        otherItem.materiaPrimaSeleccionada?.id === item.materiaPrimaSeleccionada!.id
+      );
+      if (duplicadoEnFormulario) {
+        setMensajeConfirmacion(`Fila ${i + 1}: La materia prima "${item.materiaPrimaSeleccionada.codigoMateriaPrima}" ya está en otra fila`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      const cantidad = parseFloat(item.cantidadComprada);
+      const precio = parseFloat(item.precioUnitario);
+      const subtotal = parseFloat(item.subtotal);
+
+      if (isNaN(cantidad) || cantidad <= 0) {
+        setMensajeConfirmacion(`Fila ${i + 1}: La cantidad debe ser mayor a 0`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      if (isNaN(precio) || precio < 0) {
+        setMensajeConfirmacion(`Fila ${i + 1}: El precio unitario debe ser válido`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      // Validar que subtotal = cantidad × precio (hasta 4 decimales)
+      const subtotalCalculado = parseFloat((cantidad * precio).toFixed(4));
+      if (!isNaN(subtotal) && Math.abs(subtotal - subtotalCalculado) > 0.0001) {
+        setMensajeConfirmacion(`Fila ${i + 1}: El subtotal (${subtotal.toFixed(4)}) no coincide con cantidad × precio (${subtotalCalculado.toFixed(4)})`);
+        setShowModalConfirmacion(true);
+        return;
+      }
+
+      itemsValidos.push({
+        idMateriaPrima: item.materiaPrimaSeleccionada.id,
+        cantidadComprada: cantidad,
+        precioUnitario: precio,
+        subtotal: subtotalCalculado,
+      });
+    }
+
+    if (itemsValidos.length === 0) {
+      setMensajeConfirmacion('Agregue al menos un item válido');
       setShowModalConfirmacion(true);
       return;
     }
 
-    // Evitar duplicados: si la MP ya existe en el detalle
-    const yaExiste = compra?.comprasDetalle.some(d => d.materiaPrima.id === materiaPrimaSeleccionada.id);
-    if (yaExiste) {
-      setMensajeConfirmacion('Esta materia prima ya está incluida en la factura');
-      setShowModalConfirmacion(true);
-      return;
-    }
-
-    const cantidad = parseFloat(formData.cantidadComprada);
-    const precio = parseFloat(formData.precioUnitario);
-    const subtotal = parseFloat(formData.subtotal);
-
-    if (isNaN(cantidad) || cantidad <= 0) {
-      setMensajeConfirmacion('La cantidad debe ser mayor a 0');
-      setShowModalConfirmacion(true);
-      return;
-    }
-
-    if (isNaN(precio) || precio < 0) {
-      setMensajeConfirmacion('El precio unitario debe ser válido');
-      setShowModalConfirmacion(true);
-      return;
-    }
-
-    // Validar que subtotal = cantidad × precio (hasta 4 decimales)
-    const subtotalCalculado = parseFloat((cantidad * precio).toFixed(4));
-    if (!isNaN(subtotal) && Math.abs(subtotal - subtotalCalculado) > 0.0001) {
-      setMensajeConfirmacion(`El subtotal (${subtotal.toFixed(4)}) no coincide con cantidad × precio (${subtotalCalculado.toFixed(4)})`);
-      setShowModalConfirmacion(true);
-      return;
-    }
-
+    setIsAdding(true);
     try {
       const token = authService.getToken();
       if (!token) {
         setMensajeConfirmacion('No autenticado');
         setShowModalConfirmacion(true);
+        setIsAdding(false);
         return;
       }
 
-      await apiClient.agregarItemCompra(token, idGranja, idCompra, {
-        idMateriaPrima: materiaPrimaSeleccionada.id,
-        cantidadComprada: cantidad,
-        precioUnitario: precio,
-        subtotal: subtotalCalculado,
-      });
+      // Agregar todos los items
+      for (const item of itemsValidos) {
+        await apiClient.agregarItemCompra(token, idGranja, idCompra, item);
+      }
 
-      setMensajeConfirmacion(`✅ Item agregado exitosamente`);
+      setMensajeConfirmacion(`✅ ${itemsValidos.length} item(s) agregado(s) exitosamente`);
       setShowModalConfirmacion(true);
 
       setShowModalAgregar(false);
-      setFormData({ idMateriaPrima: '', codigoMateriaPrima: '', nombreMateriaPrima: '', cantidadComprada: '', precioUnitario: '', subtotal: '' });
-      setMateriaPrimaSeleccionada(null);
-      setUltimoPrecio(null);
+      // Resetear a una sola fila vacía
+      setItemsData([{
+        idMateriaPrima: '',
+        codigoMateriaPrima: '',
+        nombreMateriaPrima: '',
+        cantidadComprada: '',
+        precioUnitario: '',
+        subtotal: '',
+        materiaPrimaSeleccionada: null,
+        ultimoPrecio: null,
+      }]);
+      setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
 
       await cargarDatos();
     } catch (error: unknown) {
-      console.error('Error agregando item:', error);
-      setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al agregar item');
+      console.error('Error agregando items:', error);
+      setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al agregar items');
       setShowModalConfirmacion(true);
+    } finally {
+      setIsAdding(false);
     }
   };
 
   const editarItem = async () => {
+    if (isEditing) return; // Prevenir múltiples clicks
+
     if (!editando || !formData.cantidadComprada) {
       setMensajeConfirmacion('Complete todos los campos requeridos');
       setShowModalConfirmacion(true);
@@ -309,11 +497,13 @@ export default function CompraDetallePage() {
       return;
     }
 
+    setIsEditing(true);
     try {
       const token = authService.getToken();
       if (!token) {
         setMensajeConfirmacion('No autenticado');
         setShowModalConfirmacion(true);
+        setIsEditing(false);
         return;
       }
 
@@ -336,17 +526,22 @@ export default function CompraDetallePage() {
       console.error('Error editando item:', error);
       setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al editar item');
       setShowModalConfirmacion(true);
+    } finally {
+      setIsEditing(false);
     }
   };
 
   const eliminarItem = async () => {
     if (!eliminando) return;
+    if (isDeleting) return; // Prevenir múltiples clicks
 
+    setIsDeleting(true);
     try {
       const token = authService.getToken();
       if (!token) {
         setMensajeConfirmacion('No autenticado');
         setShowModalConfirmacion(true);
+        setIsDeleting(false);
         return;
       }
 
@@ -363,15 +558,21 @@ export default function CompraDetallePage() {
       console.error('Error eliminando item:', error);
       setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al eliminar item');
       setShowModalConfirmacion(true);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const editarCabecera = async () => {
+    if (isEditingCabecera) return; // Prevenir múltiples clicks
+
+    setIsEditingCabecera(true);
     try {
       const token = authService.getToken();
       if (!token) {
         setMensajeConfirmacion('No autenticado');
         setShowModalConfirmacion(true);
+        setIsEditingCabecera(false);
         return;
       }
 
@@ -391,6 +592,8 @@ export default function CompraDetallePage() {
       console.error('Error editando cabecera:', error);
       setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al editar cabecera');
       setShowModalConfirmacion(true);
+    } finally {
+      setIsEditingCabecera(false);
     }
   };
 
@@ -478,30 +681,94 @@ export default function CompraDetallePage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-foreground/70">Diferencia</p>
-                <p className={`text-lg font-bold ${totalCoincide ? 'text-green-600' : diferencia > 0 ? 'text-orange-600' : 'text-red-600'}`}>
-                  {totalCoincide 
-                    ? '✓ Coincide' 
-                    : diferencia > 0 
-                      ? `⏱ Falta ${formatCurrency(diferencia)}`
-                      : `⚠️ Sobra ${formatCurrency(Math.abs(diferencia))}`
-                  }
-                </p>
-              </div>
-              <div className="md:col-span-5">
                 <p className="text-sm text-foreground/70">Items</p>
                 <p className="text-lg font-bold text-foreground">{compra.comprasDetalle.length}</p>
               </div>
             </div>
           </div>
 
+          {/* Alerta de Diferencia */}
+          {!totalCoincide && (
+            <div className={`glass-card p-6 border-2 ${
+              diferencia > 0 
+                ? 'border-orange-500/50 bg-orange-500/10' 
+                : 'border-red-500/50 bg-red-500/10'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg ${
+                    diferencia > 0 
+                      ? 'bg-gradient-to-br from-orange-500 to-orange-400 shadow-orange-500/30' 
+                      : 'bg-gradient-to-br from-red-500 to-red-400 shadow-red-500/30'
+                  }`}>
+                    {diferencia > 0 ? (
+                      <span className="text-3xl text-white">⏱</span>
+                    ) : (
+                      <span className="text-3xl text-white">⚠️</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className={`text-lg font-bold ${
+                      diferencia > 0 ? 'text-orange-300' : 'text-red-300'
+                    }`}>
+                      {diferencia > 0 ? 'Falta completar la factura' : 'El total excede la factura'}
+                    </p>
+                    <p className="text-sm text-foreground/70 mt-1">
+                      {diferencia > 0 
+                        ? `Necesitas agregar items por un valor de ${formatCurrency(diferencia)} para completar la factura`
+                        : `Los items suman ${formatCurrency(Math.abs(diferencia))} más que el total de la factura`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-3xl font-bold ${
+                    diferencia > 0 ? 'text-orange-400' : 'text-red-400'
+                  }`}>
+                    {formatCurrency(Math.abs(diferencia))}
+                  </p>
+                  <p className="text-xs text-foreground/60 mt-1">
+                    {diferencia > 0 ? 'Por agregar' : 'Exceso'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mensaje de éxito cuando coincide */}
+          {totalCoincide && (
+            <div className="glass-card p-6 border-2 border-green-500/50 bg-green-500/10">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-400 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30">
+                  <span className="text-3xl text-white">✓</span>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-green-300">
+                    Factura completada correctamente
+                  </p>
+                  <p className="text-sm text-foreground/70 mt-1">
+                    El total de los items coincide con el total de la factura
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Acciones */}
           <div className="glass-card p-6">
             <button
               onClick={() => {
-                setFormData({ idMateriaPrima: '', codigoMateriaPrima: '', nombreMateriaPrima: '', cantidadComprada: '', precioUnitario: '', subtotal: '' });
-                setMateriaPrimaSeleccionada(null);
-                setUltimoPrecio(null);
+                setItemsData([{
+                  idMateriaPrima: '',
+                  codigoMateriaPrima: '',
+                  nombreMateriaPrima: '',
+                  cantidadComprada: '',
+                  precioUnitario: '',
+                  subtotal: '',
+                  materiaPrimaSeleccionada: null,
+                  ultimoPrecio: null,
+                }]);
+                setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
                 setShowModalAgregar(true);
               }}
               className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
@@ -587,11 +854,29 @@ export default function CompraDetallePage() {
                       <td></td>
                     </tr>
                     {!totalCoincide && (
-                      <tr className={diferencia > 0 ? 'bg-orange-50' : 'bg-red-50'}>
+                      <tr className={`border-t-2 ${
+                        diferencia > 0 
+                          ? 'border-orange-500/50 bg-orange-500/10' 
+                          : 'border-red-500/50 bg-red-500/10'
+                      }`}>
                         <td colSpan={4} className="px-6 py-4 text-right font-bold text-foreground">
-                          {diferencia > 0 ? '⏱ Falta:' : '⚠️ Sobra:'}
+                          <div className="flex items-center justify-end gap-2">
+                            {diferencia > 0 ? (
+                              <>
+                                <span className="text-orange-400">⏱</span>
+                                <span>Falta:</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-red-400">⚠️</span>
+                                <span>Sobra:</span>
+                              </>
+                            )}
+                          </div>
                         </td>
-                        <td className={`px-6 py-4 text-right font-bold text-lg ${diferencia > 0 ? 'text-orange-600' : 'text-red-600'}`}>
+                        <td className={`px-6 py-4 text-right font-bold text-lg ${
+                          diferencia > 0 ? 'text-orange-400' : 'text-red-400'
+                        }`}>
                           {formatCurrency(Math.abs(diferencia))}
                         </td>
                         <td></td>
@@ -608,145 +893,219 @@ export default function CompraDetallePage() {
       {/* Modal Agregar Item */}
       <Modal
         isOpen={showModalAgregar}
-        onClose={() => setShowModalAgregar(false)}
+        onClose={() => {
+          setShowModalAgregar(false);
+          setIsAdding(false);
+          // Resetear a una sola fila vacía al cerrar
+          setItemsData([{
+            idMateriaPrima: '',
+            codigoMateriaPrima: '',
+            nombreMateriaPrima: '',
+            cantidadComprada: '',
+            precioUnitario: '',
+            subtotal: '',
+            materiaPrimaSeleccionada: null,
+            ultimoPrecio: null,
+          }]);
+          setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
+        }}
         title="Agregar Item"
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowModalAgregar(false)} className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10">
+            <button
+              onClick={() => {
+                setShowModalAgregar(false);
+                setIsAdding(false);
+              }}
+              disabled={isAdding}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Cancelar
             </button>
-            <button onClick={agregarItem} className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all">
-              Agregar
+            <button
+              onClick={agregarItem}
+              disabled={isAdding}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isAdding ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Agregando...
+                </>
+              ) : (
+                'Agregar'
+              )}
             </button>
           </>
         }
       >
-        <div className="space-y-4">
-          {/* Código MP */}
-          <div className="relative">
-            <label className="block text-sm font-medium text-foreground/90 mb-2">Código Materia Prima</label>
-            <input
-              type="text"
-              value={formData.codigoMateriaPrima}
-              onChange={(e) => {
-                const nuevoValor = e.target.value;
-                setFormData(prev => ({ ...prev, codigoMateriaPrima: nuevoValor }));
-                buscarSugerencias(nuevoValor, 'codigo');
-              }}
-              onFocus={() => {
-                if (formData.codigoMateriaPrima) buscarSugerencias(formData.codigoMateriaPrima, 'codigo');
-              }}
-              placeholder="Ej: MP001"
-              className="glass-input"
-            />
-            {sugCampo === 'codigo' && sugerencias.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
-                {sugerencias.map((mp) => (
-                  <div
-                    key={mp.id}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      seleccionarMateriaPrima(mp);
-                    }}
-                    className="px-4 py-2 hover:bg-white/10 cursor-pointer"
-                  >
-                    <div className="font-medium text-foreground">{mp.codigoMateriaPrima}</div>
-                    <div className="text-sm text-foreground/70">{mp.nombreMateriaPrima}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div className="space-y-6">
+          {/* Botón para agregar fila */}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={agregarFilaItem}
+              disabled={isAdding}
+              className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <span>+</span>
+              Agregar Fila
+            </button>
           </div>
 
-          {/* Nombre MP */}
-          <div className="relative">
-            <label className="block text-sm font-medium text-foreground/90 mb-2">Nombre Materia Prima</label>
-            <input
-              type="text"
-              value={formData.nombreMateriaPrima}
-              onChange={(e) => {
-                const nuevoValor = e.target.value;
-                setFormData(prev => ({ ...prev, nombreMateriaPrima: nuevoValor }));
-                buscarSugerencias(nuevoValor, 'nombre');
-              }}
-              onFocus={() => {
-                if (formData.nombreMateriaPrima) buscarSugerencias(formData.nombreMateriaPrima, 'nombre');
-              }}
-              placeholder="Ej: MAIZ"
-              className="glass-input"
-            />
-            {sugCampo === 'nombre' && sugerencias.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
-                {sugerencias.map((mp) => (
-                  <div
-                    key={mp.id}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      seleccionarMateriaPrima(mp);
-                    }}
-                    className="px-4 py-2 hover:bg-white/10 cursor-pointer"
-                  >
-                    <div className="font-medium text-foreground">{mp.codigoMateriaPrima}</div>
-                    <div className="text-sm text-foreground/70">{mp.nombreMateriaPrima}</div>
+          {/* Filas de items */}
+          <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+            {itemsData.map((item, index) => (
+              <div key={index} className="glass-card p-4 border border-white/10 rounded-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-foreground/90">Fila {index + 1}</h3>
+                  {itemsData.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => eliminarFilaItem(index)}
+                      disabled={isAdding}
+                      className="px-3 py-1 bg-red-600/20 text-red-400 rounded-lg font-semibold hover:bg-red-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Eliminar
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {/* Código MP */}
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-foreground/90 mb-2">Código Materia Prima</label>
+                    <input
+                      type="text"
+                      value={item.codigoMateriaPrima}
+                      onChange={(e) => {
+                        const nuevoValor = e.target.value;
+                        actualizarItemData(index, 'codigoMateriaPrima', nuevoValor);
+                        buscarSugerenciasMultiples(nuevoValor, 'codigo', index);
+                      }}
+                      onFocus={() => {
+                        if (item.codigoMateriaPrima) buscarSugerenciasMultiples(item.codigoMateriaPrima, 'codigo', index);
+                      }}
+                      placeholder="Ej: MP001"
+                      className="glass-input"
+                      disabled={isAdding}
+                    />
+                    {sugerenciasMultiples[index]?.campo === 'codigo' && sugerenciasMultiples[index]?.sugerencias.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
+                        {sugerenciasMultiples[index].sugerencias.map((mp) => (
+                          <div
+                            key={mp.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              seleccionarMateriaPrimaMultiples(mp, index);
+                            }}
+                            className="px-4 py-2 hover:bg-white/10 cursor-pointer"
+                          >
+                            <div className="font-medium text-foreground">{mp.codigoMateriaPrima}</div>
+                            <div className="text-sm text-foreground/70">{mp.nombreMateriaPrima}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
+
+                  {/* Nombre MP */}
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-foreground/90 mb-2">Nombre Materia Prima</label>
+                    <input
+                      type="text"
+                      value={item.nombreMateriaPrima}
+                      onChange={(e) => {
+                        const nuevoValor = e.target.value;
+                        actualizarItemData(index, 'nombreMateriaPrima', nuevoValor);
+                        buscarSugerenciasMultiples(nuevoValor, 'nombre', index);
+                      }}
+                      onFocus={() => {
+                        if (item.nombreMateriaPrima) buscarSugerenciasMultiples(item.nombreMateriaPrima, 'nombre', index);
+                      }}
+                      placeholder="Ej: MAIZ"
+                      className="glass-input"
+                      disabled={isAdding}
+                    />
+                    {sugerenciasMultiples[index]?.campo === 'nombre' && sugerenciasMultiples[index]?.sugerencias.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 glass-dropdown rounded-xl shadow-lg max-h-60 overflow-auto">
+                        {sugerenciasMultiples[index].sugerencias.map((mp) => (
+                          <div
+                            key={mp.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              seleccionarMateriaPrimaMultiples(mp, index);
+                            }}
+                            className="px-4 py-2 hover:bg-white/10 cursor-pointer"
+                          >
+                            <div className="font-medium text-foreground">{mp.codigoMateriaPrima}</div>
+                            <div className="text-sm text-foreground/70">{mp.nombreMateriaPrima}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {item.materiaPrimaSeleccionada && item.ultimoPrecio !== null && (
+                    <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3">
+                      <p className="text-sm text-blue-300">
+                        💡 Último precio pagado: {formatCurrency(item.ultimoPrecio)}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground/90 mb-2">Cantidad (kg) <span className="text-red-500">*</span></label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0.0001"
+                        value={item.cantidadComprada}
+                        onChange={(e) => {
+                          actualizarItemData(index, 'cantidadComprada', e.target.value);
+                        }}
+                        onBlur={() => calcularDesdePrecioMultiples(index)}
+                        className="glass-input"
+                        required
+                        disabled={isAdding}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground/90 mb-2">Precio Unitario ($/kg)</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        value={item.precioUnitario}
+                        onChange={(e) => {
+                          actualizarItemData(index, 'precioUnitario', e.target.value);
+                        }}
+                        onBlur={() => calcularDesdePrecioMultiples(index)}
+                        className="glass-input"
+                        disabled={isAdding}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground/90 mb-2">Subtotal ($)</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        value={item.subtotal}
+                        onChange={(e) => {
+                          actualizarItemData(index, 'subtotal', e.target.value);
+                        }}
+                        onBlur={() => calcularDesdeSubtotalMultiples(index)}
+                        className="glass-input"
+                        disabled={isAdding}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-
-          {materiaPrimaSeleccionada && ultimoPrecio !== null && (
-            <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3">
-              <p className="text-sm text-blue-300">
-                💡 Último precio pagado: {formatCurrency(ultimoPrecio)}
-              </p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground/90 mb-2">Cantidad (kg) <span className="text-red-500">*</span></label>
-              <input
-                type="number"
-                step="0.0001"
-                min="0.0001"
-                value={formData.cantidadComprada}
-                onChange={(e) => {
-                  setFormData(prev => ({ ...prev, cantidadComprada: e.target.value }));
-                }}
-                onBlur={calcularDesdePrecio}
-                className="glass-input"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground/90 mb-2">Precio Unitario ($/kg)</label>
-              <input
-                type="number"
-                step="0.0001"
-                min="0"
-                value={formData.precioUnitario}
-                onChange={(e) => {
-                  setFormData(prev => ({ ...prev, precioUnitario: e.target.value }));
-                }}
-                onBlur={calcularDesdePrecio}
-                className="glass-input"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground/90 mb-2">Subtotal ($)</label>
-              <input
-                type="number"
-                step="0.0001"
-                min="0"
-                value={formData.subtotal}
-                onChange={(e) => {
-                  setFormData(prev => ({ ...prev, subtotal: e.target.value }));
-                }}
-                onBlur={calcularDesdeSubtotal}
-                className="glass-input"
-              />
-            </div>
+            ))}
           </div>
         </div>
       </Modal>
@@ -754,16 +1113,37 @@ export default function CompraDetallePage() {
       {/* Modal Editar Item */}
       <Modal
         isOpen={showModalEditar}
-        onClose={() => setShowModalEditar(false)}
+        onClose={() => {
+          setShowModalEditar(false);
+          setIsEditing(false);
+        }}
         title="Editar Item"
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowModalEditar(false)} className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10">
+            <button
+              onClick={() => {
+                setShowModalEditar(false);
+                setIsEditing(false);
+              }}
+              disabled={isEditing}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Cancelar
             </button>
-            <button onClick={editarItem} className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all">
-              Guardar
+            <button
+              onClick={editarItem}
+              disabled={isEditing}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isEditing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Guardando...
+                </>
+              ) : (
+                'Guardar'
+              )}
             </button>
           </>
         }
@@ -827,15 +1207,36 @@ export default function CompraDetallePage() {
       {/* Modal Eliminar Item */}
       <Modal
         isOpen={showModalEliminar}
-        onClose={() => setShowModalEliminar(false)}
+        onClose={() => {
+          setShowModalEliminar(false);
+          setIsDeleting(false);
+        }}
         title="Eliminar Item"
         footer={
           <>
-            <button onClick={() => setShowModalEliminar(false)} className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10">
+            <button
+              onClick={() => {
+                setShowModalEliminar(false);
+                setIsDeleting(false);
+              }}
+              disabled={isDeleting}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Cancelar
             </button>
-            <button onClick={eliminarItem} className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all">
-              Eliminar
+            <button
+              onClick={eliminarItem}
+              disabled={isDeleting}
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
             </button>
           </>
         }
@@ -857,16 +1258,37 @@ export default function CompraDetallePage() {
       {/* Modal Editar Cabecera */}
       <Modal
         isOpen={showModalEditarCabecera}
-        onClose={() => setShowModalEditarCabecera(false)}
+        onClose={() => {
+          setShowModalEditarCabecera(false);
+          setIsEditingCabecera(false);
+        }}
         title="Editar Cabecera"
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowModalEditarCabecera(false)} className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10">
+            <button
+              onClick={() => {
+                setShowModalEditarCabecera(false);
+                setIsEditingCabecera(false);
+              }}
+              disabled={isEditingCabecera}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Cancelar
             </button>
-            <button onClick={editarCabecera} className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all">
-              Guardar
+            <button
+              onClick={editarCabecera}
+              disabled={isEditingCabecera}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isEditingCabecera ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Guardando...
+                </>
+              ) : (
+                'Guardar'
+              )}
             </button>
           </>
         }

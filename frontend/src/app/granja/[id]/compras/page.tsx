@@ -57,6 +57,7 @@ export default function ComprasPage() {
   const [showNueva, setShowNueva] = useState(false);
   const [showModalEliminar, setShowModalEliminar] = useState(false);
   const [compraAEliminar, setCompraAEliminar] = useState<CompraCabecera | null>(null);
+  const [isDeletingCompra, setIsDeletingCompra] = useState(false);
   const [showModalEliminarTodas, setShowModalEliminarTodas] = useState(false);
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
   const [showEliminadas, setShowEliminadas] = useState(false);
@@ -133,11 +134,14 @@ export default function ComprasPage() {
 
   const handleEliminarCompra = async () => {
     if (!compraAEliminar) return;
+    if (isDeletingCompra) return; // Prevenir múltiples clicks
 
+    setIsDeletingCompra(true);
     try {
       const token = authService.getToken();
       if (!token) {
         alert('No autenticado');
+        setIsDeletingCompra(false);
         return;
       }
 
@@ -151,6 +155,8 @@ export default function ComprasPage() {
     } catch (error: unknown) {
       console.error('Error eliminando compra:', error);
       alert(error instanceof Error ? error.message : 'Error al eliminar compra');
+    } finally {
+      setIsDeletingCompra(false);
     }
   };
 
@@ -557,6 +563,7 @@ export default function ComprasPage() {
         onClose={() => {
           setShowModalEliminar(false);
           setCompraAEliminar(null);
+          setIsDeletingCompra(false);
         }}
         title="Eliminar Compra"
         footer={
@@ -565,16 +572,26 @@ export default function ComprasPage() {
               onClick={() => {
                 setShowModalEliminar(false);
                 setCompraAEliminar(null);
+                setIsDeletingCompra(false);
               }}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
+              disabled={isDeletingCompra}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={handleEliminarCompra}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30"
+              disabled={isDeletingCompra}
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Eliminar
+              {isDeletingCompra ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
             </button>
           </>
         }

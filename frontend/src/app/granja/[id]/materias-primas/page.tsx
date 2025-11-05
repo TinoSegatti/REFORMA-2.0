@@ -35,6 +35,8 @@ export default function MateriasPrimasPage() {
   const [showModalEliminar, setShowModalEliminar] = useState(false);
   const [editando, setEditando] = useState<MateriaPrima | null>(null);
   const [eliminando, setEliminando] = useState<MateriaPrima | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     codigo: '',
     nombre: '',
@@ -92,6 +94,9 @@ export default function MateriasPrimasPage() {
       return;
     }
 
+    if (isSaving) return; // Prevenir múltiples clicks
+
+    setIsSaving(true);
     try {
       const token = authService.getToken();
       if (!token) {
@@ -123,12 +128,16 @@ export default function MateriasPrimasPage() {
     } catch (error: unknown) {
       console.error('Error guardando:', error);
       alert(error instanceof Error ? error.message : 'Error al guardar la materia prima');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const eliminar = async () => {
     if (!eliminando) return;
+    if (isDeleting) return; // Prevenir múltiples clicks
 
+    setIsDeleting(true);
     try {
       const token = authService.getToken();
       if (!token) {
@@ -145,6 +154,8 @@ export default function MateriasPrimasPage() {
     } catch (error: unknown) {
       console.error('Error eliminando:', error);
       alert(error instanceof Error ? error.message : 'Error al eliminar la materia prima');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -285,21 +296,36 @@ export default function MateriasPrimasPage() {
       {/* Modal Crear/Editar */}
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false);
+          setIsSaving(false);
+        }}
         title={editando ? 'Editar Materia Prima' : 'Nueva Materia Prima'}
         footer={
           <>
             <button
-              onClick={() => setShowModal(false)}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModal(false);
+                setIsSaving(false);
+              }}
+              disabled={isSaving}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={guardar}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+              disabled={isSaving}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Guardar
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  {editando ? 'Guardando...' : 'Creando...'}
+                </>
+              ) : (
+                'Guardar'
+              )}
             </button>
           </>
         }
@@ -354,21 +380,36 @@ export default function MateriasPrimasPage() {
       {/* Modal Eliminar */}
       <Modal
         isOpen={showModalEliminar}
-        onClose={() => setShowModalEliminar(false)}
+        onClose={() => {
+          setShowModalEliminar(false);
+          setIsDeleting(false);
+        }}
         title="Eliminar Materia Prima"
         footer={
           <>
             <button
-              onClick={() => setShowModalEliminar(false)}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
+              onClick={() => {
+                setShowModalEliminar(false);
+                setIsDeleting(false);
+              }}
+              disabled={isDeleting}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={eliminar}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30"
+              disabled={isDeleting}
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all hover:shadow-lg hover:shadow-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Eliminar
+              {isDeleting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
             </button>
           </>
         }
