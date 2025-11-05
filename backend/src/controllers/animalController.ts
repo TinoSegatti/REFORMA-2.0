@@ -5,6 +5,7 @@
 
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { validateGranja, sendValidationError } from '../utils/granjaValidation';
 
 interface AnimalRequest extends Request {
   userId?: string;
@@ -22,14 +23,9 @@ export async function obtenerAnimales(req: AnimalRequest, res: Response) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
     const animales = await prisma.animal.findMany({
       where: { idGranja },
@@ -60,14 +56,9 @@ export async function crearAnimal(req: AnimalRequest, res: Response) {
       return res.status(400).json({ error: 'Código, descripción y categoría son requeridos' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
     // Verificar que el código no esté duplicado
     const codigoExistente = await prisma.animal.findFirst({
@@ -92,6 +83,9 @@ export async function crearAnimal(req: AnimalRequest, res: Response) {
 
     res.status(201).json(animal);
   } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'El código de animal ya existe' });
+    }
     console.error('Error creando animal:', error);
     res.status(500).json({ error: 'Error al crear animal' });
   }
@@ -114,32 +108,27 @@ export async function actualizarAnimal(req: AnimalRequest, res: Response) {
       return res.status(400).json({ error: 'Código, descripción y categoría son requeridos' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
-    // Verificar que existe el animal
-    const animalExistente = await prisma.animal.findFirst({
-      where: { id, idGranja }
-    });
+    // Verificar que existe el animal y el código no esté duplicado en paralelo
+    const [animalExistente, codigoExistente] = await Promise.all([
+      prisma.animal.findFirst({
+        where: { id, idGranja }
+      }),
+      prisma.animal.findFirst({
+        where: {
+          idGranja,
+          codigoAnimal,
+          id: { not: id }
+        }
+      })
+    ]);
 
     if (!animalExistente) {
       return res.status(404).json({ error: 'Animal no encontrado' });
     }
-
-    // Verificar que el código no esté duplicado en otro animal
-    const codigoExistente = await prisma.animal.findFirst({
-      where: {
-        idGranja,
-        codigoAnimal,
-        id: { not: id }
-      }
-    });
 
     if (codigoExistente) {
       return res.status(400).json({ error: 'El código de animal ya existe' });
@@ -156,6 +145,9 @@ export async function actualizarAnimal(req: AnimalRequest, res: Response) {
 
     res.json(animal);
   } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'El código de animal ya existe' });
+    }
     console.error('Error actualizando animal:', error);
     res.status(500).json({ error: 'Error al actualizar animal' });
   }
@@ -173,31 +165,25 @@ export async function eliminarAnimal(req: AnimalRequest, res: Response) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
-    // Verificar que existe el animal
-    const animal = await prisma.animal.findFirst({
-      where: { id, idGranja }
-    });
-
-    if (!animal) {
-      return res.status(404).json({ error: 'Animal no encontrado' });
-    }
-
-    // Eliminar el animal
+    // Eliminar directamente (si no existe, Prisma lanzará error P2025)
     await prisma.animal.delete({
       where: { id }
+    }).catch((error: any) => {
+      if (error.code === 'P2025') {
+        throw new Error('Animal no encontrado');
+      }
+      throw error;
     });
 
     res.json({ mensaje: 'Animal eliminado exitosamente' });
   } catch (error: any) {
+    if (error.message === 'Animal no encontrado') {
+      return res.status(404).json({ error: error.message });
+    }
     console.error('Error eliminando animal:', error);
     res.status(500).json({ error: 'Error al eliminar animal' });
   }

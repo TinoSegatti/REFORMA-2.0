@@ -5,6 +5,7 @@
 
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { validateGranja, sendValidationError } from '../utils/granjaValidation';
 
 interface MateriaPrimaRequest extends Request {
   userId?: string;
@@ -22,14 +23,9 @@ export async function obtenerMateriasPrimas(req: MateriaPrimaRequest, res: Respo
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
     const materiasPrimas = await prisma.materiaPrima.findMany({
       where: { idGranja },
@@ -60,14 +56,9 @@ export async function crearMateriaPrima(req: MateriaPrimaRequest, res: Response)
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
     // Verificar que el código no esté duplicado
     const codigoExistente = await prisma.materiaPrima.findFirst({
@@ -92,6 +83,9 @@ export async function crearMateriaPrima(req: MateriaPrimaRequest, res: Response)
 
     res.status(201).json(materiaPrima);
   } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'El código de materia prima ya existe' });
+    }
     console.error('Error creando materia prima:', error);
     res.status(500).json({ error: 'Error al crear materia prima' });
   }
@@ -114,32 +108,27 @@ export async function actualizarMateriaPrima(req: MateriaPrimaRequest, res: Resp
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
-    // Verificar que existe la materia prima
-    const materiaPrimaExistente = await prisma.materiaPrima.findFirst({
-      where: { id, idGranja }
-    });
+    // Verificar que existe la materia prima y el código no esté duplicado en paralelo
+    const [materiaPrimaExistente, codigoExistente] = await Promise.all([
+      prisma.materiaPrima.findFirst({
+        where: { id, idGranja }
+      }),
+      prisma.materiaPrima.findFirst({
+        where: {
+          idGranja,
+          codigoMateriaPrima,
+          id: { not: id }
+        }
+      })
+    ]);
 
     if (!materiaPrimaExistente) {
       return res.status(404).json({ error: 'Materia prima no encontrada' });
     }
-
-    // Verificar que el código no esté duplicado en otra materia prima
-    const codigoExistente = await prisma.materiaPrima.findFirst({
-      where: {
-        idGranja,
-        codigoMateriaPrima,
-        id: { not: id }
-      }
-    });
 
     if (codigoExistente) {
       return res.status(400).json({ error: 'El código de materia prima ya existe' });
@@ -155,6 +144,9 @@ export async function actualizarMateriaPrima(req: MateriaPrimaRequest, res: Resp
 
     res.json(materiaPrima);
   } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'El código de materia prima ya existe' });
+    }
     console.error('Error actualizando materia prima:', error);
     res.status(500).json({ error: 'Error al actualizar materia prima' });
   }
@@ -172,31 +164,25 @@ export async function eliminarMateriaPrima(req: MateriaPrimaRequest, res: Respon
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
-    // Verificar que existe la materia prima
-    const materiaPrima = await prisma.materiaPrima.findFirst({
-      where: { id, idGranja }
-    });
-
-    if (!materiaPrima) {
-      return res.status(404).json({ error: 'Materia prima no encontrada' });
-    }
-
-    // Eliminar la materia prima
+    // Eliminar directamente (si no existe, Prisma lanzará error P2025)
     await prisma.materiaPrima.delete({
       where: { id }
+    }).catch((error: any) => {
+      if (error.code === 'P2025') {
+        throw new Error('Materia prima no encontrada');
+      }
+      throw error;
     });
 
     res.json({ mensaje: 'Materia prima eliminada exitosamente' });
   } catch (error: any) {
+    if (error.message === 'Materia prima no encontrada') {
+      return res.status(404).json({ error: error.message });
+    }
     console.error('Error eliminando materia prima:', error);
     res.status(500).json({ error: 'Error al eliminar materia prima' });
   }

@@ -5,6 +5,7 @@
 
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { validateGranja, sendValidationError } from '../utils/granjaValidation';
 
 interface ProveedorRequest extends Request {
   userId?: string;
@@ -22,14 +23,9 @@ export async function obtenerProveedores(req: ProveedorRequest, res: Response) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
     const proveedores = await prisma.proveedor.findMany({
       where: { idGranja },
@@ -60,14 +56,9 @@ export async function crearProveedor(req: ProveedorRequest, res: Response) {
       return res.status(400).json({ error: 'Código y nombre son requeridos' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
     // Verificar que el código no esté duplicado
     const codigoExistente = await prisma.proveedor.findFirst({
@@ -81,6 +72,7 @@ export async function crearProveedor(req: ProveedorRequest, res: Response) {
       return res.status(400).json({ error: 'El código de proveedor ya existe' });
     }
 
+    // Crear el proveedor
     const proveedor = await prisma.proveedor.create({
       data: {
         idGranja,
@@ -93,6 +85,10 @@ export async function crearProveedor(req: ProveedorRequest, res: Response) {
 
     res.status(201).json(proveedor);
   } catch (error: any) {
+    // Si el error es por constraint único (duplicado)
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'El código de proveedor ya existe' });
+    }
     console.error('Error creando proveedor:', error);
     res.status(500).json({ error: 'Error al crear proveedor' });
   }
@@ -115,32 +111,27 @@ export async function actualizarProveedor(req: ProveedorRequest, res: Response) 
       return res.status(400).json({ error: 'Código y nombre son requeridos' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
-    // Verificar que existe el proveedor
-    const proveedorExistente = await prisma.proveedor.findFirst({
-      where: { id, idGranja }
-    });
+    // Verificar que existe el proveedor y el código no esté duplicado en paralelo
+    const [proveedorExistente, codigoExistente] = await Promise.all([
+      prisma.proveedor.findFirst({
+        where: { id, idGranja }
+      }),
+      prisma.proveedor.findFirst({
+        where: {
+          idGranja,
+          codigoProveedor,
+          id: { not: id }
+        }
+      })
+    ]);
 
     if (!proveedorExistente) {
       return res.status(404).json({ error: 'Proveedor no encontrado' });
     }
-
-    // Verificar que el código no esté duplicado en otro proveedor
-    const codigoExistente = await prisma.proveedor.findFirst({
-      where: {
-        idGranja,
-        codigoProveedor,
-        id: { not: id }
-      }
-    });
 
     if (codigoExistente) {
       return res.status(400).json({ error: 'El código de proveedor ya existe' });
@@ -158,6 +149,9 @@ export async function actualizarProveedor(req: ProveedorRequest, res: Response) 
 
     res.json(proveedor);
   } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'El código de proveedor ya existe' });
+    }
     console.error('Error actualizando proveedor:', error);
     res.status(500).json({ error: 'Error al actualizar proveedor' });
   }
@@ -175,31 +169,25 @@ export async function eliminarProveedor(req: ProveedorRequest, res: Response) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
-    // Verificar que existe el proveedor
-    const proveedor = await prisma.proveedor.findFirst({
-      where: { id, idGranja }
-    });
-
-    if (!proveedor) {
-      return res.status(404).json({ error: 'Proveedor no encontrado' });
-    }
-
-    // Eliminar el proveedor
+    // Eliminar directamente (si no existe, Prisma lanzará error P2025)
     await prisma.proveedor.delete({
       where: { id }
+    }).catch((error: any) => {
+      if (error.code === 'P2025') {
+        throw new Error('Proveedor no encontrado');
+      }
+      throw error;
     });
 
     res.json({ mensaje: 'Proveedor eliminado exitosamente' });
   } catch (error: any) {
+    if (error.message === 'Proveedor no encontrado') {
+      return res.status(404).json({ error: error.message });
+    }
     console.error('Error eliminando proveedor:', error);
     res.status(500).json({ error: 'Error al eliminar proveedor' });
   }
@@ -217,48 +205,41 @@ export async function obtenerEstadisticasProveedores(req: ProveedorRequest, res:
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
+    // Verificar que la granja pertenece al usuario (con caché)
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
 
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
-    // Obtener cantidad de proveedores
-    const cantidadProveedores = await prisma.proveedor.count({
-      where: { idGranja }
-    });
-
-    // Obtener proveedores con más compras
-    const comprasPorProveedor = await prisma.$queryRaw<any[]>`
-      SELECT 
-        p.id,
-        p."codigoProveedor" as codigo_proveedor,
-        p."nombreProveedor" as nombre_proveedor,
-        COUNT(cc.id) as cantidad_compras
-      FROM t_proveedor p
-      LEFT JOIN t_compra_cabecera cc ON p.id = cc."idProveedor"
-      WHERE p."idGranja" = ${idGranja}
-      GROUP BY p.id, p."codigoProveedor", p."nombreProveedor"
-      ORDER BY cantidad_compras DESC
-      LIMIT 5
-    `;
-
-    // Obtener gastos por proveedor
-    const gastosPorProveedor = await prisma.$queryRaw<any[]>`
-      SELECT 
-        p.id,
-        p."codigoProveedor" as codigo_proveedor,
-        p."nombreProveedor" as nombre_proveedor,
-        COALESCE(SUM(cc."totalFactura"), 0) as total_gastado
-      FROM t_proveedor p
-      LEFT JOIN t_compra_cabecera cc ON p.id = cc."idProveedor"
-      WHERE p."idGranja" = ${idGranja}
-      GROUP BY p.id, p."codigoProveedor", p."nombreProveedor"
-      ORDER BY total_gastado DESC
-    `;
+    // Ejecutar todas las consultas en paralelo
+    const [cantidadProveedores, comprasPorProveedor, gastosPorProveedor] = await Promise.all([
+      prisma.proveedor.count({
+        where: { idGranja }
+      }),
+      prisma.$queryRaw<any[]>`
+        SELECT 
+          p.id,
+          p."codigoProveedor" as codigo_proveedor,
+          p."nombreProveedor" as nombre_proveedor,
+          COUNT(cc.id) as cantidad_compras
+        FROM t_proveedor p
+        LEFT JOIN t_compra_cabecera cc ON p.id = cc."idProveedor"
+        WHERE p."idGranja" = ${idGranja}
+        GROUP BY p.id, p."codigoProveedor", p."nombreProveedor"
+        ORDER BY cantidad_compras DESC
+        LIMIT 5
+      `,
+      prisma.$queryRaw<any[]>`
+        SELECT 
+          p.id,
+          p."codigoProveedor" as codigo_proveedor,
+          p."nombreProveedor" as nombre_proveedor,
+          COALESCE(SUM(cc."totalFactura"), 0) as total_gastado
+        FROM t_proveedor p
+        LEFT JOIN t_compra_cabecera cc ON p.id = cc."idProveedor"
+        WHERE p."idGranja" = ${idGranja}
+        GROUP BY p.id, p."codigoProveedor", p."nombreProveedor"
+        ORDER BY total_gastado DESC
+      `
+    ]);
 
     // Convertir BigInt a Number para serialización JSON
     const comprasAdaptadas = comprasPorProveedor.map((item: any) => ({
