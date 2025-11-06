@@ -732,7 +732,7 @@ export default function InventarioPage() {
                       disabled={isInitializing}
                       />
                       {sugIndex === idx && sugCampo === 'codigo' && sugerencias.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
+                        <div className="absolute z-50 mt-1 w-full bg-white/95 backdrop-blur-md border border-white/30 rounded-lg max-h-56 overflow-auto shadow-xl">
                           {sugerencias.map((mp) => (
                             <button
                               key={mp.id}
@@ -742,9 +742,9 @@ export default function InventarioPage() {
                                 actualizarLinea(idx, 'codigo', mp.codigoMateriaPrima);
                                 setSugIndex(null); setSugCampo(null);
                               }}
-                              className="w-full text-left px-3 py-2 hover:bg-white/10 text-foreground"
+                              className="w-full text-left px-3 py-2 hover:bg-purple-50 hover:bg-opacity-50 text-gray-900 transition-colors"
                             >
-                              <span className="font-medium text-foreground">{mp.codigoMateriaPrima}</span> — <span className="text-foreground/70">{mp.nombreMateriaPrima}</span>
+                              <span className="font-medium text-gray-900">{mp.codigoMateriaPrima}</span> — <span className="text-gray-600">{mp.nombreMateriaPrima}</span>
                             </button>
                           ))}
                         </div>
@@ -765,7 +765,7 @@ export default function InventarioPage() {
                       disabled={isInitializing}
                       />
                       {sugIndex === idx && sugCampo === 'nombre' && sugerencias.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
+                        <div className="absolute z-50 mt-1 w-full bg-white/95 backdrop-blur-md border border-white/30 rounded-lg max-h-56 overflow-auto shadow-xl">
                           {sugerencias.map((mp) => (
                             <button
                               key={mp.id}
@@ -775,9 +775,9 @@ export default function InventarioPage() {
                                 actualizarLinea(idx, 'nombre', mp.nombreMateriaPrima);
                                 setSugIndex(null); setSugCampo(null);
                               }}
-                              className="w-full text-left px-3 py-2 hover:bg-white/10 text-foreground"
+                              className="w-full text-left px-3 py-2 hover:bg-purple-50 hover:bg-opacity-50 text-gray-900 transition-colors"
                             >
-                              <span className="font-medium text-foreground">{mp.nombreMateriaPrima}</span> — <span className="text-foreground/70">{mp.codigoMateriaPrima}</span>
+                              <span className="font-medium text-gray-900">{mp.nombreMateriaPrima}</span> — <span className="text-gray-600">{mp.codigoMateriaPrima}</span>
                             </button>
                           ))}
                         </div>
@@ -852,7 +852,7 @@ export default function InventarioPage() {
                         disabled={isInitializing}
                         />
                         {sugIndex === idx && sugCampo === 'codigo' && sugerencias.length > 0 && (
-                          <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
+                          <div className="absolute z-50 mt-1 w-full bg-white/95 backdrop-blur-md border border-white/30 rounded-lg max-h-56 overflow-auto shadow-xl">
                             {sugerencias.map((mp) => (
                               <button
                                 key={mp.id}
@@ -862,9 +862,9 @@ export default function InventarioPage() {
                                   actualizarLinea(idx, 'codigo', mp.codigoMateriaPrima);
                                   setSugIndex(null); setSugCampo(null);
                                 }}
-                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-foreground"
+                                className="w-full text-left px-3 py-2 hover:bg-purple-50 hover:bg-opacity-50 text-gray-900 transition-colors"
                               >
-                                <span className="font-medium text-foreground">{mp.codigoMateriaPrima}</span> — <span className="text-foreground/70">{mp.nombreMateriaPrima}</span>
+                                <span className="font-medium text-gray-900">{mp.codigoMateriaPrima}</span> — <span className="text-gray-600">{mp.nombreMateriaPrima}</span>
                               </button>
                             ))}
                           </div>
@@ -884,7 +884,7 @@ export default function InventarioPage() {
                         disabled={isInitializing}
                         />
                         {sugIndex === idx && sugCampo === 'nombre' && sugerencias.length > 0 && (
-                          <div className="absolute z-50 mt-1 w-full glass-card border border-white/20 rounded-lg max-h-56 overflow-auto">
+                          <div className="absolute z-50 mt-1 w-full bg-white/95 backdrop-blur-md border border-white/30 rounded-lg max-h-56 overflow-auto shadow-xl">
                             {sugerencias.map((mp) => (
                               <button
                                 key={mp.id}
@@ -894,9 +894,9 @@ export default function InventarioPage() {
                                   actualizarLinea(idx, 'nombre', mp.nombreMateriaPrima);
                                   setSugIndex(null); setSugCampo(null);
                                 }}
-                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-foreground"
+                                className="w-full text-left px-3 py-2 hover:bg-purple-50 hover:bg-opacity-50 text-gray-900 transition-colors"
                               >
-                                <span className="font-medium text-foreground">{mp.nombreMateriaPrima}</span> — <span className="text-foreground/70">{mp.codigoMateriaPrima}</span>
+                                <span className="font-medium text-gray-900">{mp.nombreMateriaPrima}</span> — <span className="text-gray-600">{mp.codigoMateriaPrima}</span>
                               </button>
                             ))}
                           </div>
