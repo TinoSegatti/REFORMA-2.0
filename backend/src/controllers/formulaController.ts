@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { actualizarPreciosTodasFormulas } from '../services/formulaService';
 
 interface FormulaRequest extends Request {
   userId?: string;
@@ -771,5 +772,37 @@ export async function eliminarFormula(req: FormulaRequest, res: Response) {
   } catch (error: any) {
     console.error('Error eliminando fórmula:', error);
     res.status(500).json({ error: 'Error al eliminar fórmula' });
+  }
+}
+
+/**
+ * Actualizar precios de todas las fórmulas de una granja
+ * Recalcula los costos basándose en los precios actuales de las materias primas
+ */
+export async function actualizarPreciosFormulas(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Actualizar precios de todas las fórmulas
+    const resultado = await actualizarPreciosTodasFormulas(idGranja);
+
+    res.json(resultado);
+  } catch (error: any) {
+    console.error('Error actualizando precios de fórmulas:', error);
+    res.status(500).json({ error: 'Error al actualizar precios de fórmulas', detalle: error.message });
   }
 }

@@ -215,5 +215,83 @@ export async function obtenerFormulasGranja(idGranja: string) {
   });
 }
 
+/**
+ * Actualiza los precios de TODAS las fórmulas de una granja
+ * Recalcula los costos basándose en los precios actuales de las materias primas
+ * Usa consultas paralelas para optimizar el rendimiento
+ */
+export async function actualizarPreciosTodasFormulas(idGranja: string) {
+  // Obtener todas las fórmulas de la granja con sus detalles
+  const formulas = await prisma.formulaCabecera.findMany({
+    where: { idGranja },
+    include: {
+      formulasDetalle: {
+        include: {
+          materiaPrima: {
+            select: {
+              id: true,
+              precioPorKilo: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (formulas.length === 0) {
+    return { 
+      mensaje: 'No hay fórmulas para actualizar',
+      formulasActualizadas: 0
+    };
+  }
+
+  // Actualizar todas las fórmulas en paralelo
+  const resultados = await Promise.all(
+    formulas.map(async (formula) => {
+      // Actualizar cada detalle de la fórmula en paralelo
+      const detallesActualizados = await Promise.all(
+        formula.formulasDetalle.map(async (detalle) => {
+          const precioActual = detalle.materiaPrima.precioPorKilo || 0;
+          const costoParcial = detalle.cantidadKg * precioActual;
+
+          // Actualizar el detalle
+          await prisma.formulaDetalle.update({
+            where: { id: detalle.id },
+            data: {
+              precioUnitarioMomentoCreacion: precioActual,
+              costoParcial
+            }
+          });
+
+          return costoParcial;
+        })
+      );
+
+      // Calcular costo total de la fórmula
+      const costoTotalFormula = detallesActualizados.reduce((suma, costo) => suma + costo, 0);
+
+      // Actualizar cabecera de la fórmula
+      await prisma.formulaCabecera.update({
+        where: { id: formula.id },
+        data: {
+          costoTotalFormula
+        }
+      });
+
+      return {
+        idFormula: formula.id,
+        codigoFormula: formula.codigoFormula,
+        costoTotalFormula
+      };
+    })
+  );
+
+  return {
+    mensaje: `${formulas.length} fórmula(s) actualizada(s) exitosamente`,
+    formulasActualizadas: formulas.length,
+    formulas: resultados
+  };
+}
+
 
 

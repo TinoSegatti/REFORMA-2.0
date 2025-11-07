@@ -427,6 +427,23 @@ export const apiClient = {
     return await response.json();
   },
 
+  async actualizarPreciosFormulas(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas/actualizar-precios`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al actualizar precios de fórmulas');
+    }
+
+    return await response.json();
+  },
+
   async createFormula(
     token: string,
     idGranja: string,
@@ -911,6 +928,26 @@ export const apiClient = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al eliminar item');
+    }
+
+    return await response.json();
+  },
+
+  async eliminarTodosLosItemsCompra(token: string, idGranja: string, idCompra: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/${idCompra}/items`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        confirmacion: 'SI DESEO ELIMINAR TODOS LOS ITEMS DE LA FACTURA'
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar todos los items');
     }
 
     return await response.json();

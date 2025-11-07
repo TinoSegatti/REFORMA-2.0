@@ -47,6 +47,7 @@ export default function FormulasPage() {
   const [formulas, setFormulas] = useState<Formula[]>([]);
   const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actualizandoPrecios, setActualizandoPrecios] = useState(false);
   const [filtro, setFiltro] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showModalEliminar, setShowModalEliminar] = useState(false);
@@ -75,6 +76,9 @@ export default function FormulasPage() {
     try {
       const token = authService.getToken();
       if (token) {
+        // CARGAR DATOS INMEDIATAMENTE (sin esperar actualización de precios)
+        // Esto permite mostrar la interfaz rápidamente
+        
         // Cargar fórmulas
         const data = await apiClient.getFormulas(token, idGranja);
         setFormulas(data);
@@ -86,10 +90,31 @@ export default function FormulasPage() {
         // Cargar animales para el dropdown
         const animalesData = await apiClient.getAnimales(token, idGranja);
         setAnimales(animalesData);
+
+        // Marcar loading como false para mostrar la interfaz
+        setLoading(false);
+
+        // ACTUALIZAR PRECIOS EN SEGUNDO PLANO (sin bloquear la UI)
+        // El usuario ya puede ver y usar la interfaz mientras se actualizan los precios
+        setActualizandoPrecios(true);
+        try {
+          await apiClient.actualizarPreciosFormulas(token, idGranja);
+          
+          // Una vez actualizados los precios, recargar los datos para mostrar los nuevos valores
+          const dataActualizada = await apiClient.getFormulas(token, idGranja);
+          setFormulas(dataActualizada);
+          
+          const statsActualizada = await apiClient.getEstadisticasFormulas(token, idGranja);
+          setEstadisticas(statsActualizada);
+        } catch (error) {
+          console.error('Error actualizando precios:', error);
+          // No afecta la experiencia del usuario si falla
+        } finally {
+          setActualizandoPrecios(false);
+        }
       }
     } catch (error) {
       console.error('Error cargando datos:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -190,9 +215,17 @@ export default function FormulasPage() {
         {/* Header */}
         <header className="glass-card px-8 py-6 m-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Fórmulas</h2>
-              <p className="text-foreground/70 mt-1">Gestión de fórmulas de alimentación</p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h2 className="text-3xl font-bold text-foreground">Fórmulas</h2>
+                <p className="text-foreground/70 mt-1">Gestión de fórmulas de alimentación</p>
+              </div>
+              {actualizandoPrecios && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg">
+                  <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm font-medium text-purple-300">Actualizando precios...</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-3">
               <button

@@ -9,7 +9,8 @@ import {
   agregarDetalleFormula,
   agregarMultiplesDetallesFormula,
   actualizarDetalleFormula,
-  eliminarDetalleFormula
+  eliminarDetalleFormula,
+  actualizarPreciosFormulas
 } from '../controllers/formulaController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
@@ -23,6 +24,9 @@ router.get('/granja/:idGranja/formulas', obtenerFormulas);
 
 // Obtener estadísticas de fórmulas
 router.get('/granja/:idGranja/formulas/estadisticas', obtenerEstadisticasFormulas);
+
+// Actualizar precios de todas las fórmulas de una granja
+router.post('/granja/:idGranja/formulas/actualizar-precios', actualizarPreciosFormulas);
 
 // Crear nueva fórmula
 router.post('/granja/:idGranja/formulas', crearFormula);
