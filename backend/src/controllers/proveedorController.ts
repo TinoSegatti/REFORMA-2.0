@@ -262,4 +262,3 @@ export async function obtenerEstadisticasProveedores(req: ProveedorRequest, res:
     res.status(500).json({ error: 'Error al obtener estadísticas' });
   }
 }
-
