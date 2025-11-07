@@ -370,7 +370,7 @@ export default function FabricacionesPage() {
                                   }
                                 }}
                                 disabled={restaurandoId === fabricacion.id}
-                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg font-semibold hover:shadow-md text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-green-500/30 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {restaurandoId === fabricacion.id ? (
                                   <>
@@ -449,7 +449,7 @@ export default function FabricacionesPage() {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleEditar(fabricacion)}
-                                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg font-semibold hover:shadow-md text-sm"
+                                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all text-sm"
                               >
                                 Editar
                               </button>
@@ -458,7 +458,7 @@ export default function FabricacionesPage() {
                                   setFabricacionAEliminar(fabricacion);
                                   setShowModalEliminar(true);
                                 }}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 text-sm"
+                                className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all text-sm"
                               >
                                 Eliminar
                               </button>
@@ -500,10 +500,10 @@ export default function FabricacionesPage() {
           title="⚠️ Eliminar Todas las Fabricaciones"
           size="lg"
         >
-          <div className="p-6">
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 font-semibold mb-2">⚠️ ADVERTENCIA CRÍTICA</p>
-              <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
+          <div className="space-y-6">
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+              <p className="text-red-300 font-semibold mb-2">⚠️ ADVERTENCIA CRÍTICA</p>
+              <ul className="text-foreground/90 text-sm space-y-1 list-disc list-inside">
                 <li>Esta operación eliminará TODAS las fabricaciones registradas en la granja</li>
                 <li>Impactará directamente en el inventario, restaurando las cantidades de materias primas</li>
                 <li>Esta acción NO es reversible</li>
@@ -511,18 +511,18 @@ export default function FabricacionesPage() {
               </ul>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div>
+              <label className="block text-sm font-medium text-foreground/90 mb-2">
                 Para confirmar, escriba exactamente:
               </label>
-              <p className="text-sm font-mono bg-gray-100 p-2 rounded mb-2 text-gray-900">
+              <p className="text-sm font-mono bg-green-500/20 border border-green-500/30 p-3 rounded-lg mb-3 text-green-300">
                 SI DESEO ELIMINAR TODAS LAS FABRICACIONES REGISTRADAS
               </p>
               <input
                 type="text"
                 value={confirmacionTexto}
                 onChange={(e) => setConfirmacionTexto(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900"
+                className="glass-input w-full"
                 placeholder="Escriba el texto de confirmación..."
               />
             </div>
@@ -534,7 +534,7 @@ export default function FabricacionesPage() {
                   setConfirmacionTexto('');
                   setIsDeletingAll(false);
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isDeletingAll}
               >
                 Cancelar
@@ -570,7 +570,7 @@ export default function FabricacionesPage() {
                     setIsDeletingAll(false);
                   }
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 disabled={confirmacionTexto !== 'SI DESEO ELIMINAR TODAS LAS FABRICACIONES REGISTRADAS' || isDeletingAll}
               >
                 {isDeletingAll ? (
@@ -615,11 +615,11 @@ export default function FabricacionesPage() {
           }}
           title="Confirmar Eliminación"
         >
-          <div className="p-6">
-            <p className="text-gray-700 mb-4">
+          <div className="space-y-6">
+            <p className="text-foreground/90">
               ¿Estás seguro de que deseas eliminar esta fabricación?
             </p>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-foreground/70">
               Esta acción afectará el inventario y no se puede deshacer.
             </p>
             <div className="flex justify-end gap-4">
@@ -629,7 +629,7 @@ export default function FabricacionesPage() {
                   setFabricacionAEliminar(null);
                   setIsDeleting(false);
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isDeleting}
               >
                 Cancelar
@@ -637,7 +637,7 @@ export default function FabricacionesPage() {
               <button
                 onClick={handleEliminar}
                 disabled={isDeleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isDeleting ? (
                   <>
@@ -723,13 +723,13 @@ function ModalNuevaFabricacion({
             <select
               value={formData.idFormula}
               onChange={(e) => setFormData({ ...formData, idFormula: e.target.value })}
-              className="glass-input"
+              className="glass-input text-foreground"
               required
               disabled={loading}
             >
-              <option value="">Seleccionar fórmula...</option>
+              <option value="" className="bg-[#1a1a2e] text-foreground">Seleccionar fórmula...</option>
               {formulas.map((formula) => (
-                <option key={formula.id} value={formula.id}>
+                <option key={formula.id} value={formula.id} className="bg-[#1a1a2e] text-foreground">
                   {formula.codigoFormula} - {formula.descripcionFormula}
                 </option>
               ))}
@@ -798,14 +798,14 @@ function ModalNuevaFabricacion({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 glass-surface text-foreground rounded-lg font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             disabled={loading}
           >
             {loading ? (
@@ -894,13 +894,13 @@ function ModalEditarFabricacion({
             <select
               value={formData.idFormula}
               onChange={(e) => setFormData({ ...formData, idFormula: e.target.value })}
-              className="glass-input"
+              className="glass-input text-foreground"
               required
               disabled={loading}
             >
-              <option value="">Seleccionar fórmula...</option>
+              <option value="" className="bg-[#1a1a2e] text-foreground">Seleccionar fórmula...</option>
               {formulas.map((formula) => (
-                <option key={formula.id} value={formula.id}>
+                <option key={formula.id} value={formula.id} className="bg-[#1a1a2e] text-foreground">
                   {formula.codigoFormula} - {formula.descripcionFormula}
                 </option>
               ))}
@@ -969,14 +969,14 @@ function ModalEditarFabricacion({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 glass-surface text-foreground rounded-lg font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             disabled={loading}
           >
             {loading ? (
