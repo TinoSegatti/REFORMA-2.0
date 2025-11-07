@@ -692,7 +692,16 @@ export async function eliminarTodasLasCompras(idGranja: string, idUsuario: strin
   if (fabricacionesCount > 0) {
     throw new Error('No se pueden eliminar todas las compras porque existen fabricaciones registradas en la granja. Elimine primero todas las fabricaciones.');
   }
-
+  // Obtener solo las materias primas que realmente tenían compras ANTES de eliminarlas
+  // Esto es necesario porque después de marcar las compras como inactivas, no podemos
+  // obtener sus detalles fácilmente desde compras activas
+  const idsMateriasPrimasAfectadas = await prisma.$queryRaw<Array<{ idMateriaPrima: string }>>`
+    SELECT DISTINCT cd."idMateriaPrima"
+    FROM t_compra_detalle cd
+    INNER JOIN t_compra_cabecera cc ON cd."idCompra" = cc.id
+    WHERE cc."idGranja" = ${idGranja}
+      AND cc."activo" = true
+  `;
   // Soft delete: marcar todas las compras como inactivas
   const resultado = await prisma.compraCabecera.updateMany({
     where: { 
@@ -705,7 +714,6 @@ export async function eliminarTodasLasCompras(idGranja: string, idUsuario: strin
       eliminadoPor: idUsuario,
     },
   });
-
   // Registrar en auditoría
   await registrarAuditoria({
     idUsuario,
@@ -716,17 +724,14 @@ export async function eliminarTodasLasCompras(idGranja: string, idUsuario: strin
     descripcion: `Eliminación masiva de ${resultado.count} compras`,
   });
 
-  // Recalcular inventario para todas las materias primas que tuvieron compras
-  // Esto restaurará los precios y cantidades al estado inicial
-  const materiasPrimasAfectadas = await prisma.materiaPrima.findMany({
-    where: { idGranja },
-    select: { id: true }
-  });
-
-  for (const mp of materiasPrimasAfectadas) {
-    // Recalcular inventario (esto restaurará los valores basados solo en inventario inicial)
-    const { recalcularInventario } = await import('./inventarioService');
-    await recalcularInventario({ idGranja, idMateriaPrima: mp.id });
+  // Recalcular inventario solo para las materias primas que realmente tenían compras
+  // Ejecutar en paralelo para evitar ciclo infinito y mejorar rendimiento
+  if (idsMateriasPrimasAfectadas.length > 0) {
+    await Promise.all(
+      idsMateriasPrimasAfectadas.map((mp) =>
+        recalcularInventario({ idGranja, idMateriaPrima: mp.idMateriaPrima })
+      )
+    );
   }
 
   return { 
@@ -818,3 +823,100 @@ export async function obtenerComprasEliminadas(idGranja: string) {
     },
   });
 }
+
+/**
+ * Eliminar todos los items de una compra
+ */
+export async function eliminarTodosLosItemsCompra(idCompra: string) {
+  // Obtener la compra con todos sus detalles
+  const compra = await prisma.compraCabecera.findUnique({
+    where: { id: idCompra },
+    include: {
+      comprasDetalle: {
+        include: {
+          materiaPrima: {
+            select: {
+              id: true,
+              codigoMateriaPrima: true,
+              nombreMateriaPrima: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!compra) {
+    throw new Error('Compra no encontrada');
+  }
+
+  if (compra.comprasDetalle.length === 0) {
+    return { mensaje: 'La compra no tiene items para eliminar' };
+  }
+
+  // Validar que no haya fabricaciones que usen las materias primas de esta compra
+  const idsMateriasPrimas = compra.comprasDetalle.map(d => d.idMateriaPrima);
+  const fabricacionesCount = await prisma.detalleFabricacion.count({
+    where: {
+      idMateriaPrima: { in: idsMateriasPrimas },
+      fabricacion: {
+        idGranja: compra.idGranja,
+        activo: true
+      }
+    }
+  });
+
+  if (fabricacionesCount > 0) {
+    throw new Error('No se pueden eliminar los items de esta compra porque hay fabricaciones que utilizan estas materias primas. Elimine primero todas las fabricaciones relacionadas.');
+  }
+
+  // Guardar datos antes de eliminar
+  const idGranja = compra.idGranja;
+  const materiasPrimasAfectadas = Array.from(new Set(idsMateriasPrimas));
+  const cantidadItems = compra.comprasDetalle.length;
+
+  // Eliminar todos los items
+  await prisma.compraDetalle.deleteMany({
+    where: { idCompra }
+  });
+
+  // Recalcular inventario para todas las materias primas afectadas en paralelo (optimización)
+  await Promise.all(
+    materiasPrimasAfectadas.map(async (idMateriaPrima) => {
+      await recalcularInventario({ idGranja, idMateriaPrima });
+      await sincronizarCantidadRealConSistema(idGranja, idMateriaPrima);
+      
+      // Obtener último precio e inventario inicial en paralelo para determinar precio a usar
+      const [ultimoPrecio, ini] = await Promise.all([
+        obtenerUltimoPrecio(idGranja, idMateriaPrima),
+        prisma.inventarioInicial.findUnique({
+          where: {
+            idGranja_idMateriaPrima: {
+              idGranja,
+              idMateriaPrima
+            }
+          }
+        })
+      ]);
+
+      // Ajustar precioPorKilo de la materia prima al último precio vigente (o a la base de inicialización si no quedan compras)
+      const precioFinal = ultimoPrecio !== null ? ultimoPrecio : Number(ini?.precioInicial || 0);
+      await prisma.materiaPrima.update({
+        where: { id: idMateriaPrima },
+        data: { precioPorKilo: precioFinal }
+      });
+
+      await recalcularFormulasPorMateriaPrima(idMateriaPrima);
+    })
+  );
+
+  // NO actualizar totalFactura - es un dato de la cabecera que viene de la factura original
+  // y no debe cambiar automáticamente al eliminar items. Solo debe cambiar si el usuario
+  // edita manualmente la cabecera.
+
+  return { 
+    mensaje: cantidadItems + ' items eliminados exitosamente',
+    itemsEliminados: cantidadItems
+  };
+}
+
