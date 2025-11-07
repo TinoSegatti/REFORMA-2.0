@@ -62,6 +62,7 @@ export default function ComprasPage() {
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
   const [showEliminadas, setShowEliminadas] = useState(false);
   const [comprasEliminadas, setComprasEliminadas] = useState<CompraEliminada[]>([]);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -469,6 +470,7 @@ export default function ComprasPage() {
           onClose={() => {
             setShowModalEliminarTodas(false);
             setConfirmacionTexto('');
+            setIsDeletingAll(false);
           }}
           title="⚠️ Eliminar Todas las Compras"
           size="lg"
@@ -495,8 +497,9 @@ export default function ComprasPage() {
                 type="text"
                 value={confirmacionTexto}
                 onChange={(e) => setConfirmacionTexto(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Escriba el texto de confirmación..."
+                disabled={isDeletingAll}
               />
             </div>
 
@@ -505,8 +508,10 @@ export default function ComprasPage() {
                 onClick={() => {
                   setShowModalEliminarTodas(false);
                   setConfirmacionTexto('');
+                  setIsDeletingAll(false);
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isDeletingAll}
               >
                 Cancelar
               </button>
@@ -516,11 +521,14 @@ export default function ComprasPage() {
                     alert('El texto de confirmación no coincide. Por favor, escriba exactamente: "SI DESEO ELIMINAR TODAS LAS COMPRAS REGISTRADAS"');
                     return;
                   }
+                  if (isDeletingAll) return; // Prevenir múltiples clicks
 
+                  setIsDeletingAll(true);
                   try {
                     const token = authService.getToken();
                     if (!token) {
                       alert('No autenticado');
+                      setIsDeletingAll(false);
                       return;
                     }
 
@@ -534,12 +542,21 @@ export default function ComprasPage() {
                   } catch (error: unknown) {
                     console.error('Error eliminando todas las compras:', error);
                     alert(error instanceof Error ? error.message : 'Error al eliminar todas las compras');
+                  } finally {
+                    setIsDeletingAll(false);
                   }
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                disabled={confirmacionTexto !== 'SI DESEO ELIMINAR TODAS LAS COMPRAS REGISTRADAS'}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={confirmacionTexto !== 'SI DESEO ELIMINAR TODAS LAS COMPRAS REGISTRADAS' || isDeletingAll}
               >
-                Eliminar Todas las Compras
+                {isDeletingAll ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Eliminando...
+                  </>
+                ) : (
+                  'Eliminar Todas las Compras'
+                )}
               </button>
             </div>
           </div>

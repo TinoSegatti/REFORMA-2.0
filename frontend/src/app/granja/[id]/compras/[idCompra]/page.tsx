@@ -55,6 +55,8 @@ export default function CompraDetallePage() {
   const [showModalEliminar, setShowModalEliminar] = useState(false);
   const [showModalConfirmacion, setShowModalConfirmacion] = useState(false);
   const [showModalEditarCabecera, setShowModalEditarCabecera] = useState(false);
+  const [showModalEliminarTodos, setShowModalEliminarTodos] = useState(false);
+  const [confirmacionEliminarTodos, setConfirmacionEliminarTodos] = useState('');
   const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
   const [editando, setEditando] = useState<CompraDetalle | null>(null);
   const [eliminando, setEliminando] = useState<CompraDetalle | null>(null);
@@ -62,6 +64,7 @@ export default function CompraDetallePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditingCabecera, setIsEditingCabecera] = useState(false);
+  const [isEliminandoTodos, setIsEliminandoTodos] = useState(false);
   const [formData, setFormData] = useState({
     idMateriaPrima: '',
     codigoMateriaPrima: '',
@@ -433,10 +436,8 @@ export default function CompraDetallePage() {
         return;
       }
 
-      // Agregar todos los items
-      for (const item of itemsValidos) {
-        await apiClient.agregarItemCompra(token, idGranja, idCompra, item);
-      }
+      // Agregar todos los items en batch (más eficiente)
+      await apiClient.agregarMultiplesItemsCompra(token, idGranja, idCompra, itemsValidos);
 
       setMensajeConfirmacion(`✅ ${itemsValidos.length} item(s) agregado(s) exitosamente`);
       setShowModalConfirmacion(true);
@@ -560,6 +561,43 @@ export default function CompraDetallePage() {
       setShowModalConfirmacion(true);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const eliminarTodosLosItems = async () => {
+    if (isEliminandoTodos) return; // Prevenir múltiples clicks
+
+    if (confirmacionEliminarTodos !== 'SI DESEO ELIMINAR TODOS LOS ITEMS DE LA FACTURA') {
+      setMensajeConfirmacion('Debe escribir exactamente: "SI DESEO ELIMINAR TODOS LOS ITEMS DE LA FACTURA"');
+      setShowModalConfirmacion(true);
+      return;
+    }
+
+    setIsEliminandoTodos(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        setMensajeConfirmacion('No autenticado');
+        setShowModalConfirmacion(true);
+        setIsEliminandoTodos(false);
+        return;
+      }
+
+      await apiClient.eliminarTodosLosItemsCompra(token, idGranja, idCompra);
+
+      setMensajeConfirmacion(`✅ Todos los items eliminados exitosamente`);
+      setShowModalConfirmacion(true);
+
+      setShowModalEliminarTodos(false);
+      setConfirmacionEliminarTodos('');
+
+      await cargarDatos();
+    } catch (error: unknown) {
+      console.error('Error eliminando todos los items:', error);
+      setMensajeConfirmacion(error instanceof Error ? error.message : 'Error al eliminar todos los items');
+      setShowModalConfirmacion(true);
+    } finally {
+      setIsEliminandoTodos(false);
     }
   };
 
@@ -756,25 +794,38 @@ export default function CompraDetallePage() {
 
           {/* Acciones */}
           <div className="glass-card p-6">
-            <button
-              onClick={() => {
-                setItemsData([{
-                  idMateriaPrima: '',
-                  codigoMateriaPrima: '',
-                  nombreMateriaPrima: '',
-                  cantidadComprada: '',
-                  precioUnitario: '',
-                  subtotal: '',
-                  materiaPrimaSeleccionada: null,
-                  ultimoPrecio: null,
-                }]);
-                setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
-                setShowModalAgregar(true);
-              }}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
-            >
-              + Agregar Item
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setItemsData([{
+                    idMateriaPrima: '',
+                    codigoMateriaPrima: '',
+                    nombreMateriaPrima: '',
+                    cantidadComprada: '',
+                    precioUnitario: '',
+                    subtotal: '',
+                    materiaPrimaSeleccionada: null,
+                    ultimoPrecio: null,
+                  }]);
+                  setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
+                  setShowModalAgregar(true);
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
+              >
+                + Agregar Item
+              </button>
+              {compra.comprasDetalle.length > 0 && (
+                <button
+                  onClick={() => {
+                    setConfirmacionEliminarTodos('');
+                    setShowModalEliminarTodos(true);
+                  }}
+                  className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all"
+                >
+                  🗑️ Eliminar Todos los Items
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Tabla */}
@@ -1336,6 +1387,80 @@ export default function CompraDetallePage() {
               onChange={(e) => setCabeceraData({ ...cabeceraData, observaciones: e.target.value })}
               rows={3}
               className="glass-input resize-none"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Eliminar Todos los Items */}
+      <Modal
+        isOpen={showModalEliminarTodos}
+        onClose={() => {
+          setShowModalEliminarTodos(false);
+          setConfirmacionEliminarTodos('');
+          setIsEliminandoTodos(false);
+        }}
+        title="⚠️ Eliminar Todos los Items"
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowModalEliminarTodos(false);
+                setConfirmacionEliminarTodos('');
+                setIsEliminandoTodos(false);
+              }}
+              disabled={isEliminandoTodos}
+              className="flex-1 px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={eliminarTodosLosItems}
+              disabled={isEliminandoTodos || confirmacionEliminarTodos !== 'SI DESEO ELIMINAR TODOS LOS ITEMS DE LA FACTURA'}
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isEliminandoTodos ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Eliminando...
+                </>
+              ) : (
+                '🗑️ Eliminar Todos los Items'
+              )}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <p className="text-red-300 font-semibold mb-2">⚠️ Advertencia</p>
+            <p className="text-foreground/90 text-sm">
+              Esta acción eliminará todos los items de esta compra. Esta operación no se puede deshacer y afectará el inventario.
+            </p>
+          </div>
+          <div>
+            <p className="text-foreground/90 mb-2">
+              <strong>Items a eliminar:</strong> {compra?.comprasDetalle.length || 0}
+            </p>
+            <p className="text-foreground/90 mb-4">
+              <strong>Total de subtotales:</strong> {formatCurrency(compra?.comprasDetalle.reduce((sum, d) => sum + d.subtotal, 0) || 0)}
+            </p>
+          </div>
+          <div>
+            <p className="text-foreground/90 mb-2 font-semibold">
+              Para confirmar, escriba exactamente:
+            </p>
+            <p className="text-gray-900 bg-green-100 p-3 rounded-lg mb-3 font-mono text-sm">
+              SI DESEO ELIMINAR TODOS LOS ITEMS DE LA FACTURA
+            </p>
+            <input
+              type="text"
+              value={confirmacionEliminarTodos}
+              onChange={(e) => setConfirmacionEliminarTodos(e.target.value)}
+              className="w-full px-4 py-3 glass-input text-foreground rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              placeholder="Escriba el texto de confirmación..."
+              disabled={isEliminandoTodos}
             />
           </div>
         </div>
