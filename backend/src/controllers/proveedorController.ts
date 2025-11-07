@@ -210,7 +210,7 @@ export async function obtenerEstadisticasProveedores(req: ProveedorRequest, res:
     if (sendValidationError(res, validation)) return;
 
     // Ejecutar todas las consultas en paralelo
-    const [cantidadProveedores, comprasPorProveedor, gastosPorProveedor] = await Promise.all([
+    const [cantidadProveedores, comprasPorProveedorRaw, gastosPorProveedorRaw] = await Promise.all([
       prisma.proveedor.count({
         where: { idGranja }
       }),
@@ -225,7 +225,6 @@ export async function obtenerEstadisticasProveedores(req: ProveedorRequest, res:
         WHERE p."idGranja" = ${idGranja}
         GROUP BY p.id, p."codigoProveedor", p."nombreProveedor"
         ORDER BY cantidad_compras DESC
-        LIMIT 5
       `,
       prisma.$queryRaw<any[]>`
         SELECT 
@@ -241,21 +240,48 @@ export async function obtenerEstadisticasProveedores(req: ProveedorRequest, res:
       `
     ]);
 
-    // Convertir BigInt a Number para serialización JSON
-    const comprasAdaptadas = comprasPorProveedor.map((item: any) => ({
-      ...item,
-      cantidad_compras: Number(item.cantidad_compras)
+    // Adaptar datos con camelCase y números
+    const comprasAdaptadas = comprasPorProveedorRaw.map((item: any) => ({
+      id: item.id,
+      codigoProveedor: item.codigo_proveedor,
+      nombreProveedor: item.nombre_proveedor,
+      cantidadCompras: Number(item.cantidad_compras)
     }));
 
-    const gastosAdaptados = gastosPorProveedor.map((item: any) => ({
-      ...item,
-      total_gastado: Number(item.total_gastado)
+    const gastosAdaptados = gastosPorProveedorRaw.map((item: any) => ({
+      id: item.id,
+      codigoProveedor: item.codigo_proveedor,
+      nombreProveedor: item.nombre_proveedor,
+      totalGastado: Number(item.total_gastado)
     }));
+
+    // Top 9 proveedores con más compras + columna "Otros"
+    const topCompras = (() => {
+      if (comprasAdaptadas.length === 0) return [];
+      const top9 = comprasAdaptadas.slice(0, 9);
+      const resto = comprasAdaptadas.slice(9);
+      const totalResto = resto.reduce((sum, item) => sum + item.cantidadCompras, 0);
+
+      return totalResto > 0
+        ? [
+            ...top9,
+            {
+              id: 'OTROS',
+              codigoProveedor: 'OTROS',
+              nombreProveedor: 'Otros Proveedores',
+              cantidadCompras: totalResto
+            }
+          ]
+        : top9;
+    })();
+
+    // Top 10 proveedores con mayor gasto
+    const topGasto = gastosAdaptados.slice(0, 10);
 
     res.json({
       cantidadProveedores,
-      comprasPorProveedor: comprasAdaptadas,
-      gastosPorProveedor: gastosAdaptados
+      proveedoresConMasCompras: topCompras,
+      proveedoresConMasGasto: topGasto
     });
   } catch (error: any) {
     console.error('Error obteniendo estadísticas:', error);

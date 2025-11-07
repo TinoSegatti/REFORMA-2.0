@@ -8,6 +8,8 @@ import Sidebar from '@/components/layout/Sidebar';
 import { KPICard } from '@/components/ui';
 import { Modal } from '@/components/ui';
 import { Users, Download, Upload, Plus, Trophy, DollarSign } from 'lucide-react';
+import ProveedoresComprasChart from '@/components/charts/ProveedoresComprasChart';
+import ProveedoresGastoChart from '@/components/charts/ProveedoresGastoChart';
 
 interface Proveedor {
   id: string;
@@ -24,7 +26,21 @@ export default function ProveedoresPage() {
 
   const [user, setUser] = useState<{ id: string; email: string; tipoUsuario: string } | null>(null);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [estadisticas, setEstadisticas] = useState<{ comprasPorProveedor: Array<{ nombreProveedor: string }>; gastosPorProveedor: Array<{ totalGastado: number }> } | null>(null);
+  const [estadisticas, setEstadisticas] = useState<{
+    cantidadProveedores: number;
+    proveedoresConMasCompras: Array<{
+      id: string;
+      codigoProveedor: string;
+      nombreProveedor: string;
+      cantidadCompras: number;
+    }>;
+    proveedoresConMasGasto: Array<{
+      id: string;
+      codigoProveedor: string;
+      nombreProveedor: string;
+      totalGastado: number;
+    }>;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -55,9 +71,12 @@ export default function ProveedoresPage() {
     try {
       const token = authService.getToken();
       if (token) {
-        // Cargar proveedores
-        const data = await apiClient.getProveedores(token, idGranja);
-        const proveedoresAdaptados = data.map((p: { id: string; codigoProveedor: string; nombreProveedor: string; direccion: string | null; localidad: string | null }) => ({
+        const [proveedoresResponse, stats] = await Promise.all([
+          apiClient.getProveedores(token, idGranja),
+          apiClient.getEstadisticasProveedores(token, idGranja),
+        ]);
+
+        const proveedoresAdaptados = proveedoresResponse.map((p: { id: string; codigoProveedor: string; nombreProveedor: string; direccion: string | null; localidad: string | null }) => ({
           id: p.id,
           codigo: p.codigoProveedor,
           nombre: p.nombreProveedor,
@@ -65,9 +84,6 @@ export default function ProveedoresPage() {
           localidad: p.localidad,
         }));
         setProveedores(proveedoresAdaptados);
-
-        // Cargar estadísticas
-        const stats = await apiClient.getEstadisticasProveedores(token, idGranja);
         setEstadisticas(stats);
       }
     } catch (error) {
@@ -197,10 +213,10 @@ export default function ProveedoresPage() {
         }));
         
         // Recalcular estadísticas solo si el proveedor tenía compras (verificar en las estadísticas actuales)
-        const proveedorEnStats = estadisticas.comprasPorProveedor?.some(
+        const proveedorEnStats = estadisticas.proveedoresConMasCompras?.some(
           (p: any) => p.id === eliminando.id
-        ) || estadisticas.gastosPorProveedor?.some(
-          (p: any) => p.id === eliminando.id && Number(p.total_gastado) > 0
+        ) || estadisticas.proveedoresConMasGasto?.some(
+          (p: any) => p.id === eliminando.id && Number(p.totalGastado) > 0
         );
         
         // Solo recargar estadísticas si el proveedor tenía compras asociadas
@@ -281,21 +297,21 @@ export default function ProveedoresPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <KPICard
               title="Total Proveedores"
-              value={proveedores.length}
-                icon={Users}
+              value={estadisticas?.cantidadProveedores ?? proveedores.length}
+              icon={Users}
               color="blue"
             />
             {estadisticas && (
               <>
                 <KPICard
                   title="Top Proveedor"
-                  value={estadisticas.comprasPorProveedor?.[0]?.nombreProveedor || '-'}
+                  value={estadisticas.proveedoresConMasCompras?.[0]?.nombreProveedor || '-'}
                   icon={Trophy}
                   color="yellow"
                 />
                 <KPICard
                   title="Total Gastado"
-                  value={formatCurrency(estadisticas.gastosPorProveedor?.reduce((sum: number, p: { totalGastado: number }) => sum + Number(p.totalGastado), 0) || 0)}
+                  value={formatCurrency(estadisticas.proveedoresConMasGasto?.reduce((sum: number, p) => sum + Number(p.totalGastado), 0) || 0)}
                   icon={DollarSign}
                   color="green"
                 />
@@ -307,24 +323,12 @@ export default function ProveedoresPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div className="glass-card p-8">
               <h3 className="text-lg font-bold text-foreground mb-4">Proveedores con Más Compras</h3>
-              <div className="h-64 flex items-center justify-center glass-surface rounded-xl">
-                <div className="text-center">
-                  <p className="text-6xl mb-2">📊</p>
-                  <p className="text-foreground/70 font-medium">Gráfico de barras</p>
-                  <p className="text-sm text-foreground/60 mt-1">Próximamente</p>
-                </div>
-              </div>
+              <ProveedoresComprasChart data={estadisticas?.proveedoresConMasCompras || []} />
             </div>
 
             <div className="glass-card p-8">
               <h3 className="text-lg font-bold text-foreground mb-4">Gastos por Proveedor</h3>
-              <div className="h-64 flex items-center justify-center glass-surface rounded-xl">
-                <div className="text-center">
-                  <p className="text-6xl mb-2">📈</p>
-                  <p className="text-foreground/70 font-medium">Gráfico de pastel</p>
-                  <p className="text-sm text-foreground/60 mt-1">Próximamente</p>
-                </div>
-              </div>
+              <ProveedoresGastoChart data={estadisticas?.proveedoresConMasGasto || []} />
             </div>
           </div>
 
