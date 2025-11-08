@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
@@ -159,6 +159,34 @@ export default function MateriasPrimasPage() {
     }
   };
 
+  const materiaStats = useMemo(() => {
+    const sinPrecio = materiasPrimas.filter((mp) => !mp.precioPorKilo || mp.precioPorKilo <= 0);
+    const conPrecio = materiasPrimas.filter((mp) => mp.precioPorKilo && mp.precioPorKilo > 0);
+    const ordenadasPorPrecio = [...conPrecio].sort((a, b) => b.precioPorKilo - a.precioPorKilo);
+    const promedioPrecio = conPrecio.length
+      ? conPrecio.reduce((acc, mp) => acc + (mp.precioPorKilo || 0), 0) / conPrecio.length
+      : 0;
+
+    return {
+      total: materiasPrimas.length,
+      sinPrecio,
+      promedioPrecio,
+      topListado: ordenadasPorPrecio.slice(0, 5),
+      materiaPrecioMaximo: ordenadasPorPrecio[0] || null,
+    };
+  }, [materiasPrimas]);
+
+  const {
+    total,
+    sinPrecio: materiasSinPrecio,
+    promedioPrecio,
+    topListado,
+    materiaPrecioMaximo,
+  } = materiaStats;
+
+  const sinPrecioPreview = materiasSinPrecio.slice(0, 3);
+  const topListadoPreview = topListado.slice(0, 3);
+
   const materiasFiltradas = materiasPrimas.filter((m) =>
     m.codigo.toLowerCase().includes(filtro.toLowerCase()) ||
     m.nombre.toLowerCase().includes(filtro.toLowerCase())
@@ -168,11 +196,19 @@ export default function MateriasPrimasPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <Sprout className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
-          <p className="text-foreground/80">Cargando...</p>
-        </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+              <Sprout className="h-7 w-7 text-emerald-300 animate-bounce" />
+            </div>
+            <div>
+              <p className="text-foreground font-semibold">Cargando Materias Primas</p>
+              <p className="text-sm text-foreground/70">Preparando catálogo de materias primas...</p>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -182,14 +218,18 @@ export default function MateriasPrimasPage() {
       <Sidebar />
 
       <main className="flex-1 ml-64">
-        {/* Header */}
-        <header className="glass-card px-8 py-6 m-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <header className="glass-card px-8 py-6 m-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-5">
             <div>
-              <h2 className="text-3xl font-bold text-foreground">Materias Primas</h2>
-              <p className="text-foreground/70 mt-1">Gestión de materias primas de tu planta</p>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                Materias Primas
+                <Sprout className="h-8 w-8 text-emerald-400" />
+              </h1>
+              <p className="text-foreground/70 mt-2 max-w-2xl">
+                Consulta tu catálogo completo, detecta materias sin precio y mantén la información lista para futuras compras y fabricaciones.
+              </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2">
                 <Download className="h-5 w-5" />
                 Exportar Datos
@@ -207,87 +247,205 @@ export default function MateriasPrimasPage() {
               </button>
             </div>
           </div>
+          <div className="glass-card px-5 py-4 border border-white/10 rounded-2xl backdrop-blur-xl max-w-sm">
+            <p className="text-sm text-foreground/60 uppercase tracking-wide">Sugerencia</p>
+            <p className="text-sm text-foreground/80 mt-2">
+              Asigna precios apenas recibas nuevas compras para mantener cálculos de inventario y fórmulas siempre alineados.
+            </p>
+          </div>
         </header>
 
-        {/* Content */}
-        <div className="max-w-7xl mx-auto p-8 space-y-6">
-          {/* Card Total */}
-          <div className="glass-card p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-400 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                  <Sprout className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-foreground/70">Total de Materias Primas</p>
-                  <p className="text-3xl font-bold text-foreground">{materiasPrimas.length}</p>
-                </div>
+        <div className="max-w-7xl mx-auto p-8 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
+              <div>
+                <p className="text-sm text-foreground/60">Total registradas</p>
+                <p className="text-3xl font-bold text-foreground">{total}</p>
+              </div>
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <Sprout className="h-7 w-7 text-white" />
               </div>
             </div>
-          </div>
 
-          {/* Filtro */}
-          <div className="glass-card p-6">
-            <input
-              type="text"
-              placeholder="Buscar por código o nombre..."
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              className="glass-input"
-            />
-          </div>
+            <div className="glass-card p-6 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-foreground/60">Sin precio asignado</p>
+                  <p className="text-2xl font-semibold text-foreground">{materiasSinPrecio.length}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-foreground/70 font-semibold">
+                  $
+                </div>
+              </div>
+              {materiasSinPrecio.length === 0 ? (
+                <p className="text-sm text-foreground/60">Todas las materias primas tienen precio actualizado.</p>
+              ) : (
+                <div className="space-y-2">
+                  {sinPrecioPreview.map((mp) => (
+                    <div key={mp.id} className="flex items-center justify-between glass-surface px-3 py-2 rounded-lg border border-white/10">
+                      <span className="text-sm font-medium text-foreground/80 truncate">{mp.nombre}</span>
+                      <span className="text-xs text-foreground/50 font-semibold">{mp.codigo}</span>
+                    </div>
+                  ))}
+                  {materiasSinPrecio.length > sinPrecioPreview.length && (
+                    <p className="text-xs text-foreground/50">
+                      +{materiasSinPrecio.length - sinPrecioPreview.length} materia(s) adicional(es) sin precio
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
 
-          {/* Tabla */}
-          <div className="glass-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-white/5">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Código</th>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Nombre</th>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Precio por Kilo</th>
-                    <th className="px-6 py-4 text-center font-semibold text-foreground/80">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materiasFiltradas.length === 0 ? (
+            <div className="glass-card p-6 rounded-2xl space-y-3">
+              <p className="text-sm text-foreground/60">Mayor precio registrado</p>
+              <div>
+                {materiaPrecioMaximo ? (
+                  <>
+                    <p className="text-lg font-semibold text-foreground">{materiaPrecioMaximo.nombre}</p>
+                    <p className="text-sm text-foreground/60">{materiaPrecioMaximo.codigo}</p>
+                    <p className="text-xl font-bold text-foreground mt-2">
+                      {formatCurrency(materiaPrecioMaximo.precioPorKilo)}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-foreground/60">Aún no hay precios registrados.</p>
+                )}
+              </div>
+              <div className="pt-2 border-t border-white/10 text-sm text-foreground/70">
+                Precio promedio: {promedioPrecio > 0 ? formatCurrency(promedioPrecio) : '-'}
+              </div>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
+            <div className="glass-card p-6 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Buscar por código o nombre..."
+                    value={filtro}
+                    onChange={(e) => setFiltro(e.target.value)}
+                    className="glass-input"
+                  />
+                </div>
+                <p className="text-sm text-foreground/60">
+                  {materiasFiltradas.length} resultado(s) de {total}
+                </p>
+              </div>
+
+              <div className="overflow-x-auto rounded-2xl border border-white/10">
+                <table className="w-full">
+                  <thead className="bg-white/5">
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-foreground/60">
-                        {filtro ? 'No se encontraron resultados' : 'No hay materias primas registradas'}
-                      </td>
+                      <th className="px-6 py-4 text-left font-semibold text-foreground/80">Código</th>
+                      <th className="px-6 py-4 text-left font-semibold text-foreground/80">Nombre</th>
+                      <th className="px-6 py-4 text-left font-semibold text-foreground/80">Precio por Kilo</th>
+                      <th className="px-6 py-4 text-center font-semibold text-foreground/80">Acciones</th>
                     </tr>
-                  ) : (
-                    materiasFiltradas.map((m) => (
-                      <tr key={m.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 text-foreground font-medium">{m.codigo}</td>
-                        <td className="px-6 py-4 text-foreground/90">{m.nombre}</td>
-                        <td className="px-6 py-4 text-foreground/90 whitespace-nowrap">
-                          {m.precioPorKilo > 0 ? formatCurrency(m.precioPorKilo) : '-'}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => abrirModal(m)}
-                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-sm"
-                            >
-                              Editar
-                            </button>
-            <button
-              onClick={() => {
-                setEliminando(m);
-                setShowModalEliminar(true);
-              }}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
-            >
-              Eliminar
-            </button>
-                          </div>
+                  </thead>
+                  <tbody>
+                    {materiasFiltradas.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-foreground/60">
+                          {filtro ? 'No se encontraron resultados con ese criterio' : 'No hay materias primas registradas'}
                         </td>
                       </tr>
-                    ))
+                    ) : (
+                      materiasFiltradas.map((m) => (
+                        <tr key={m.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="px-6 py-4 text-foreground font-medium">{m.codigo}</td>
+                          <td className="px-6 py-4 text-foreground/90">{m.nombre}</td>
+                          <td className="px-6 py-4 text-foreground/90 whitespace-nowrap">
+                            {m.precioPorKilo > 0 ? formatCurrency(m.precioPorKilo) : '-'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => abrirModal(m)}
+                                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-sm"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEliminando(m);
+                                  setShowModalEliminar(true);
+                                }}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="glass-card p-6 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-foreground">Materias sin precio</h3>
+                  {materiasSinPrecio.length > 0 && (
+                    <span className="text-xs px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30">
+                      Prioridad
+                    </span>
                   )}
-                </tbody>
-              </table>
+                </div>
+                {materiasSinPrecio.length === 0 ? (
+                  <p className="text-sm text-foreground/60">Excelente, todas tus materias primas tienen precio asignado.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {materiasSinPrecio.map((mp) => (
+                      <div key={mp.id} className="glass-surface px-4 py-3 rounded-xl border border-white/10 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{mp.nombre}</p>
+                          <p className="text-xs text-foreground/50">{mp.codigo}</p>
+                        </div>
+                        <button
+                          onClick={() => abrirModal(mp)}
+                          className="text-xs font-semibold text-purple-300 hover:text-purple-200 transition-colors"
+                        >
+                          Asignar precio
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="glass-card p-6 rounded-2xl space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Top precios</h3>
+                {topListado.length === 0 ? (
+                  <p className="text-sm text-foreground/60">Registra precios para ver el ranking de materias más costosas.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {topListadoPreview.map((mp, index) => (
+                      <div key={mp.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-purple-300">{index + 1}.</span>
+                          <div>
+                            <p className="text-sm text-foreground font-semibold">{mp.nombre}</p>
+                            <p className="text-xs text-foreground/60">{mp.codigo}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold text-foreground/80">
+                          {formatCurrency(mp.precioPorKilo)}
+                        </span>
+                      </div>
+                    ))}
+                    {topListado.length > topListadoPreview.length && (
+                      <p className="text-xs text-foreground/50">
+                        +{topListado.length - topListadoPreview.length} materia(s) adicional(es)
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

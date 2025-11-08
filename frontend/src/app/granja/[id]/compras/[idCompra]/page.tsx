@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
@@ -148,7 +148,27 @@ export default function CompraDetallePage() {
     }
   };
 
-  const formatCurrency = (n: number) => Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
+  const formatCurrency = (n: number) =>
+    Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
+
+  const totalCalculado = useMemo(() => {
+    if (!compra) return 0;
+    return compra.comprasDetalle.reduce((sum, detalle) => sum + detalle.subtotal, 0);
+  }, [compra]);
+
+  const totalCantidad = useMemo(() => {
+    if (!compra) return 0;
+    return compra.comprasDetalle.reduce((sum, detalle) => sum + detalle.cantidadComprada, 0);
+  }, [compra]);
+
+  const totalItems = compra?.comprasDetalle.length ?? 0;
+
+  const diferencia = useMemo(() => {
+    if (!compra) return 0;
+    return compra.totalFactura - totalCalculado;
+  }, [compra, totalCalculado]);
+
+  const totalCoincide = Math.abs(diferencia) < 0.01;
 
   // Autocompletado
   const buscarSugerencias = (valor: string, campo: 'codigo' | 'nombre') => {
@@ -637,164 +657,172 @@ export default function CompraDetallePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
-          <p className="text-foreground/80">Cargando...</p>
-        </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-yellow-500/20 border border-yellow-400/40 flex items-center justify-center">
+              <ShoppingCart className="h-7 w-7 text-yellow-300 animate-bounce" />
+            </div>
+            <div>
+              <p className="text-foreground font-semibold">Cargando compra...</p>
+              <p className="text-sm text-foreground/70">Recuperando los datos de la factura y sus items.</p>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   if (!compra) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p className="text-foreground/70">Compra no encontrada</p>
-          <button onClick={() => router.push(`/granja/${idGranja}/compras`)} className="mt-4 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all">
-            Volver a Compras
-          </button>
-        </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 text-center space-y-4">
+            <p className="text-foreground/70">No encontramos los datos de esta compra.</p>
+            <button
+              onClick={() => router.push(`/granja/${idGranja}/compras`)}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
+            >
+              Volver al listado
+            </button>
+          </div>
+        </main>
       </div>
     );
   }
 
-  const totalCalculado = compra.comprasDetalle.reduce((sum, d) => sum + d.subtotal, 0);
-  const diferencia = compra.totalFactura - totalCalculado;
-  const totalCoincide = Math.abs(diferencia) < 0.01;
+  const formattedFecha = new Date(compra.fechaCompra).toLocaleDateString('es-AR');
+  const differenceCardStyles = totalCoincide
+    ? 'border border-green-500/40 bg-green-500/10'
+    : diferencia > 0
+    ? 'border border-orange-500/40 bg-orange-500/10'
+    : 'border border-red-500/40 bg-red-500/10';
+  const differenceTone = totalCoincide
+    ? 'text-green-300'
+    : diferencia > 0
+    ? 'text-orange-300'
+    : 'text-red-300';
+  const differenceDescription = totalCoincide
+    ? 'Los subtotales coinciden con el total de la factura.'
+    : diferencia > 0
+    ? `Restan ${formatCurrency(Math.abs(diferencia))} para igualar el total de la factura.`
+    : `Excedente de ${formatCurrency(Math.abs(diferencia))} respecto al total de la factura.`;
+  const differenceBadge = totalCoincide ? 'Conciliada' : diferencia > 0 ? 'Pendiente' : 'Exceso';
 
   return (
-    <div className="flex min-h-screen ">
+    <div className="flex min-h-screen">
       <Sidebar />
       <main className="flex-1 ml-64">
-        {/* Header */}
-        <header className="glass-card px-8 py-6 m-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Detalle de Compra</h2>
-              <p className="text-foreground/70 mt-1">
-                Factura: {compra.numeroFactura || 'Sin número'} | Proveedor: {compra.proveedor.nombreProveedor}
-              </p>
+        <header className="glass-card px-8 py-6 m-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-yellow-400 flex items-center justify-center shadow-lg shadow-yellow-500/30">
+                <ShoppingCart className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">
+                  Compra {compra.numeroFactura || 'sin número'}
+                </h1>
+                <p className="text-foreground/70">
+                  Proveedor: {compra.proveedor.nombreProveedor} · {formattedFecha}
+                </p>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push(`/granja/${idGranja}/compras`)}
-                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10"
-              >
-                ← Volver
-              </button>
-              <button
-                onClick={() => setShowModalEditarCabecera(true)}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
-              >
-                Editar Cabecera
-              </button>
-            </div>
+            <p className="text-sm text-foreground/70 max-w-2xl">
+              Revisa los items cargados, concilia los importes y actualiza la información de la factura cuando sea necesario.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => router.push(`/granja/${idGranja}/compras`)}
+              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all"
+            >
+              ← Volver al listado
+            </button>
+            <button
+              onClick={() => setShowModalEditarCabecera(true)}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
+            >
+              Editar cabecera
+            </button>
           </div>
         </header>
 
-        {/* Content */}
-        <div className="max-w-7xl mx-auto p-8 space-y-8">
-          {/* Resumen */}
-          <div className="glass-card p-6">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="max-w-7xl mx-auto p-8 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div className="glass-card p-6 rounded-2xl space-y-2">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Total factura</p>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(compra.totalFactura)}</p>
+              <p className="text-xs text-foreground/50">
+                Factura {compra.numeroFactura || 'sin número'}
+              </p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl space-y-2">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Subtotal items</p>
+              <p className={`text-2xl font-semibold ${totalCoincide ? 'text-foreground' : 'text-blue-300'}`}>
+                {formatCurrency(totalCalculado)}
+              </p>
+              <p className="text-xs text-foreground/50">
+                Incluye {totalItems} item(s) registrados
+              </p>
+            </div>
+            <div className={`glass-card p-6 rounded-2xl space-y-2 ${differenceCardStyles}`}>
+              <p className={`text-sm uppercase font-semibold ${differenceTone}`}>{differenceBadge}</p>
+              <p className={`text-2xl font-bold ${differenceTone}`}>
+                {formatCurrency(Math.abs(diferencia))}
+              </p>
+              <p className="text-xs text-foreground/70">
+                {differenceDescription}
+              </p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl space-y-2">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Resumen de items</p>
+              <p className="text-xl font-semibold text-foreground">{totalItems} item(s)</p>
+              <p className="text-xs text-foreground/50">
+                {totalCantidad.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg en total
+              </p>
+            </div>
+          </section>
+
+          <section className="glass-card p-6 rounded-2xl grid gap-6 md:grid-cols-2">
+            <div className="space-y-4">
               <div>
-                <p className="text-sm text-foreground/70">N° Factura</p>
-                <p className="text-lg font-bold text-foreground">{compra.numeroFactura || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-foreground/70">Fecha</p>
-                <p className="text-lg font-bold text-foreground">{new Date(compra.fechaCompra).toLocaleDateString('es-AR')}</p>
-              </div>
-              <div>
-                <p className="text-sm text-foreground/70 font-semibold">Total Factura (Cabecera)</p>
-                <p className="text-lg font-bold text-foreground">
-                  {formatCurrency(compra.totalFactura)}
+                <p className="text-sm text-foreground/60 uppercase tracking-wide">Proveedor</p>
+                <p className="text-lg font-semibold text-foreground">{compra.proveedor.nombreProveedor}</p>
+                <p className="text-xs text-foreground/50">
+                  Código {compra.proveedor.codigoProveedor || 'N/D'}
                 </p>
               </div>
-              <div>
-                <p className="text-sm text-foreground/70">Suma de Subtotales</p>
-                <p className={`text-lg font-bold ${totalCoincide ? 'text-foreground' : 'text-blue-600'}`}>
-                  {formatCurrency(totalCalculado)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-foreground/70">Items</p>
-                <p className="text-lg font-bold text-foreground">{compra.comprasDetalle.length}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Alerta de Diferencia */}
-          {!totalCoincide && (
-            <div className={`glass-card p-6 border-2 ${
-              diferencia > 0 
-                ? 'border-orange-500/50 bg-orange-500/10' 
-                : 'border-red-500/50 bg-red-500/10'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg ${
-                    diferencia > 0 
-                      ? 'bg-gradient-to-br from-orange-500 to-orange-400 shadow-orange-500/30' 
-                      : 'bg-gradient-to-br from-red-500 to-red-400 shadow-red-500/30'
-                  }`}>
-                    {diferencia > 0 ? (
-                      <span className="text-3xl text-white">⏱</span>
-                    ) : (
-                      <span className="text-3xl text-white">⚠️</span>
-                    )}
-                  </div>
-                  <div>
-                    <p className={`text-lg font-bold ${
-                      diferencia > 0 ? 'text-orange-300' : 'text-red-300'
-                    }`}>
-                      {diferencia > 0 ? 'Falta completar la factura' : 'El total excede la factura'}
-                    </p>
-                    <p className="text-sm text-foreground/70 mt-1">
-                      {diferencia > 0 
-                        ? `Necesitas agregar items por un valor de ${formatCurrency(diferencia)} para completar la factura`
-                        : `Los items suman ${formatCurrency(Math.abs(diferencia))} más que el total de la factura`
-                      }
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={`text-3xl font-bold ${
-                    diferencia > 0 ? 'text-orange-400' : 'text-red-400'
-                  }`}>
-                    {formatCurrency(Math.abs(diferencia))}
-                  </p>
-                  <p className="text-xs text-foreground/60 mt-1">
-                    {diferencia > 0 ? 'Por agregar' : 'Exceso'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Mensaje de éxito cuando coincide */}
-          {totalCoincide && (
-            <div className="glass-card p-6 border-2 border-green-500/50 bg-green-500/10">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-400 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30">
-                  <span className="text-3xl text-white">✓</span>
+              <div className="grid grid-cols-2 gap-4 text-sm text-foreground/80">
+                <div>
+                  <p className="text-xs text-foreground/50 uppercase tracking-wide">N° de factura</p>
+                  <p className="font-medium">{compra.numeroFactura || 'Sin número'}</p>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-green-300">
-                    Factura completada correctamente
-                  </p>
-                  <p className="text-sm text-foreground/70 mt-1">
-                    El total de los items coincide con el total de la factura
-                  </p>
+                  <p className="text-xs text-foreground/50 uppercase tracking-wide">Fecha</p>
+                  <p className="font-medium">{formattedFecha}</p>
                 </div>
               </div>
             </div>
-          )}
+            <div className="space-y-3">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Observaciones</p>
+              <div className="glass-surface px-4 py-3 rounded-xl border border-white/10 text-sm text-foreground/80 min-h-[88px]">
+                {compra.observaciones ? compra.observaciones : 'Sin observaciones registradas.'}
+              </div>
+            </div>
+          </section>
 
           {/* Acciones */}
-          <div className="glass-card p-6">
-            <div className="flex gap-3">
+          <section className="glass-card p-6 rounded-2xl space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <h3 className="text-lg font-semibold text-foreground">Acciones</h3>
+              <p className="text-sm text-foreground/60">
+                Gestiona los items de la factura. Puedes agregar nuevos registros o limpiar el detalle completo.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => {
                   setItemsData([{
@@ -812,7 +840,7 @@ export default function CompraDetallePage() {
                 }}
                 className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
               >
-                + Agregar Item
+                + Agregar item
               </button>
               {compra.comprasDetalle.length > 0 && (
                 <button
@@ -822,14 +850,14 @@ export default function CompraDetallePage() {
                   }}
                   className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all"
                 >
-                  🗑️ Eliminar Todos los Items
+                  🗑️ Eliminar todos los items
                 </button>
               )}
             </div>
-          </div>
+          </section>
 
           {/* Tabla */}
-          <div className="glass-card overflow-hidden">
+          <section className="glass-card overflow-hidden rounded-2xl border border-white/10">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-white/5 text-foreground/80">
@@ -937,7 +965,7 @@ export default function CompraDetallePage() {
                 )}
               </table>
             </div>
-          </div>
+          </section>
         </div>
       </main>
 

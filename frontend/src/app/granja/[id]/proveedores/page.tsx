@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import Sidebar from '@/components/layout/Sidebar';
-import { KPICard } from '@/components/ui';
 import { Modal } from '@/components/ui';
-import { Users, Download, Upload, Plus, Trophy, DollarSign } from 'lucide-react';
+import { Users, Download, Upload, Plus } from 'lucide-react';
 import ProveedoresComprasChart from '@/components/charts/ProveedoresComprasChart';
 import ProveedoresGastoChart from '@/components/charts/ProveedoresGastoChart';
 
@@ -24,7 +23,6 @@ export default function ProveedoresPage() {
   const params = useParams();
   const idGranja = params.id as string;
 
-  const [user, setUser] = useState<{ id: string; email: string; tipoUsuario: string } | null>(null);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [estadisticas, setEstadisticas] = useState<{
     cantidadProveedores: number;
@@ -56,14 +54,61 @@ export default function ProveedoresPage() {
     localidad: '',
   });
 
+  const totalProveedores = useMemo(
+    () => estadisticas?.cantidadProveedores ?? proveedores.length,
+    [estadisticas, proveedores.length]
+  );
+
+  const totalGastado = useMemo(
+    () =>
+      estadisticas?.proveedoresConMasGasto?.reduce(
+        (sum, proveedor) => sum + Number(proveedor.totalGastado || 0),
+        0
+      ) ?? 0,
+    [estadisticas]
+  );
+
+  const proveedoresMasCompras = useMemo(
+    () => estadisticas?.proveedoresConMasCompras ?? [],
+    [estadisticas]
+  );
+
+  const proveedoresMasGasto = useMemo(
+    () => estadisticas?.proveedoresConMasGasto ?? [],
+    [estadisticas]
+  );
+
+  const proveedoresSinDatos = useMemo(
+    () =>
+      proveedores.filter(
+        (p) =>
+          !p.direccion?.trim() ||
+          !p.localidad?.trim()
+      ),
+    [proveedores]
+  );
+
+  const proveedoresSinDatosPreview = useMemo(
+    () => proveedoresSinDatos.slice(0, 4),
+    [proveedoresSinDatos]
+  );
+
+  const topComprasPreview = useMemo(
+    () => proveedoresMasCompras.slice(0, 3),
+    [proveedoresMasCompras]
+  );
+
+  const topGastoPreview = useMemo(
+    () => proveedoresMasGasto.slice(0, 3),
+    [proveedoresMasGasto]
+  );
+
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.push('/login');
       return;
     }
 
-    const currentUser = authService.getUser();
-    setUser(currentUser);
     cargarDatos();
   }, [router]);
 
@@ -240,32 +285,60 @@ export default function ProveedoresPage() {
     alert('Función de exportar próximamente');
   };
 
+  const proveedoresFiltrados = useMemo(
+    () =>
+      proveedores.filter((p) => {
+        const base = filtro.toLowerCase();
+        return (
+          p.codigo.toLowerCase().includes(base) ||
+          p.nombre.toLowerCase().includes(base) ||
+          (p.direccion || '').toLowerCase().includes(base) ||
+          (p.localidad || '').toLowerCase().includes(base)
+        );
+      }),
+    [proveedores, filtro]
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <Users className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
-          <p className="text-foreground/80">Cargando...</p>
-        </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-400/40 flex items-center justify-center">
+              <Users className="h-7 w-7 text-purple-300 animate-bounce" />
+            </div>
+            <div>
+              <p className="text-foreground font-semibold">Cargando Proveedores</p>
+              <p className="text-sm text-foreground/70">Preparando tu agenda de proveedores...</p>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
-  const formatCurrency = (n: number) => Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
+  const formatCurrency = (n: number) =>
+    Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
 
       <main className="flex-1 ml-64">
-        {/* Header */}
-        <header className="glass-card px-8 py-6 m-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <header className="glass-card px-8 py-6 m-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-5">
             <div>
-              <h2 className="text-3xl font-bold text-foreground flex items-center gap-3">Proveedores <Users className="h-8 w-8" /></h2>
-              <p className="text-foreground/70 mt-1">Gestión de proveedores de tu planta</p>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                Proveedores
+                <Users className="h-8 w-8 text-purple-400" />
+              </h1>
+              <p className="text-foreground/70 mt-2 max-w-2xl">
+                Gestiona tus proveedores, identifica a los socios con más compras y quienes concentran el mayor gasto para
+                optimizar negociaciones y abastecimiento.
+              </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={exportarDatos}
                 className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
@@ -289,121 +362,227 @@ export default function ProveedoresPage() {
               </button>
             </div>
           </div>
+          <div className="glass-card px-5 py-4 border border-white/10 rounded-2xl backdrop-blur-xl max-w-sm">
+            <p className="text-sm text-foreground/60 uppercase tracking-wide">Sugerencia</p>
+            <p className="text-sm text-foreground/80 mt-2">
+              Mantén actualizados datos de contacto y negocia mejores precios revisando el ranking de gasto por proveedor.
+            </p>
+          </div>
         </header>
 
-        {/* Content */}
-        <div className="max-w-7xl mx-auto p-8 space-y-8">
-          {/* KPI */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <KPICard
-              title="Total Proveedores"
-              value={estadisticas?.cantidadProveedores ?? proveedores.length}
-              icon={Users}
-              color="blue"
-            />
-            {estadisticas && (
-              <>
-                <KPICard
-                  title="Top Proveedor"
-                  value={estadisticas.proveedoresConMasCompras?.[0]?.nombreProveedor || '-'}
-                  icon={Trophy}
-                  color="yellow"
-                />
-                <KPICard
-                  title="Total Gastado"
-                  value={formatCurrency(estadisticas.proveedoresConMasGasto?.reduce((sum: number, p) => sum + Number(p.totalGastado), 0) || 0)}
-                  icon={DollarSign}
-                  color="green"
-                />
-              </>
-            )}
-          </div>
+        <div className="max-w-7xl mx-auto p-8 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
+              <div>
+                <p className="text-sm text-foreground/60">Total de proveedores</p>
+                <p className="text-3xl font-bold text-foreground">{totalProveedores}</p>
+              </div>
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <Users className="h-7 w-7 text-white" />
+              </div>
+            </div>
 
-          {/* Gráficos */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div className="glass-card p-8">
+            <div className="glass-card p-6 rounded-2xl space-y-3">
+              <p className="text-sm text-foreground/60">Top por cantidad de compras</p>
+              {proveedoresMasCompras.length === 0 ? (
+                <p className="text-sm text-foreground/60">Registra movimientos para ver el ranking.</p>
+              ) : (
+                <>
+                  <p className="text-lg font-semibold text-foreground">
+                    {proveedoresMasCompras[0].nombreProveedor}
+                  </p>
+                  <p className="text-xs text-foreground/50">
+                    {proveedoresMasCompras[0].codigoProveedor} · {proveedoresMasCompras[0].cantidadCompras} compra(s)
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="glass-card p-6 rounded-2xl space-y-3">
+              <p className="text-sm text-foreground/60">Top por gasto acumulado</p>
+              {proveedoresMasGasto.length === 0 ? (
+                <p className="text-sm text-foreground/60">Aún no hay datos de gasto registrados.</p>
+              ) : (
+                <>
+                  <p className="text-lg font-semibold text-foreground">
+                    {proveedoresMasGasto[0].nombreProveedor}
+                  </p>
+                  <p className="text-xs text-foreground/50">{proveedoresMasGasto[0].codigoProveedor}</p>
+                  <p className="text-xl font-bold text-foreground">
+                    {formatCurrency(Number(proveedoresMasGasto[0].totalGastado || 0))}
+                  </p>
+                </>
+              )}
+              <div className="pt-2 border-t border-white/10 text-sm text-foreground/70">
+                Total gastado: {formatCurrency(totalGastado)}
+              </div>
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card p-8 rounded-2xl">
               <h3 className="text-lg font-bold text-foreground mb-4">Proveedores con Más Compras</h3>
-              <ProveedoresComprasChart data={estadisticas?.proveedoresConMasCompras || []} />
+              <ProveedoresComprasChart data={proveedoresMasCompras} />
             </div>
-
-            <div className="glass-card p-8">
+            <div className="glass-card p-8 rounded-2xl">
               <h3 className="text-lg font-bold text-foreground mb-4">Gastos por Proveedor</h3>
-              <ProveedoresGastoChart data={estadisticas?.proveedoresConMasGasto || []} />
+              <ProveedoresGastoChart data={proveedoresMasGasto} />
             </div>
-          </div>
+          </section>
 
-          {/* Filtro */}
-          <div className="glass-card p-6 mb-6">
-            <input
-              type="text"
-              placeholder="Buscar por código, nombre, dirección o localidad..."
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              className="glass-input"
-            />
-          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
+            <div className="glass-card p-6 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Buscar por código, nombre, dirección o localidad..."
+                    value={filtro}
+                    onChange={(e) => setFiltro(e.target.value)}
+                    className="glass-input"
+                  />
+                </div>
+                <p className="text-sm text-foreground/60">
+                  {proveedoresFiltrados.length} resultado(s) de {totalProveedores}
+                </p>
+              </div>
 
-          {/* Tabla */}
-          <div className="glass-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-white/5">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Código</th>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Nombre</th>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Dirección</th>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Localidad</th>
-                    <th className="px-6 py-4 text-center font-semibold text-foreground/80">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {proveedores.filter(p => 
-                    p.codigo.toLowerCase().includes(filtro.toLowerCase()) ||
-                    p.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-                    (p.direccion || '').toLowerCase().includes(filtro.toLowerCase()) ||
-                    (p.localidad || '').toLowerCase().includes(filtro.toLowerCase())
-                  ).length === 0 ? (
+              <div className="overflow-x-auto rounded-2xl border border-white/10">
+                <table className="w-full">
+                  <thead className="bg-white/5">
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-foreground/60">
-                        {filtro ? 'No se encontraron resultados' : 'No hay proveedores registrados'}
-                      </td>
+                      <th className="px-6 py-4 text-left font-semibold text-foreground/80">Código</th>
+                      <th className="px-6 py-4 text-left font-semibold text-foreground/80">Nombre</th>
+                      <th className="px-6 py-4 text-left font-semibold text-foreground/80">Dirección</th>
+                      <th className="px-6 py-4 text-left font-semibold text-foreground/80">Localidad</th>
+                      <th className="px-6 py-4 text-center font-semibold text-foreground/80">Acciones</th>
                     </tr>
-                  ) : (
-                    proveedores.filter(p => 
-                      p.codigo.toLowerCase().includes(filtro.toLowerCase()) ||
-                      p.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-                      (p.direccion || '').toLowerCase().includes(filtro.toLowerCase()) ||
-                      (p.localidad || '').toLowerCase().includes(filtro.toLowerCase())
-                    ).map((p) => (
-                      <tr key={p.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 text-foreground font-medium">{p.codigo}</td>
-                        <td className="px-6 py-4 text-foreground/90">{p.nombre}</td>
-                        <td className="px-6 py-4 text-foreground/90">{p.direccion || '-'}</td>
-                        <td className="px-6 py-4 text-foreground/90">{p.localidad || '-'}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => abrirModal(p)}
-                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-sm"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEliminando(p);
-                                setShowModalEliminar(true);
-                              }}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
+                  </thead>
+                  <tbody>
+                    {proveedoresFiltrados.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-foreground/60">
+                          {filtro ? 'No se encontraron resultados con ese criterio' : 'No hay proveedores registrados'}
                         </td>
                       </tr>
-                    ))
+                    ) : (
+                      proveedoresFiltrados.map((p) => (
+                        <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="px-6 py-4 text-foreground font-medium">{p.codigo}</td>
+                          <td className="px-6 py-4 text-foreground/90">{p.nombre}</td>
+                          <td className="px-6 py-4 text-foreground/90">{p.direccion || '-'}</td>
+                          <td className="px-6 py-4 text-foreground/90">{p.localidad || '-'}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => abrirModal(p)}
+                                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-sm"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEliminando(p);
+                                  setShowModalEliminar(true);
+                                }}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="glass-card p-6 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-foreground">Datos pendientes</h3>
+                  {proveedoresSinDatos.length > 0 && (
+                    <span className="text-xs px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30">
+                      Completar
+                    </span>
                   )}
-                </tbody>
-              </table>
+                </div>
+                {proveedoresSinDatos.length === 0 ? (
+                  <p className="text-sm text-foreground/60">Todos los proveedores tienen dirección y localidad cargadas.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {proveedoresSinDatosPreview.map((p) => (
+                      <div key={p.id} className="glass-surface px-4 py-3 rounded-xl border border-white/10 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{p.nombre}</p>
+                          <p className="text-xs text-foreground/50">{p.codigo}</p>
+                        </div>
+                        <button
+                          onClick={() => abrirModal(p)}
+                          className="text-xs font-semibold text-purple-300 hover:text-purple-200 transition-colors"
+                        >
+                          Completar
+                        </button>
+                      </div>
+                    ))}
+                    {proveedoresSinDatos.length > proveedoresSinDatosPreview.length && (
+                      <p className="text-xs text-foreground/50">
+                        +{proveedoresSinDatos.length - proveedoresSinDatosPreview.length} proveedor(es) adicional(es)
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="glass-card p-6 rounded-2xl space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Ranking por compras</h3>
+                {proveedoresMasCompras.length === 0 ? (
+                  <p className="text-sm text-foreground/60">Registra compras para ver el ranking.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {topComprasPreview.map((p, index) => (
+                      <div key={p.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-purple-300">{index + 1}.</span>
+                          <div>
+                            <p className="text-sm text-foreground font-semibold">{p.nombreProveedor}</p>
+                            <p className="text-xs text-foreground/60">{p.codigoProveedor}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold text-foreground/80">
+                          {p.cantidadCompras} compra(s)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="glass-card p-6 rounded-2xl space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Ranking por gasto</h3>
+                {proveedoresMasGasto.length === 0 ? (
+                  <p className="text-sm text-foreground/60">Aún no hay gastos registrados para mostrar.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {topGastoPreview.map((p, index) => (
+                      <div key={p.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-purple-300">{index + 1}.</span>
+                          <div>
+                            <p className="text-sm text-foreground font-semibold">{p.nombreProveedor}</p>
+                            <p className="text-xs text-foreground/60">{p.codigoProveedor}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold text-foreground/80">
+                          {formatCurrency(Number(p.totalGastado || 0))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

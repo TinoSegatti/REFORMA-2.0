@@ -151,6 +151,30 @@ export default function FabricacionesPage() {
     }
   }, [desde, hasta, formulaFiltro]);
 
+  const fabricacionesFiltradas = useMemo(
+    () =>
+      fabricaciones.filter((fab) => {
+        const texto = formulaFiltro.toLowerCase();
+        if (!texto) return true;
+        return (
+          fab.descripcionFabricacion.toLowerCase().includes(texto) ||
+          fab.formula.descripcionFormula.toLowerCase().includes(texto) ||
+          fab.formula.codigoFormula.toLowerCase().includes(texto)
+        );
+      }),
+    [fabricaciones, formulaFiltro]
+  );
+
+  const totalFabricaciones = estadisticas?.totalFabricaciones ?? fabricaciones.length;
+  const totalKgFabricados =
+    estadisticas?.totalKgFabricados ??
+    fabricaciones.reduce((acum, fab) => acum + (fab.cantidadFabricacion || 0), 0);
+  const totalCosto =
+    estadisticas?.totalCosto ??
+    fabricaciones.reduce((acum, fab) => acum + (fab.costoTotalFabricacion || 0), 0);
+  const sinExistencias =
+    estadisticas?.fabricacionesSinExistencias ?? fabricaciones.filter((fab) => fab.sinExistencias).length;
+
   const handleEliminar = async () => {
     if (!fabricacionAEliminar) return;
     if (isDeleting) return; // Prevenir múltiples clicks
@@ -185,11 +209,19 @@ export default function FabricacionesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <Factory className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
-          <p className="text-foreground/80">Cargando...</p>
-        </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-400/40 flex items-center justify-center">
+              <Factory className="h-7 w-7 text-purple-300 animate-bounce" />
+            </div>
+            <div>
+              <p className="text-foreground font-semibold">Cargando fabricaciones...</p>
+              <p className="text-sm text-foreground/70">Recuperando producción y estadísticas recientes.</p>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -198,79 +230,106 @@ export default function FabricacionesPage() {
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="flex-1 ml-64">
-        {/* Header */}
-        <header className="glass-card px-8 py-6 m-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Fabricaciones</h2>
-              <p className="text-foreground/70 mt-1">Gestiona las fabricaciones de productos</p>
+        <header className="glass-card px-8 py-6 m-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <Factory className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Fabricaciones</h1>
+                <p className="text-foreground/70">
+                  Controla la producción, analiza los costos y revisa qué fórmulas y materias primas tienen mayor demanda.
+                </p>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <button className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2">
-                <Download className="h-5 w-5" />
-                Exportar Datos
-              </button>
-              <button className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Importar Datos
-              </button>
-              <button
-                onClick={() => setShowModalEliminarTodas(true)}
-                className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center gap-2"
-              >
-                <AlertCircle className="h-5 w-5" />
-                Eliminar Todas
-              </button>
-              <button
-                onClick={() => setShowNueva(true)}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Plus className="h-5 w-5" />
-                Nueva Fabricación
-              </button>
-            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+            >
+              <Download className="h-5 w-5" />
+              Exportar
+            </button>
+            <button
+              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              onClick={() => alert('Función de importar próximamente')}
+            >
+              <Upload className="h-5 w-5" />
+              Importar
+            </button>
+            <button
+              onClick={() => setShowModalEliminarTodas(true)}
+              className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center gap-2"
+            >
+              <AlertCircle className="h-5 w-5" />
+              Eliminar todas
+            </button>
+            <button
+              onClick={() => setShowNueva(true)}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Nueva fabricación
+            </button>
           </div>
         </header>
 
-        {/* Content */}
-        <div className="max-w-7xl mx-auto p-8 space-y-8">
-
-          {/* KPI y Gráficos */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="glass-card p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-400 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                  <Factory className="h-7 w-7 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-foreground/70">Total Fabricaciones</p>
-                  <p className="text-2xl font-bold text-foreground">{estadisticas?.totalFabricaciones || 0}</p>
-                </div>
-              </div>
+        <div className="max-w-7xl mx-auto p-8 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Total fabricaciones</p>
+              <p className="text-3xl font-bold text-foreground">{totalFabricaciones}</p>
             </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Kg fabricados</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {formatNumber(totalKgFabricados)}
+              </p>
+              <p className="text-xs text-foreground/60">Incluye todas las órdenes registradas</p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Costo total</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {formatCurrency(totalCosto)}
+              </p>
+              <p className="text-xs text-foreground/60">
+                Promedio {formatCurrency((totalCosto || 0) / Math.max(totalFabricaciones, 1))} por fabricación
+              </p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Sin existencias</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {sinExistencias}
+              </p>
+              <p className="text-xs text-foreground/60">Órdenes marcadas sin stock disponible</p>
+            </div>
+          </section>
 
-            <div className="md:col-span-2 glass-card p-6">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card p-6 rounded-2xl">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-foreground">Materias Primas Más Utilizadas</h3>
-                <span className="text-xs text-foreground/60 font-medium">Top {estadisticas?.materiasMasUtilizadas.length || 0}</span>
+                <h3 className="text-lg font-semibold text-foreground">Materias primas más utilizadas</h3>
+                <span className="text-xs text-foreground/60">
+                  {estadisticas?.materiasMasUtilizadas.length || 0} registro(s)
+                </span>
               </div>
               <FabricacionesMateriasChart data={estadisticas?.materiasMasUtilizadas || []} />
             </div>
-          </div>
-
-          {/* Gráfico de Fórmulas Más Producidas */}
-          <div className="glass-card p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-foreground">Fórmulas Más Producidas</h3>
-              <span className="text-xs text-foreground/60 font-medium">Top {estadisticas?.formulasMasProducidas.length || 0}</span>
+            <div className="glass-card p-6 rounded-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Fórmulas más producidas</h3>
+                <span className="text-xs text-foreground/60">
+                  {estadisticas?.formulasMasProducidas.length || 0} registro(s)
+                </span>
+              </div>
+              <FabricacionesFormulasChart data={estadisticas?.formulasMasProducidas || []} />
             </div>
-            <FabricacionesFormulasChart data={estadisticas?.formulasMasProducidas || []} />
-          </div>
+          </section>
 
-          {/* Filtros */}
-          <div className="glass-card p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <section className="glass-card p-6 rounded-2xl grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm text-foreground/70 mb-2">Fecha Desde</label>
+              <label className="block text-sm text-foreground/70 mb-2">Fecha desde</label>
               <input
                 type="date"
                 value={desde}
@@ -279,7 +338,7 @@ export default function FabricacionesPage() {
               />
             </div>
             <div>
-              <label className="block text-sm text-foreground/70 mb-2">Fecha Hasta</label>
+              <label className="block text-sm text-foreground/70 mb-2">Fecha hasta</label>
               <input
                 type="date"
                 value={hasta}
@@ -288,18 +347,22 @@ export default function FabricacionesPage() {
               />
             </div>
             <div>
-              <label className="block text-sm text-foreground/70 mb-2">Fórmula</label>
+              <label className="block text-sm text-foreground/70 mb-2">Fórmula o descripción</label>
               <input
                 type="text"
                 value={formulaFiltro}
                 onChange={(e) => setFormulaFiltro(e.target.value)}
-                placeholder="Buscar por descripción..."
+                placeholder="Buscar por código o descripción..."
                 className="glass-input"
               />
             </div>
-          </div>
+            <div className="flex items-end">
+              <p className="text-sm text-foreground/60">
+                {fabricacionesFiltradas.length} resultado(s) de {fabricaciones.length}
+              </p>
+            </div>
+          </section>
 
-          {/* Tabla */}
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               {showEliminadas ? (
@@ -406,7 +469,7 @@ export default function FabricacionesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {fabricaciones.length === 0 ? (
+                    {fabricacionesFiltradas.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="px-6 py-12 text-center text-foreground/60">
                           <Factory className="h-12 w-12 mx-auto mb-4 text-foreground/40" />
@@ -414,7 +477,7 @@ export default function FabricacionesPage() {
                         </td>
                       </tr>
                     ) : (
-                      fabricaciones.map((fabricacion) => (
+                      fabricacionesFiltradas.map((fabricacion) => (
                         <tr key={fabricacion.id} className="hover:bg-white/5">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                             {formatDate(fabricacion.fechaFabricacion)}

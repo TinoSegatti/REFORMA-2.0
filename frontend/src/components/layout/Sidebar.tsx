@@ -4,9 +4,23 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { useState, useEffect } from 'react';
-import { 
-  Box, Package, ShoppingCart, FileText, Settings, BarChart3, 
-  PiggyBank, Home, LogOut, Factory, Users, Sprout, Moon, Sun
+import {
+  Box,
+  Package,
+  ShoppingCart,
+  FileText,
+  Settings,
+  BarChart3,
+  PiggyBank,
+  Home,
+  LogOut,
+  Factory,
+  Users,
+  Sprout,
+  Moon,
+  Sun,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -14,6 +28,8 @@ export default function Sidebar() {
   const router = useRouter();
   const [granjaActiva, setGranjaActiva] = useState<{ id: string; nombre: string } | null>(null);
   const [darkMode, setDarkMode] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [hasManualToggle, setHasManualToggle] = useState(false);
 
   useEffect(() => {
     // Cargar tema inicial
@@ -42,6 +58,21 @@ export default function Sidebar() {
     }
   }, [pathname]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      if (window.innerWidth < 1024) {
+        setIsCollapsed(true);
+      } else if (!hasManualToggle) {
+        setIsCollapsed(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [hasManualToggle]);
+
   const toggleTheme = () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
@@ -49,6 +80,11 @@ export default function Sidebar() {
     localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
     // Actualizar fondo según el tema
     document.body.style.backgroundColor = newDarkMode ? '#0a0a0f' : '#ffffff';
+  };
+
+  const toggleCollapse = () => {
+    setIsCollapsed((prev) => !prev);
+    setHasManualToggle(true);
   };
 
   // Obtener el ID de la granja de la ruta actual
@@ -62,7 +98,15 @@ export default function Sidebar() {
     return `/mis-plantas`; // Redirigir a mis-plantas si no hay granja activa
   };
 
+  const panelHref = idGranja ? `/granja/${idGranja}` : '/mis-plantas';
+
   const menuItems = [
+    {
+      id: 'panel-principal',
+      Icon: BarChart3,
+      label: 'Panel Principal',
+      href: panelHref,
+    },
     {
       id: 'materias-primas',
       Icon: Sprout,
@@ -95,7 +139,7 @@ export default function Sidebar() {
     },
     {
       id: 'inventario',
-      Icon: BarChart3,
+      Icon: Package,
       label: 'Inventario',
       href: getHref('/inventario'),
     },
@@ -127,104 +171,120 @@ export default function Sidebar() {
   const estaEnGranja = pathname.includes('/granja/');
 
   return (
-    <aside className="w-64 text-white min-h-screen fixed left-0 top-0 z-40 bg-white/5 backdrop-blur-xl border-r border-white/10 sidebar-glass">
-      {/* Logo y Botón Volver */}
-      <div className="p-4 border-b border-white/10 space-y-3">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30">
-            <Box className="text-white h-6 w-6" />
+    <aside
+      className={`${
+        isCollapsed ? 'w-20' : 'w-64'
+      } text-white min-h-screen fixed left-0 top-0 z-40 bg-white/5 backdrop-blur-xl border-r border-white/10 sidebar-glass flex flex-col transition-all duration-300`}
+    >
+      <div className="relative p-4 border-b border-white/10 space-y-4">
+        <button
+          onClick={toggleCollapse}
+          className="absolute -right-3 top-6 w-7 h-7 rounded-full bg-purple-600/80 hover:bg-purple-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/40 transition-all"
+          aria-label={isCollapsed ? 'Expandir menú' : 'Contraer menú'}
+        >
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </button>
+
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+          <div className="w-9 h-9 bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30">
+            <Box className="text-white h-5 w-5" />
           </div>
-          <h1 className="text-xl font-bold">REFORMA</h1>
+          {!isCollapsed && <h1 className="text-lg font-semibold tracking-wide">REFORMA</h1>}
         </div>
 
-        {/* Info de Granja Activa */}
+        <button
+          onClick={toggleTheme}
+          className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} gap-2 px-3 py-2 glass-surface rounded-lg font-medium hover:bg-white/10 transition-all text-xs text-foreground`}
+        >
+          <span className="flex items-center gap-2">
+            {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {!isCollapsed && <span>{darkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>}
+          </span>
+        </button>
+
         {estaEnGranja && granjaActiva && (
-          <div className="glass-card rounded-xl p-3">
-            <div className="flex items-start gap-2">
-              <Factory className="text-xl text-cyan-400" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Granja Activa</p>
-                <p className="text-sm font-semibold text-white truncate">
-                  {granjaActiva.nombre || 'Mi Planta'}
-                </p>
+          <div className={`glass-card rounded-lg ${isCollapsed ? 'p-2 flex items-center justify-center' : 'p-3'}`}>
+            {isCollapsed ? (
+              <Factory className="text-lg text-cyan-400" />
+            ) : (
+              <div className="flex items-start gap-2">
+                <Factory className="text-lg text-cyan-400" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Granja Activa</p>
+                  <p className="text-sm font-semibold text-white truncate">
+                    {granjaActiva.nombre || 'Mi Planta'}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
-        {/* Botón Volver a Granjas */}
         {estaEnGranja && (
           <button
             onClick={volverAGranjas}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 text-white font-semibold transition-all duration-300 hover:shadow-lg hover:brightness-110 text-sm"
+            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-2'} px-3 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-purple-500 text-white font-semibold transition-all duration-300 hover:shadow-lg hover:brightness-110 text-xs`}
           >
-            <Home className="h-5 w-5" />
-            <span>Volver a Mis Granjas</span>
+            <Home className="h-4 w-4" />
+            {!isCollapsed && <span>Mis Granjas</span>}
           </button>
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="p-4 space-y-2">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          const isPanelPrincipal = item.id === 'panel-principal';
+          const isActive = pathname === item.href || (!isPanelPrincipal && pathname.startsWith(item.href + '/'));
           const IconComponent = item.Icon;
           return (
             <Link
               key={item.id}
               href={item.href}
-              className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300
-                ${isActive 
-                  ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white font-semibold shadow-lg shadow-purple-500/30' 
+              className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-all duration-300 ${
+                isActive
+                  ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white font-semibold shadow-lg shadow-purple-500/30'
                   : 'text-gray-200 hover:bg-white/10 hover:text-white'
-                }
-              `}
+              }`}
             >
-              <IconComponent className="h-5 w-5" />
-              <span className="text-sm">{item.label}</span>
+              <IconComponent className="h-5 w-5 flex-shrink-0" />
+              {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      {/* Bottom Actions */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3 border-t border-white/10">
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 glass-surface rounded-xl font-semibold hover:bg-white/10 transition-all text-sm text-foreground"
-        >
-          {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          <span>{darkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
-        </button>
-
-        {/* Upgrade Box */}
-        <div className="glass-card rounded-xl p-4 border-2 border-amber-400/30">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-amber-400 rounded-lg flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0">
-              <span className="text-xl">⭐</span>
+      <div className="p-4 space-y-3 border-t border-white/10">
+        <div className={`glass-card rounded-lg border border-amber-400/30 ${isCollapsed ? 'p-2 flex items-center justify-center' : 'p-3'}`}>
+          {isCollapsed ? (
+            <button
+              onClick={() => alert('Desbloquea funciones premium')}
+              className="w-9 h-9 bg-gradient-to-br from-amber-500 to-amber-400 rounded-md flex items-center justify-center shadow-lg shadow-amber-500/30 text-base"
+              aria-label="Ver planes"
+            >
+              ⭐
+            </button>
+          ) : (
+            <div className="flex items-start gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-amber-400 rounded-md flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0">
+                <span className="text-base">⭐</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold text-amber-300 uppercase tracking-wide mb-1">Upgrade</p>
+                <p className="text-xs text-white leading-tight mb-2">Desbloquea funciones premium.</p>
+                <button className="w-full px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-400 text-gray-900 rounded-md font-semibold text-xs hover:shadow-lg hover:brightness-110 transition-all">
+                  Ver planes
+                </button>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-amber-300 uppercase tracking-wide mb-1">Upgrade</p>
-              <p className="text-sm text-white leading-tight mb-2">
-                Desbloquea funciones premium
-              </p>
-              <button className="w-full px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-400 text-gray-900 rounded-lg font-semibold text-xs hover:shadow-lg hover:brightness-110 transition-all">
-                Ver Planes
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-all duration-300 font-semibold hover:shadow-lg hover:shadow-red-600/30"
+          className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-2'} px-3 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-all duration-300 font-semibold hover:shadow-lg hover:shadow-red-600/30 text-sm`}
         >
-          <LogOut className="h-5 w-5" />
-          <span>Cerrar Sesión</span>
+          <LogOut className="h-4 w-4" />
+          {!isCollapsed && <span>Cerrar Sesión</span>}
         </button>
       </div>
     </aside>

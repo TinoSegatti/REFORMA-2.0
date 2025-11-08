@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
+import MateriaPrimaChart from '@/components/charts/MateriaPrimaChart';
+import { ArrowLeft, Plus, Printer, Pencil, FileText } from 'lucide-react';
 import { useNotification } from '@/contexts/NotificationContext';
 
 interface MateriaPrima {
@@ -505,86 +507,126 @@ export default function FormulaDetallePage() {
     alert('Función de imprimir próximamente');
   };
 
-  const calcularPesoTotal = () => {
+  const formatCurrency = (n: number) =>
+    Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
+
+  const totalCantidad = useMemo(() => {
     if (!formula) return 0;
     return formula.formulasDetalle.reduce((sum, detalle) => sum + detalle.cantidadKg, 0);
-  };
+  }, [formula]);
 
-  const calcularCostoTotal = () => {
+  const totalCosto = useMemo(() => {
     if (!formula) return 0;
     return formula.formulasDetalle.reduce((sum, detalle) => sum + detalle.costoParcial, 0);
-  };
+  }, [formula]);
 
-  const pesoTotal = calcularPesoTotal();
-  const costoTotal = calcularCostoTotal();
-  const pesoCorrecto = Math.abs(pesoTotal - 1000) < 0.1; // Tolerancia de 0.1kg
+  const pesoObjetivo = formula?.pesoTotalFormula ?? 0;
+  const diferenciaPeso = pesoObjetivo - totalCantidad;
+  const pesoCoincide = Math.abs(diferenciaPeso) < 0.1;
+
+  const chartData = useMemo(() => {
+    if (!formula) return [];
+    return formula.formulasDetalle.map((detalle) => ({
+      codigo: detalle.materiaPrima.codigoMateriaPrima,
+      nombre: detalle.materiaPrima.nombreMateriaPrima,
+      toneladas_totales: detalle.cantidadKg / 1000,
+    }));
+  }, [formula]);
+
+  const topIngredientes = useMemo(() => {
+    if (!formula) return [];
+    return [...formula.formulasDetalle]
+      .sort((a, b) => b.cantidadKg - a.cantidadKg)
+      .slice(0, 3)
+      .map((detalle) => ({
+        codigo: detalle.materiaPrima.codigoMateriaPrima,
+        nombre: detalle.materiaPrima.nombreMateriaPrima,
+        cantidadKg: detalle.cantidadKg,
+      }));
+  }, [formula]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-foreground/80">Cargando...</p>
-        </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-teal-500/20 border border-teal-400/40 flex items-center justify-center">
+              <FileText className="h-7 w-7 text-teal-300 animate-bounce" />
+            </div>
+            <p className="text-foreground font-semibold">Cargando fórmula...</p>
+            <p className="text-sm text-foreground/70">Estamos preparando los detalles de la fórmula seleccionada.</p>
+          </div>
+        </main>
       </div>
     );
   }
 
   if (!formula) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p className="text-foreground/80">Fórmula no encontrada</p>
-          <button
-            onClick={() => router.push(`/granja/${idGranja}/formulas`)}
-            className="mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
-          >
-            Volver a Fórmulas
-          </button>
-        </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 text-center space-y-4">
+            <p className="text-foreground/70">Fórmula no encontrada.</p>
+            <button
+              onClick={() => router.push(`/granja/${idGranja}/formulas`)}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all"
+            >
+              Volver al listado
+            </button>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen ">
+    <div className="flex min-h-screen">
       <Sidebar />
 
       <main className="flex-1 ml-64">
-        {/* Header */}
-        <header className="glass-card m-4 mb-6">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">
-                Detalle de Fórmula: {formula.codigoFormula}
-              </h2>
-              <p className="text-foreground/70 mt-1">
-                {formula.descripcionFormula || 'Sin descripción'} - {formula.animal.descripcionAnimal}
-              </p>
+        <header className="glass-card px-8 py-6 m-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-teal-400 flex items-center justify-center shadow-lg shadow-teal-500/30">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Fórmula {formula.codigoFormula}</h1>
+                <p className="text-foreground/70">
+                  {formula.descripcionFormula || 'Sin descripción'} · {formula.animal.descripcionAnimal}
+                </p>
+              </div>
             </div>
-            
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push(`/granja/${idGranja}/formulas`)}
+                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                Volver
+              </button>
               <button
                 onClick={imprimirFormula}
-                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-400 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
               >
-                <span>🖨️</span>
+                <Printer className="h-5 w-5" />
                 Imprimir
               </button>
               <button
                 onClick={() => {
-                  if (formula) {
-                    setCabeceraData({
-                      codigoFormula: formula.codigoFormula,
-                      descripcionFormula: formula.descripcionFormula || '',
-                      idAnimal: formula.animal.id || '',
-                    });
-                  }
+                  setCabeceraData({
+                    codigoFormula: formula.codigoFormula,
+                    descripcionFormula: formula.descripcionFormula || '',
+                    idAnimal: formula.animal.id || '',
+                  });
                   setShowModalEditarCabecera(true);
                 }}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
               >
-                Editar Cabecera
+                <Pencil className="h-5 w-5" />
+                Editar cabecera
               </button>
               <button
                 onClick={() => {
@@ -598,22 +640,142 @@ export default function FormulaDetallePage() {
                   setSugerenciasMultiples([{ sugerencias: [], campo: null }]);
                   setShowModalAgregar(true);
                 }}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <span>+</span>
-                Añadir Materia Prima
+                <Plus className="h-5 w-5" />
+                Añadir materia prima
               </button>
             </div>
           </div>
         </header>
 
-        {/* Content */}
-        <div className="max-w-7xl mx-auto p-8 space-y-8">
-          {/* Navegación */}
+        <div className="max-w-7xl mx-auto p-8 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Peso objetivo</p>
+              <p className="text-2xl font-bold text-foreground">
+                {pesoObjetivo.toFixed(2)} kg
+              </p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Peso actual</p>
+              <p className={`text-2xl font-bold ${pesoCoincide ? 'text-foreground' : 'text-orange-300'}`}>
+                {totalCantidad.toFixed(2)} kg
+              </p>
+              <p className="text-xs text-foreground/50">Basado en los ingredientes cargados</p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Costo total</p>
+              <p className="text-2xl font-bold text-foreground">
+                {formatCurrency(totalCosto)}
+              </p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Items en fórmula</p>
+              <p className="text-2xl font-bold text-foreground">
+                {formula.formulasDetalle.length}
+              </p>
+            </div>
+          </section>
+
+          <section
+            className={`glass-card p-6 rounded-2xl ${
+              pesoCoincide
+                ? 'border border-green-500/30 bg-green-500/10'
+                : diferenciaPeso > 0
+                ? 'border border-orange-500/30 bg-orange-500/10'
+                : 'border border-red-500/30 bg-red-500/10'
+            }`}
+          >
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p
+                  className={`text-lg font-semibold ${
+                    pesoCoincide ? 'text-green-300' : diferenciaPeso > 0 ? 'text-orange-300' : 'text-red-300'
+                  }`}
+                >
+                  {pesoCoincide
+                    ? 'La fórmula tiene el peso objetivo'
+                    : diferenciaPeso > 0
+                    ? 'Faltan materias primas para alcanzar el peso objetivo'
+                    : 'El peso total excede el objetivo'}
+                </p>
+                <p className="text-sm text-foreground/70 mt-1">
+                  {pesoCoincide
+                    ? 'El total de ingredientes coincide con el peso objetivo configurado.'
+                    : diferenciaPeso > 0
+                    ? `Agrega ${Math.abs(diferenciaPeso).toFixed(2)} kg adicionales para completar la fórmula.`
+                    : `Reduce ${Math.abs(diferenciaPeso).toFixed(2)} kg para volver al peso objetivo.`}
+                </p>
+              </div>
+              <div className="text-right">
+                <p
+                  className={`text-3xl font-bold ${
+                    pesoCoincide ? 'text-green-300' : diferenciaPeso > 0 ? 'text-orange-300' : 'text-red-300'
+                  }`}
+                >
+                  {diferenciaPeso > 0 ? '+' : ''}
+                  {diferenciaPeso.toFixed(2)} kg
+                </p>
+                <p className="text-xs text-foreground/60 mt-1">Diferencia vs. objetivo</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="glass-card p-6 rounded-2xl space-y-3">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Animal destino</p>
+              <p className="text-lg font-semibold text-foreground">
+                {formula.animal.descripcionAnimal}
+              </p>
+              <p className="text-xs text-foreground/50">
+                Categoría: {formula.animal.categoriaAnimal}
+              </p>
+              <div className="pt-4 border-t border-white/10 space-y-2">
+                <p className="text-sm text-foreground/60 uppercase tracking-wide">Descripción</p>
+                <p className="text-sm text-foreground/80 leading-relaxed">
+                  {formula.descripcionFormula || 'Sin descripción registrada.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="glass-card p-6 rounded-2xl space-y-4">
+              <div>
+                <p className="text-sm text-foreground/60 uppercase tracking-wide">Ingredientes principales</p>
+                {topIngredientes.length === 0 ? (
+                  <p className="text-sm text-foreground/60">
+                    Agrega materias primas para ver el ranking.
+                  </p>
+                ) : (
+                  <ul className="space-y-3">
+                    {topIngredientes.map((item, index) => (
+                      <li key={item.codigo} className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            {index + 1}. {item.nombre}
+                          </p>
+                          <p className="text-xs text-foreground/60">{item.codigo}</p>
+                        </div>
+                        <span className="text-sm font-medium text-foreground/80">
+                          {item.cantidadKg.toFixed(2)} kg
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="glass-card p-6 rounded-2xl space-y-3">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Distribución de materias primas</p>
+              <MateriaPrimaChart data={chartData} />
+            </div>
+          </section>
+
           {formulas.length > 1 && (
-            <div className="glass-card p-4">
+            <section className="glass-card p-4 rounded-2xl">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={navegarAnterior}
                     disabled={getIndiceActual() === 1}
@@ -623,16 +785,14 @@ export default function FormulaDetallePage() {
                         : 'bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:shadow-md hover:shadow-purple-500/30'
                     }`}
                   >
-                    <span>←</span>
+                    <ArrowLeft className="h-4 w-4" />
                     <span className="text-sm">Anterior</span>
                   </button>
-                  
                   <div className="px-4 py-2 glass-surface rounded-lg">
                     <span className="text-sm font-medium text-foreground">
                       {getIndiceActual()} de {formulas.length}
                     </span>
                   </div>
-                  
                   <button
                     onClick={navegarSiguiente}
                     disabled={getIndiceActual() === formulas.length}
@@ -643,24 +803,23 @@ export default function FormulaDetallePage() {
                     }`}
                   >
                     <span className="text-sm">Siguiente</span>
-                    <span>→</span>
+                    <ArrowLeft className="h-4 w-4 rotate-180" />
                   </button>
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
-          {/* Tabla de detalles */}
-          <div className="glass-card overflow-hidden">
+          <section className="glass-card overflow-hidden rounded-2xl border border-white/10">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-white/5">
                   <tr>
                     <th className="px-6 py-4 text-left font-semibold text-foreground/80">Código</th>
                     <th className="px-6 py-4 text-left font-semibold text-foreground/80">Nombre</th>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Cantidad (kg)</th>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Precio Unit.</th>
-                    <th className="px-6 py-4 text-left font-semibold text-foreground/80">Subtotal</th>
+                    <th className="px-6 py-4 text-right font-semibold text-foreground/80">Cantidad (kg)</th>
+                    <th className="px-6 py-4 text-right font-semibold text-foreground/80">Precio unitario</th>
+                    <th className="px-6 py-4 text-right font-semibold text-foreground/80">Subtotal</th>
                     <th className="px-6 py-4 text-center font-semibold text-foreground/80">Acciones</th>
                   </tr>
                 </thead>
@@ -680,29 +839,29 @@ export default function FormulaDetallePage() {
                         <td className="px-6 py-4 text-foreground">
                           {detalle.materiaPrima.nombreMateriaPrima}
                         </td>
-                        <td className="px-6 py-4 text-foreground/90">
+                        <td className="px-6 py-4 text-foreground/90 text-right">
                           {detalle.cantidadKg.toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 text-foreground/90">
-                          ${detalle.precioUnitarioMomentoCreacion.toFixed(2)}
+                        <td className="px-6 py-4 text-foreground/90 text-right">
+                          {formatCurrency(detalle.precioUnitarioMomentoCreacion)}
                         </td>
-                        <td className="px-6 py-4 text-foreground font-medium">
-                          ${detalle.costoParcial.toFixed(2)}
+                        <td className="px-6 py-4 text-foreground font-medium text-right">
+                          {formatCurrency(detalle.costoParcial)}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => {
                                 setEditando(detalle);
-                                setFormData({ 
-                                  idMateriaPrima: detalle.materiaPrima.id, 
+                                setFormData({
+                                  idMateriaPrima: detalle.materiaPrima.id,
                                   codigoMateriaPrima: detalle.materiaPrima.codigoMateriaPrima,
                                   nombreMateriaPrima: detalle.materiaPrima.nombreMateriaPrima,
-                                  cantidadKg: detalle.cantidadKg.toString() 
+                                  cantidadKg: detalle.cantidadKg.toString(),
                                 });
                                 setShowModalEditar(true);
                               }}
-                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md hover:shadow-purple-500/30 transition-all text-sm"
+                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-md transition-all text-sm"
                             >
                               Editar
                             </button>
@@ -711,7 +870,7 @@ export default function FormulaDetallePage() {
                                 setEliminando(detalle);
                                 setShowModalEliminar(true);
                               }}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-colors text-sm"
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
                             >
                               Eliminar
                             </button>
@@ -721,54 +880,22 @@ export default function FormulaDetallePage() {
                     ))
                   )}
                 </tbody>
+                <tfoot className="bg-white/5">
+                  <tr>
+                    <td colSpan={2} className="px-6 py-4 text-right font-semibold text-foreground/80">Totales</td>
+                    <td className="px-6 py-4 text-right font-semibold text-foreground">
+                      {totalCantidad.toFixed(2)} kg
+                    </td>
+                    <td></td>
+                    <td className="px-6 py-4 text-right font-semibold text-foreground">
+                      {formatCurrency(totalCosto)}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
-          </div>
-
-          {/* Informe de costos */}
-          <div className="glass-card p-6">
-            <h3 className="text-xl font-bold text-foreground mb-4">Informe de Fórmula</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 glass-surface rounded-xl">
-                  <span className="text-foreground/70 font-medium">Peso Total:</span>
-                  <span className={`text-lg font-bold ${pesoCorrecto ? 'text-green-400' : 'text-red-400'}`}>
-                    {pesoTotal.toFixed(2)} kg
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-4 glass-surface rounded-xl">
-                  <span className="text-foreground/70 font-medium">Costo Total:</span>
-                  <span className="text-lg font-bold text-foreground">
-                    ${costoTotal.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 glass-surface rounded-xl">
-                  <span className="text-foreground/70 font-medium">Peso Objetivo:</span>
-                  <span className="text-lg font-bold text-foreground">1000.00 kg</span>
-                </div>
-                <div className="flex justify-between items-center p-4 glass-surface rounded-xl">
-                  <span className="text-foreground/70 font-medium">Diferencia:</span>
-                  <span className={`text-lg font-bold ${pesoCorrecto ? 'text-green-400' : 'text-red-400'}`}>
-                    {(pesoTotal - 1000).toFixed(2)} kg
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            {!pesoCorrecto && (
-              <div className="mt-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <span className="text-red-400 text-xl">⚠️</span>
-                  <p className="text-red-300 font-medium">
-                    El peso total debe ser exactamente 1000 kg. Actualmente es {pesoTotal.toFixed(2)} kg.
-                    {pesoTotal < 1000 ? ' Necesitas agregar más materias primas.' : ' Necesitas reducir la cantidad de materias primas.'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          </section>
         </div>
       </main>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
@@ -8,7 +8,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
 import InventarioExistenciasChart from '@/components/charts/InventarioExistenciasChart';
 import InventarioValorChart from '@/components/charts/InventarioValorChart';
-import { Package, Trash2, Rocket, Scale, DollarSign, AlertTriangle, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Package, Trash2, Rocket, AlertTriangle, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface MateriaPrima {
   id: string;
@@ -57,7 +57,6 @@ export default function InventarioPage() {
   const router = useRouter();
   const idGranja = params.id as string;
 
-  const [user, setUser] = useState<{ id: string; email: string; tipoUsuario: string } | null>(null);
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [estadisticas, setEstadisticas] = useState<EstadisticasInventario | null>(null);
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrima[]>([]);
@@ -98,8 +97,6 @@ export default function InventarioPage() {
       return;
     }
 
-    const currentUser = authService.getUser();
-    setUser(currentUser);
     cargarDatos();
   }, [router, idGranja]);
 
@@ -307,181 +304,216 @@ export default function InventarioPage() {
     return <ArrowDown className="h-4 w-4 inline-block ml-1 text-foreground/80" />;
   };
 
-  const inventarioFiltrado = inventario.filter(item =>
-    item.materiaPrima.codigoMateriaPrima.toLowerCase().includes(filtro.toLowerCase()) ||
-    item.materiaPrima.nombreMateriaPrima.toLowerCase().includes(filtro.toLowerCase())
-  );
-
-  // Aplicar ordenamiento
-  const inventarioOrdenado = [...inventarioFiltrado].sort((a, b) => {
-    if (!sortColumn) return 0;
-
-    let aValue: any;
-    let bValue: any;
-
-    switch (sortColumn) {
-      case 'codigo':
-        aValue = a.materiaPrima.codigoMateriaPrima.toLowerCase();
-        bValue = b.materiaPrima.codigoMateriaPrima.toLowerCase();
-        break;
-      case 'materiaPrima':
-        aValue = a.materiaPrima.nombreMateriaPrima.toLowerCase();
-        bValue = b.materiaPrima.nombreMateriaPrima.toLowerCase();
-        break;
-      case 'precio':
-        aValue = a.materiaPrima.precioPorKilo;
-        bValue = b.materiaPrima.precioPorKilo;
-        break;
-      case 'cantidadAcumulada':
-        aValue = a.cantidadAcumulada;
-        bValue = b.cantidadAcumulada;
-        break;
-      case 'cantidadSistema':
-        aValue = a.cantidadSistema;
-        bValue = b.cantidadSistema;
-        break;
-      case 'cantidadReal':
-        aValue = a.cantidadReal;
-        bValue = b.cantidadReal;
-        break;
-      case 'merma':
-        aValue = a.merma;
-        bValue = b.merma;
-        break;
-      case 'valorStock':
-        aValue = a.valorStock;
-        bValue = b.valorStock;
-        break;
-      case 'precioAlmacen':
-        aValue = a.precioAlmacen;
-        bValue = b.precioAlmacen;
-        break;
-      default:
-        return 0;
-    }
-
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      if (sortDirection === 'asc') {
-        return aValue.localeCompare(bValue);
-      } else {
-        return bValue.localeCompare(aValue);
-      }
-    } else {
-      if (sortDirection === 'asc') {
-        return aValue - bValue;
-      } else {
-        return bValue - aValue;
-      }
-    }
-  });
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <Package className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
-          <p className="text-foreground/80 font-medium">Cargando inventario...</p>
-        </div>
-      </div>
+  const inventarioFiltrado = useMemo(() => {
+    const texto = filtro.toLowerCase();
+    if (!texto) return inventario;
+    return inventario.filter(
+      (item) =>
+        item.materiaPrima.codigoMateriaPrima.toLowerCase().includes(texto) ||
+        item.materiaPrima.nombreMateriaPrima.toLowerCase().includes(texto)
     );
-  }
+  }, [inventario, filtro]);
+
+  const inventarioOrdenado = useMemo(() => {
+    if (!sortColumn) return inventarioFiltrado;
+    const datos = [...inventarioFiltrado];
+    datos.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'codigo':
+          aValue = a.materiaPrima.codigoMateriaPrima.toLowerCase();
+          bValue = b.materiaPrima.codigoMateriaPrima.toLowerCase();
+          break;
+        case 'materiaPrima':
+          aValue = a.materiaPrima.nombreMateriaPrima.toLowerCase();
+          bValue = b.materiaPrima.nombreMateriaPrima.toLowerCase();
+          break;
+        case 'precio':
+          aValue = a.materiaPrima.precioPorKilo;
+          bValue = b.materiaPrima.precioPorKilo;
+          break;
+        case 'cantidadAcumulada':
+          aValue = a.cantidadAcumulada;
+          bValue = b.cantidadAcumulada;
+          break;
+        case 'cantidadSistema':
+          aValue = a.cantidadSistema;
+          bValue = b.cantidadSistema;
+          break;
+        case 'cantidadReal':
+          aValue = a.cantidadReal;
+          bValue = b.cantidadReal;
+          break;
+        case 'merma':
+          aValue = a.merma;
+          bValue = b.merma;
+          break;
+        case 'valorStock':
+          aValue = a.valorStock;
+          bValue = b.valorStock;
+          break;
+        case 'precioAlmacen':
+          aValue = a.precioAlmacen;
+          bValue = b.precioAlmacen;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+    return datos;
+  }, [inventarioFiltrado, sortColumn, sortDirection]);
+
+  const totalMateriasPrimas = estadisticas?.totalMateriasPrimas ?? inventario.length;
+  const totalKgSistema = estadisticas
+    ? (estadisticas.toneladasTotales || 0) * 1000
+    : inventario.reduce((sum, item) => sum + item.cantidadSistema, 0);
+  const totalKgReal = inventario.reduce((sum, item) => sum + item.cantidadReal, 0);
+  const totalValorStock = estadisticas?.costoTotalStock ?? inventario.reduce((sum, item) => sum + item.valorStock, 0);
+  const promedioCostoKg =
+    estadisticas?.promedioCostoPorKg ?? (totalKgReal > 0 ? totalValorStock / totalKgReal : 0);
+  const alertasStock = estadisticas?.alertasStock ?? [];
 
   const formatNumber = (n: number, fraction: number = 2) =>
     Number(n).toLocaleString('es-AR', { minimumFractionDigits: fraction, maximumFractionDigits: fraction });
   const formatCurrency = (n: number) =>
     Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
 
+  if (loading) {
+    return (
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+              <Package className="h-7 w-7 text-emerald-300 animate-bounce" />
+            </div>
+            <div>
+              <p className="text-foreground font-semibold">Cargando inventario...</p>
+              <p className="text-sm text-foreground/70">Sincronizando existencias y métricas del almacén.</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
       
       <main className="flex-1 ml-64">
-        {/* Header */}
-        <header className="glass-card px-8 py-6 m-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Inventario</h2>
-              <p className="text-foreground/70 mt-1">Gestión de stock de materias primas</p>
+        <header className="glass-card px-8 py-6 m-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <Package className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Inventario</h1>
+                <p className="text-foreground/70">
+                  Controla existencias, costos y alertas de tus materias primas en tiempo real.
+                </p>
+              </div>
             </div>
-            
-            <div className="flex gap-3">
-              {/* Botón Recalcular eliminado según requerimiento */}
-              {inventario.length > 0 && (
-                <button
-                  onClick={() => setShowModalVaciar(true)}
-                  className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center gap-2 hover:shadow-lg hover:shadow-red-600/30"
-                >
-                  <Trash2 className="h-5 w-5" />
-                  Vaciar Inventario
-                </button>
-              )}
-              {inventario.length === 0 && (
-                <button
-                  onClick={() => setShowModalInicializar(true)}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
-                >
-                  <Rocket className="h-5 w-5" />
-                  Inicializar Inventario
-                </button>
-              )}
-            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {inventario.length > 0 ? (
+              <button
+                onClick={() => setShowModalVaciar(true)}
+                className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center gap-2 hover:shadow-lg hover:shadow-red-600/30"
+              >
+                <Trash2 className="h-5 w-5" />
+                Vaciar inventario
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowModalInicializar(true)}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <Rocket className="h-5 w-5" />
+                Inicializar inventario
+              </button>
+            )}
           </div>
         </header>
 
-        {/* Content */}
-        <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
-          {/* Cards de estadísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="glass-card p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                  <Package className="h-7 w-7 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-foreground/70">Total Materias Primas</p>
-                  <p className="text-2xl font-bold text-foreground">{estadisticas?.totalMateriasPrimas || 0}</p>
-                </div>
-              </div>
+        <div className="max-w-7xl mx-auto p-8 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Materias primas</p>
+              <p className="text-3xl font-bold text-foreground">{totalMateriasPrimas}</p>
             </div>
-
-            <div className="glass-card p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-400 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30">
-                  <Scale className="h-7 w-7 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-foreground/70">Kilos Totales</p>
-                  <p className="text-2xl font-bold text-foreground">{formatNumber(((estadisticas?.toneladasTotales || 0) * 1000), 0)} kg</p>
-                </div>
-              </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Stock en sistema</p>
+              <p className="text-2xl font-semibold text-foreground">{formatNumber(totalKgSistema, 0)} kg</p>
+              <p className="text-xs text-foreground/60">{formatNumber(totalKgSistema / 1000, 2)} toneladas</p>
             </div>
-
-            <div className="glass-card p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-pink-400 rounded-xl flex items-center justify-center shadow-lg shadow-pink-500/30">
-                  <DollarSign className="h-7 w-7 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-foreground/70">Costo Total Stock</p>
-                  <p className="text-2xl font-bold text-foreground">{formatCurrency(estadisticas?.costoTotalStock || 0)}</p>
-                </div>
-              </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Valor del stock</p>
+              <p className="text-2xl font-semibold text-foreground">{formatCurrency(totalValorStock)}</p>
             </div>
-          </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Costo promedio por kg</p>
+              <p className="text-2xl font-semibold text-foreground">{formatCurrency(promedioCostoKg)}</p>
+              <p className="text-xs text-foreground/60">{alertasStock.length} alerta(s) activas</p>
+            </div>
+          </section>
 
-          {/* Alertas de stock */}
-          {estadisticas?.alertasStock && estadisticas.alertasStock.length > 0 && (
-            <div className="glass-card p-6 border-red-500/30">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card p-6 rounded-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Mayores existencias</h3>
+                <span className="text-xs text-foreground/60">
+                  {estadisticas?.materiasMasExistencias?.length || 0} registro(s)
+                </span>
+              </div>
+              <InventarioExistenciasChart data={estadisticas?.materiasMasExistencias || []} />
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Mayor valor inmovilizado</h3>
+                <span className="text-xs text-foreground/60">
+                  {estadisticas?.materiasMasValor?.length || 0} registro(s)
+                </span>
+              </div>
+              <InventarioValorChart data={estadisticas?.materiasMasValor || []} />
+            </div>
+          </section>
+
+          <section className="glass-card p-6 rounded-2xl grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm text-foreground/70 mb-2">Buscar materia prima</label>
+              <input
+                type="text"
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                placeholder="Código o nombre..."
+                className="glass-input"
+              />
+            </div>
+            <div className="md:col-span-2 flex items-end">
+              <p className="text-sm text-foreground/60">
+                {inventarioOrdenado.length} resultado(s) de {inventario.length}
+              </p>
+            </div>
+          </section>
+
+          {alertasStock.length > 0 && (
+            <section className="glass-card p-6 rounded-2xl border border-red-500/30">
               <button
                 onClick={() => setAlertasMinimizadas(!alertasMinimizadas)}
                 className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition-opacity"
               >
                 <h3 className="text-lg font-bold text-red-400 flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5" />
-                  Alertas de Stock
-                  <span className="text-sm font-normal text-red-400/70">
-                    ({estadisticas.alertasStock.length})
-                  </span>
+                  Alertas de inventario ({alertasStock.length})
                 </h3>
                 {alertasMinimizadas ? (
                   <ChevronDown className="h-5 w-5 text-red-400" />
@@ -491,67 +523,34 @@ export default function InventarioPage() {
               </button>
               {!alertasMinimizadas && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {estadisticas.alertasStock.map((alerta, index) => (
-                    <div key={index} className="glass-card p-4 border-red-500/30">
+                  {alertasStock.map((alerta, index) => (
+                    <div key={index} className="glass-card p-4 border border-red-500/20 bg-red-500/5">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-foreground">{alerta.codigo}</p>
                           <p className="text-sm text-foreground/70">{alerta.nombre}</p>
                         </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          alerta.tipo === 'NEGATIVO' 
-                            ? 'bg-red-500/20 text-red-400' 
-                            : 'bg-yellow-500/20 text-yellow-400'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            alerta.tipo === 'NEGATIVO'
+                              ? 'bg-red-500/20 text-red-300'
+                              : 'bg-yellow-500/20 text-yellow-300'
+                          }`}
+                        >
                           {alerta.tipo === 'NEGATIVO' ? 'NEGATIVO' : 'CERO'}
-                        </div>
+                        </span>
                       </div>
-                      <p className="text-sm text-foreground/60 mt-2">
-                        Cantidad: {alerta.cantidadReal.toFixed(2)} kg
+                      <p className="text-xs text-foreground/60 mt-2">
+                        Cantidad real: {formatNumber(alerta.cantidadReal, 2)} kg
                       </p>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           )}
 
-          {/* Gráficos */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-foreground">Materias Primas con Más Existencias</h3>
-                <span className="text-xs text-foreground/60 font-medium">
-                  Top {estadisticas?.materiasMasExistencias?.length || 0}
-                </span>
-              </div>
-              <InventarioExistenciasChart data={estadisticas?.materiasMasExistencias || []} />
-            </div>
-
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-foreground">Materias Primas de Más Valor</h3>
-                <span className="text-xs text-foreground/60 font-medium">
-                  Top {estadisticas?.materiasMasValor?.length || 0}
-                </span>
-              </div>
-              <InventarioValorChart data={estadisticas?.materiasMasValor || []} />
-            </div>
-          </div>
-
-          {/* Filtro */}
-          <div className="glass-card p-6">
-            <input
-              type="text"
-              placeholder="Buscar por código o nombre de materia prima..."
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              className="glass-input"
-            />
-          </div>
-
-          {/* Tabla */}
-          <div className="glass-card overflow-hidden">
+          <section className="glass-card overflow-hidden rounded-2xl border border-white/10">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-white/5">
@@ -656,7 +655,7 @@ export default function InventarioPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
         </div>
       </main>
 

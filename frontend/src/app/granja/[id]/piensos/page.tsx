@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
@@ -20,7 +20,6 @@ export default function PiensosPage() {
   const params = useParams();
   const idGranja = params.id as string;
 
-  const [user, setUser] = useState<{ id: string; email: string; tipoUsuario: string } | null>(null);
   const [animales, setAnimales] = useState<Animal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState('');
@@ -42,8 +41,6 @@ export default function PiensosPage() {
       return;
     }
 
-    const currentUser = authService.getUser();
-    setUser(currentUser);
     cargarAnimales();
   }, [router]);
 
@@ -149,13 +146,47 @@ export default function PiensosPage() {
     }
   };
 
+  const animalesFiltrados = useMemo(() => {
+    const texto = filtro.trim().toLowerCase();
+    if (!texto) return animales;
+    return animales.filter(
+      (a) =>
+        a.codigo.toLowerCase().includes(texto) ||
+        a.descripcion.toLowerCase().includes(texto) ||
+        a.categoria.toLowerCase().includes(texto)
+    );
+  }, [animales, filtro]);
+
+  const categoriasStats = useMemo(() => {
+    const conteo = new Map<string, number>();
+    animales.forEach((a) => {
+      const key = a.categoria.trim() || 'Sin categoría';
+      conteo.set(key, (conteo.get(key) || 0) + 1);
+    });
+    return Array.from(conteo.entries())
+      .map(([categoria, cantidad]) => ({ categoria, cantidad }))
+      .sort((a, b) => b.cantidad - a.cantidad);
+  }, [animales]);
+
+  const totalCategorias = categoriasStats.length;
+  const categoriaPrincipal = categoriasStats[0];
+  const piensosSinCategoria = categoriasStats.find((c) => c.categoria === 'Sin categoría')?.cantidad ?? 0;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <PiggyBank className="h-16 w-16 mx-auto mb-4 text-purple-500 animate-pulse" />
-          <p className="text-foreground/80">Cargando...</p>
-        </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="glass-card px-8 py-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-pink-500/20 border border-pink-400/40 flex items-center justify-center">
+              <PiggyBank className="h-7 w-7 text-pink-300 animate-bounce" />
+            </div>
+            <div>
+              <p className="text-foreground font-semibold">Cargando piensos...</p>
+              <p className="text-sm text-foreground/70">Preparando listado de animales y categorías disponibles.</p>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -165,69 +196,110 @@ export default function PiensosPage() {
       <Sidebar />
 
       <main className="flex-1 ml-64">
-        {/* Header */}
-        <header className="glass-card px-8 py-6 m-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground flex items-center gap-3">Piensos <PiggyBank className="h-8 w-8" /></h2>
-              <p className="text-foreground/70 mt-1">Gestión de tipos de animales (piensos)</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => alert('Función de exportar próximamente')}
-                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
-              >
-                <Download className="h-5 w-5" />
-                Exportar Datos
-              </button>
-              <button
-                onClick={() => alert('Función de importar próximamente')}
-                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
-              >
-                <Upload className="h-5 w-5" />
-                Importar Datos
-              </button>
-              <button
-                onClick={() => abrirModal()}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Plus className="h-5 w-5" />
-                Nuevo Pienso
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Content */}
-        <div className="max-w-7xl mx-auto p-8 space-y-6">
-          {/* Card Total */}
-          <div className="glass-card p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-pink-400 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-500/30">
-                  <PiggyBank className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-foreground/70">Total de Piensos</p>
-                  <p className="text-3xl font-bold text-foreground">{animales.length}</p>
-                </div>
+        <header className="glass-card px-8 py-6 m-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-600 to-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/30">
+                <PiggyBank className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Piensos</h1>
+                <p className="text-foreground/70">
+                  Organiza los tipos de animales disponibles y sus categorías de alimentación.
+                </p>
               </div>
             </div>
           </div>
-
-          {/* Filtro */}
-          <div className="glass-card p-6">
-            <input
-              type="text"
-              placeholder="Buscar por código, descripción o categoría..."
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              className="glass-input"
-            />
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => alert('Función de exportar próximamente')}
+              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+            >
+              <Download className="h-5 w-5" />
+              Exportar
+            </button>
+            <button
+              onClick={() => alert('Función de importar próximamente')}
+              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+            >
+              <Upload className="h-5 w-5" />
+              Importar
+            </button>
+            <button
+              onClick={() => abrirModal()}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Nuevo pienso
+            </button>
           </div>
+        </header>
+        <div className="max-w-7xl mx-auto p-8 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Total de piensos</p>
+              <p className="text-3xl font-bold text-foreground">{animales.length}</p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Categorías registradas</p>
+              <p className="text-2xl font-semibold text-foreground">{totalCategorias}</p>
+              <p className="text-xs text-foreground/60">Distribuidas en la granja</p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Categoría principal</p>
+              <p className="text-lg font-semibold text-foreground">
+                {categoriaPrincipal ? categoriaPrincipal.categoria : 'Sin datos'}
+              </p>
+              <p className="text-xs text-foreground/60">
+                {categoriaPrincipal ? `${categoriaPrincipal.cantidad} registro(s)` : 'Crea tus primeros piensos'}
+              </p>
+            </div>
+            <div className="glass-card p-6 rounded-2xl">
+              <p className="text-sm text-foreground/60 uppercase tracking-wide">Sin categoría</p>
+              <p className="text-2xl font-semibold text-foreground">{piensosSinCategoria}</p>
+              <p className="text-xs text-foreground/60">Actualiza para mantener consistencia</p>
+            </div>
+          </section>
 
-          {/* Tabla */}
-          <div className="glass-card overflow-hidden">
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="glass-card p-6 rounded-2xl lg:col-span-2">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Categorías destacadas</h3>
+              {categoriasStats.length === 0 ? (
+                <p className="text-sm text-foreground/60">Carga piensos para visualizar la distribución.</p>
+              ) : (
+                <div className="space-y-3">
+                  {categoriasStats.slice(0, 5).map((categoria) => (
+                    <div key={categoria.categoria} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{categoria.categoria}</p>
+                        <p className="text-xs text-foreground/60">
+                          {((categoria.cantidad / Math.max(animales.length, 1)) * 100).toFixed(1)}% del total
+                        </p>
+                      </div>
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold glass-surface">
+                        {categoria.cantidad} registro(s)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="glass-card p-6 rounded-2xl flex flex-col gap-4">
+              <h3 className="text-lg font-semibold text-foreground">Buscar piensos</h3>
+              <input
+                type="text"
+                placeholder="Código, descripción o categoría..."
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                className="glass-input"
+              />
+              <p className="text-xs text-foreground/60">
+                {animalesFiltrados.length} resultado(s) de {animales.length}
+              </p>
+            </div>
+          </section>
+
+          <section className="glass-card overflow-hidden rounded-2xl border border-white/10">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-white/5">
@@ -239,22 +311,14 @@ export default function PiensosPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {animales.filter(a => 
-                    a.codigo.toLowerCase().includes(filtro.toLowerCase()) ||
-                    a.descripcion.toLowerCase().includes(filtro.toLowerCase()) ||
-                    a.categoria.toLowerCase().includes(filtro.toLowerCase())
-                  ).length === 0 ? (
+                  {animalesFiltrados.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-12 text-center text-foreground/60">
                         {filtro ? 'No se encontraron resultados' : 'No hay piensos registrados'}
                       </td>
                     </tr>
                   ) : (
-                    animales.filter(a => 
-                      a.codigo.toLowerCase().includes(filtro.toLowerCase()) ||
-                      a.descripcion.toLowerCase().includes(filtro.toLowerCase()) ||
-                      a.categoria.toLowerCase().includes(filtro.toLowerCase())
-                    ).map((a) => (
+                    animalesFiltrados.map((a) => (
                       <tr key={a.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
                         <td className="px-6 py-4 text-foreground font-medium">{a.codigo}</td>
                         <td className="px-6 py-4 text-foreground/90">{a.descripcion}</td>
@@ -284,7 +348,7 @@ export default function PiensosPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
         </div>
       </main>
 

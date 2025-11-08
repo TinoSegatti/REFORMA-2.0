@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Sidebar from '@/components/layout/Sidebar';
-import { Archive, FileText, Settings } from 'lucide-react';
+import { Archive, Search, LucideIcon, Settings } from 'lucide-react';
 
 type BackgroundMode = 'solid' | 'image';
 
@@ -90,7 +90,7 @@ export default function ConfiguracionPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-                  <FileText className="h-6 w-6 text-white" />
+                  <Search className="h-6 w-6 text-white" />
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-foreground">Auditoría</h2>
@@ -103,9 +103,9 @@ export default function ConfiguracionPage() {
               </p>
               <Button
                 onClick={() => router.push(`/granja/${id}/configuracion/auditoria`)}
-                className="w-full"
+                className="w-full flex items-center justify-center gap-2"
               >
-                <FileText className="h-4 w-4 mr-2" />
+                <Search className="h-4 w-4" />
                 Acceder a Auditoría
               </Button>
             </div>
@@ -127,9 +127,9 @@ export default function ConfiguracionPage() {
               </p>
               <Button
                 onClick={() => router.push(`/granja/${id}/configuracion/archivos`)}
-                className="w-full"
+                className="w-full flex items-center justify-center gap-2"
               >
-                <Archive className="h-4 w-4 mr-2" />
+                <Archive className="h-4 w-4" />
                 Gestionar archivos
               </Button>
             </div>

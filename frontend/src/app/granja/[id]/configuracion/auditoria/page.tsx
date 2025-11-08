@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
-import { ArrowLeft, Filter, Calendar, User, FileText, ShoppingCart, Factory, Package, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Filter, Calendar, User, Search, ShoppingCart, Factory, Package, RefreshCw } from 'lucide-react';
 import { Modal } from '@/components/ui';
 
 interface AuditoriaRegistro {
@@ -121,7 +121,7 @@ export default function AuditoriaPage() {
       case 'INVENTARIO':
         return <Package className="h-4 w-4" />;
       default:
-        return <FileText className="h-4 w-4" />;
+        return <Search className="h-4 w-4" />;
     }
   };
 
@@ -234,7 +234,7 @@ export default function AuditoriaPage() {
             <div className="glass-card p-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-400 rounded-xl flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-white" />
+                  <Search className="h-5 w-5 text-white" />
                 </div>
                 <div>
                   <p className="text-sm text-foreground/70">Total Registros</p>
