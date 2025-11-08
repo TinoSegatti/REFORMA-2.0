@@ -1264,6 +1264,80 @@ export const apiClient = {
 
     return await response.json();
   },
+
+  // ============================================
+  // ARCHIVOS (SNAPSHOTS)
+  // ============================================
+
+  async getArchivos(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/archivos/granja/${idGranja}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener archivos');
+    }
+
+    return await response.json();
+  },
+
+  async crearArchivo(
+    token: string,
+    idGranja: string,
+    data: { tablaOrigen: 'COMPRA' | 'FABRICACION' | 'INVENTARIO'; descripcion: string }
+  ) {
+    const response = await fetch(`${API_URL}/api/archivos/granja/${idGranja}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al crear archivo');
+    }
+
+    return await response.json();
+  },
+
+  async getArchivoDetalle(token: string, idGranja: string, idArchivo: string) {
+    const response = await fetch(`${API_URL}/api/archivos/granja/${idGranja}/${idArchivo}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener detalle del archivo');
+    }
+
+    return await response.json();
+  },
+
+  async eliminarArchivo(token: string, idGranja: string, idArchivo: string) {
+    const response = await fetch(`${API_URL}/api/archivos/granja/${idGranja}/${idArchivo}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar archivo');
+    }
+
+    return await response.json();
+  },
 };
 
 export default apiClient;

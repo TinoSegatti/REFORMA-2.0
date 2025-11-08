@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Sidebar from '@/components/layout/Sidebar';
-import { FileText, Settings } from 'lucide-react';
+import { Archive, FileText, Settings } from 'lucide-react';
 
 type BackgroundMode = 'solid' | 'image';
 
@@ -107,6 +107,30 @@ export default function ConfiguracionPage() {
               >
                 <FileText className="h-4 w-4 mr-2" />
                 Acceder a Auditoría
+              </Button>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <Archive className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">Archivos & Snapshots</h2>
+                  <p className="text-sm text-foreground/70">Guarda una foto de compras, fabricaciones e inventario para consultar luego.</p>
+                </div>
+              </div>
+              <p className="text-sm text-foreground/80">
+                Genera snapshots históricos de tus datos críticos. Podrás revisarlos en modo solo lectura y eliminarlos cuando ya no los necesites.
+              </p>
+              <Button
+                onClick={() => router.push(`/granja/${id}/configuracion/archivos`)}
+                className="w-full"
+              >
+                <Archive className="h-4 w-4 mr-2" />
+                Gestionar archivos
               </Button>
             </div>
           </Card>
