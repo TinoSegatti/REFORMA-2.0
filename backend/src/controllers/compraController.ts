@@ -21,6 +21,7 @@ import {
   restaurarCompra,
   obtenerComprasEliminadas
 } from '../services/compraService';
+import { buildCsv } from '../utils/csvUtils';
 
 interface CompraRequest extends Request {
   userId?: string;
@@ -878,20 +879,97 @@ export async function obtenerComprasEliminadasCtrl(req: CompraRequest, res: Resp
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
     const comprasEliminadas = await obtenerComprasEliminadas(idGranja);
-
     res.json(comprasEliminadas);
   } catch (error: any) {
     console.error('Error obteniendo compras eliminadas:', error);
     res.status(500).json({ error: 'Error al obtener compras eliminadas' });
+  }
+}
+
+export async function exportarComprasCtrl(req: CompraRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const granja = await prisma.granja.findFirst({ where: { id: idGranja, idUsuario: userId } });
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    const compras = await prisma.compraCabecera.findMany({
+      where: { idGranja, activo: true },
+      orderBy: { fechaCompra: 'desc' },
+      include: {
+        proveedor: true,
+        usuario: true,
+        comprasDetalle: {
+          include: {
+            materiaPrima: true,
+          },
+        },
+      },
+    });
+
+    const filas: Array<Record<string, any>> = [];
+
+    for (const compra of compras) {
+      filas.push({
+        tipo: 'CABECERA',
+        idCompra: compra.id,
+        numeroFactura: compra.numeroFactura ?? '',
+        fechaCompra: compra.fechaCompra.toISOString(),
+        totalFactura: compra.totalFactura,
+        observaciones: compra.observaciones ?? '',
+        proveedorCodigo: compra.proveedor?.codigoProveedor ?? '',
+        proveedorNombre: compra.proveedor?.nombreProveedor ?? '',
+        usuario: compra.usuario ? `${compra.usuario.nombreUsuario} ${compra.usuario.apellidoUsuario}` : '',
+      });
+
+      for (const detalle of compra.comprasDetalle) {
+        filas.push({
+          tipo: 'DETALLE',
+          idCompra: compra.id,
+          codigoMateriaPrima: detalle.materiaPrima?.codigoMateriaPrima ?? '',
+          nombreMateriaPrima: detalle.materiaPrima?.nombreMateriaPrima ?? '',
+          cantidadComprada: detalle.cantidadComprada,
+          precioUnitario: detalle.precioUnitario,
+          subtotal: detalle.subtotal,
+          precioAnteriorMateriaPrima: detalle.precioAnteriorMateriaPrima,
+        });
+      }
+    }
+
+    const csv = buildCsv({
+      fields: [
+        'tipo',
+        'idCompra',
+        'numeroFactura',
+        'fechaCompra',
+        'totalFactura',
+        'observaciones',
+        'proveedorCodigo',
+        'proveedorNombre',
+        'usuario',
+        'codigoMateriaPrima',
+        'nombreMateriaPrima',
+        'cantidadComprada',
+        'precioUnitario',
+        'subtotal',
+        'precioAnteriorMateriaPrima',
+      ],
+      data: filas,
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="compras_${idGranja}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    console.error('Error exportando compras:', error);
+    res.status(500).json({ error: 'Error al exportar compras' });
   }
 }

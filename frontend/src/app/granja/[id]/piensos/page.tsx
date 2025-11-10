@@ -29,6 +29,10 @@ export default function PiensosPage() {
   const [eliminando, setEliminando] = useState<Animal | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [archivoImport, setArchivoImport] = useState<File | null>(null);
+  const [isImportingCsv, setIsImportingCsv] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [formData, setFormData] = useState({
     codigo: '',
     descripcion: '',
@@ -172,6 +176,71 @@ export default function PiensosPage() {
   const categoriaPrincipal = categoriasStats[0];
   const piensosSinCategoria = categoriasStats.find((c) => c.categoria === 'Sin categoría')?.cantidad ?? 0;
 
+  const puedeImportar = animales.length === 0;
+
+  const abrirModalImportacion = () => {
+    setArchivoImport(null);
+    setShowImportModal(true);
+  };
+
+  const cerrarModalImportacion = () => {
+    if (isImportingCsv) return;
+    setShowImportModal(false);
+    setArchivoImport(null);
+  };
+
+  const manejarImportacion = async () => {
+    if (!archivoImport) {
+      alert('Selecciona un archivo CSV para importar.');
+      return;
+    }
+
+    setIsImportingCsv(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        return;
+      }
+
+      await apiClient.importarPiensos(token, idGranja, archivoImport);
+      cerrarModalImportacion();
+      await cargarAnimales();
+      alert('Importación realizada correctamente.');
+    } catch (error) {
+      console.error('Error importando piensos:', error);
+      alert(error instanceof Error ? error.message : 'Error al importar piensos');
+    } finally {
+      setIsImportingCsv(false);
+    }
+  };
+
+  const manejarExportacion = async () => {
+    setIsExportingCsv(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        return;
+      }
+
+      const blob = await apiClient.exportarPiensos(token, idGranja);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `piensos_${idGranja}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exportando piensos:', error);
+      alert(error instanceof Error ? error.message : 'Error al exportar piensos');
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen">
@@ -212,18 +281,25 @@ export default function PiensosPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => alert('Función de exportar próximamente')}
-              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              onClick={manejarExportacion}
+              disabled={isExportingCsv}
+              className={`px-6 py-3 glass-surface text-foreground rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                isExportingCsv ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+              }`}
             >
               <Download className="h-5 w-5" />
-              Exportar
+              {isExportingCsv ? 'Exportando...' : 'Exportar'}
             </button>
             <button
-              onClick={() => alert('Función de importar próximamente')}
-              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              onClick={abrirModalImportacion}
+              disabled={!puedeImportar || isImportingCsv}
+              className={`px-6 py-3 glass-surface text-foreground rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                !puedeImportar || isImportingCsv ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+              }`}
+              title={!puedeImportar ? 'La importación solo está disponible cuando no hay piensos cargados' : undefined}
             >
               <Upload className="h-5 w-5" />
-              Importar
+              {isImportingCsv ? 'Importando...' : 'Importar'}
             </button>
             <button
               onClick={() => abrirModal()}
@@ -476,6 +552,44 @@ export default function PiensosPage() {
           <br />
           Esta acción no se puede deshacer.
         </p>
+      </Modal>
+
+      <Modal
+        isOpen={showImportModal}
+        onClose={cerrarModalImportacion}
+        title="Importar Piensos"
+        footer={
+          <>
+            <button
+              onClick={cerrarModalImportacion}
+              disabled={isImportingCsv}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={manejarImportacion}
+              disabled={isImportingCsv || !archivoImport}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isImportingCsv ? 'Importando...' : 'Importar'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-foreground/70">
+            Importa un archivo CSV con las columnas <code>codigoAnimal</code>, <code>descripcionAnimal</code> y <code>categoriaAnimal</code>.
+            Solo se permite importar cuando la lista está vacía.
+          </p>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={(event) => setArchivoImport(event.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-foreground/80"
+          />
+          {archivoImport && <p className="text-xs text-foreground/60">Archivo seleccionado: {archivoImport.name}</p>}
+        </div>
       </Modal>
     </div>
   );

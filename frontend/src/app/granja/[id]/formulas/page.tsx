@@ -38,6 +38,12 @@ interface Estadisticas {
   }>;
 }
 
+interface FormularioCrearFormula {
+  codigoFormula: string;
+  descripcionFormula: string;
+  idAnimal: string;
+}
+
 export default function FormulasPage() {
   const router = useRouter();
   const params = useParams();
@@ -48,17 +54,24 @@ export default function FormulasPage() {
   const [loading, setLoading] = useState(true);
   const [actualizandoPrecios, setActualizandoPrecios] = useState(false);
   const [filtro, setFiltro] = useState('');
+  const [orden, setOrden] = useState<'codigo' | 'costo'>('codigo');
   const [showModal, setShowModal] = useState(false);
   const [showModalEliminar, setShowModalEliminar] = useState(false);
-  const [eliminando, setEliminando] = useState<Formula | null>(null);
-  const [animales, setAnimales] = useState<Animal[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormularioCrearFormula>({
     codigoFormula: '',
     descripcionFormula: '',
     idAnimal: '',
   });
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showModalEliminarTodos, setShowModalEliminarTodos] = useState(false);
+  const [confirmacionEliminarTodos, setConfirmacionEliminarTodos] = useState('');
+  const [eliminando, setEliminando] = useState<Formula | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [archivoImport, setArchivoImport] = useState<File | null>(null);
+  const [isImportingCsv, setIsImportingCsv] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [animales, setAnimales] = useState<Animal[]>([]);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -210,6 +223,71 @@ export default function FormulasPage() {
       .slice(0, 3);
   }, [formulas]);
 
+  const puedeImportar = formulas.length === 0;
+
+  const abrirModalImportacion = () => {
+    setArchivoImport(null);
+    setShowImportModal(true);
+  };
+
+  const cerrarModalImportacion = () => {
+    if (isImportingCsv) return;
+    setShowImportModal(false);
+    setArchivoImport(null);
+  };
+
+  const manejarImportacion = async () => {
+    if (!archivoImport) {
+      alert('Selecciona un archivo CSV para importar.');
+      return;
+    }
+
+    setIsImportingCsv(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        return;
+      }
+
+      await apiClient.importarFormulas(token, idGranja, archivoImport);
+      cerrarModalImportacion();
+      await cargarDatos();
+      alert('Importación de fórmulas realizada correctamente.');
+    } catch (error) {
+      console.error('Error importando fórmulas:', error);
+      alert(error instanceof Error ? error.message : 'Error al importar fórmulas');
+    } finally {
+      setIsImportingCsv(false);
+    }
+  };
+
+  const manejarExportacion = async () => {
+    setIsExportingCsv(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        return;
+      }
+
+      const blob = await apiClient.exportarFormulas(token, idGranja);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `formulas_${idGranja}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exportando fórmulas:', error);
+      alert(error instanceof Error ? error.message : 'Error al exportar fórmulas');
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen">
@@ -259,18 +337,25 @@ export default function FormulasPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={exportarDatos}
-              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              onClick={manejarExportacion}
+              disabled={isExportingCsv}
+              className={`px-6 py-3 glass-surface text-foreground rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                isExportingCsv ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+              }`}
             >
               <Download className="h-5 w-5" />
-              Exportar
+              {isExportingCsv ? 'Exportando...' : 'Exportar'}
             </button>
             <button
-              onClick={() => alert('Función de importar próximamente')}
-              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              onClick={abrirModalImportacion}
+              disabled={!puedeImportar || isImportingCsv}
+              className={`px-6 py-3 glass-surface text-foreground rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                !puedeImportar || isImportingCsv ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+              }`}
+              title={!puedeImportar ? 'La importación solo está disponible cuando no hay fórmulas registradas' : undefined}
             >
               <Upload className="h-5 w-5" />
-              Importar
+              {isImportingCsv ? 'Importando...' : 'Importar'}
             </button>
             <button
               onClick={() => setShowModal(true)}
@@ -533,6 +618,46 @@ export default function FormulasPage() {
           <br />
           Esta acción no se puede deshacer.
         </p>
+      </Modal>
+
+      <Modal
+        isOpen={showImportModal}
+        onClose={cerrarModalImportacion}
+        title="Importar Fórmulas"
+        footer={
+          <>
+            <button
+              onClick={cerrarModalImportacion}
+              disabled={isImportingCsv}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={manejarImportacion}
+              disabled={isImportingCsv || !archivoImport}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isImportingCsv ? 'Importando...' : 'Importar'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-foreground/70">
+            El archivo CSV debe contener filas con <code>tipo</code> igual a <strong>CABECERA</strong> o <strong>DETALLE</strong>.
+            Para las cabeceras se requieren las columnas <code>codigoFormula</code>, <code>descripcionFormula</code>,
+            <code> codigoAnimal</code> y <code>pesoTotalFormula</code>. Para los detalles se requieren <code>codigoFormula</code>,
+            <code> codigoMateriaPrima</code>, <code>cantidadKg</code> y <code>porcentajeFormula</code>.
+          </p>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={(event) => setArchivoImport(event.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-foreground/80"
+          />
+          {archivoImport && <p className="text-xs text-foreground/60">Archivo seleccionado: {archivoImport.name}</p>}
+        </div>
       </Modal>
     </div>
   );

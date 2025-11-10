@@ -178,7 +178,7 @@ export default function MisPlantasPage() {
       nombre: granja.nombreGranja,
       descripcion: granja.descripcion,
     }));
-    router.push(`/granja/${granja.id}/materias-primas`);
+    router.push(`/granja/${granja.id}`);
   };
 
   const abrirModalEditar = (granja: Granja) => {

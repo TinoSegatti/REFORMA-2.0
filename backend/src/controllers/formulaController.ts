@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { actualizarPreciosTodasFormulas } from '../services/formulaService';
+import { parseCsvBuffer, buildCsv } from '../utils/csvUtils';
 
 interface FormulaRequest extends Request {
   userId?: string;
@@ -804,5 +805,290 @@ export async function actualizarPreciosFormulas(req: FormulaRequest, res: Respon
   } catch (error: any) {
     console.error('Error actualizando precios de fórmulas:', error);
     res.status(500).json({ error: 'Error al actualizar precios de fórmulas', detalle: error.message });
+  }
+}
+
+export async function importarFormulas(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibió ningún archivo CSV' });
+    }
+
+    const granja = await prisma.granja.findFirst({ where: { id: idGranja, idUsuario: userId } });
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    const existentes = await prisma.formulaCabecera.count({ where: { idGranja } });
+    if (existentes > 0) {
+      return res.status(400).json({ error: 'Ya existen fórmulas registradas. La importación solo está disponible en instancias vacías.' });
+    }
+
+    const { rows } = parseCsvBuffer(req.file.buffer, {
+      requiredHeaders: ['tipo', 'codigoFormula'],
+      optionalHeaders: [
+        'descripcionFormula',
+        'codigoAnimal',
+        'pesoTotalFormula',
+        'codigoMateriaPrima',
+        'cantidadKg',
+        'porcentajeFormula',
+      ],
+    });
+
+    const cabecerasMap = new Map<string, {
+      codigoFormula: string;
+      descripcionFormula: string;
+      codigoAnimal: string;
+      pesoTotalFormula: number;
+    }>();
+    const detallesMap = new Map<string, Array<{
+      codigoMateriaPrima: string;
+      cantidadKg: number;
+      porcentajeFormula: number;
+    }>>();
+
+    rows.forEach((row, index) => {
+      const tipo = row.tipo?.trim().toUpperCase();
+      const codigoFormula = row.codigoFormula?.trim();
+      if (!tipo) {
+        throw new Error(`Fila ${index + 2}: se requiere el campo tipo`);
+      }
+      if (!codigoFormula) {
+        throw new Error(`Fila ${index + 2}: se requiere el campo codigoFormula`);
+      }
+
+      if (tipo === 'CABECERA' || tipo === 'FORMULA') {
+        if (cabecerasMap.has(codigoFormula)) {
+          throw new Error(`La fórmula ${codigoFormula} aparece duplicada en el archivo (cabecera)`);
+        }
+
+        const descripcion = row.descripcionFormula?.trim() || '';
+        const codigoAnimal = row.codigoAnimal?.trim();
+        if (!codigoAnimal) {
+          throw new Error(`Fila ${index + 2}: la cabecera requiere el campo codigoAnimal`);
+        }
+
+        const pesoRaw = row.pesoTotalFormula?.trim();
+        const peso = pesoRaw ? Number(pesoRaw) : 1000;
+        if (Number.isNaN(peso) || peso <= 0) {
+          throw new Error(`Fila ${index + 2}: pesoTotalFormula debe ser un número mayor a 0`);
+        }
+
+        cabecerasMap.set(codigoFormula, {
+          codigoFormula,
+          descripcionFormula: descripcion,
+          codigoAnimal,
+          pesoTotalFormula: peso,
+        });
+        if (!detallesMap.has(codigoFormula)) {
+          detallesMap.set(codigoFormula, []);
+        }
+      } else if (tipo === 'DETALLE') {
+        const codigoMateria = row.codigoMateriaPrima?.trim();
+        if (!codigoMateria) {
+          throw new Error(`Fila ${index + 2}: el detalle requiere el campo codigoMateriaPrima`);
+        }
+        const cantidadRaw = row.cantidadKg?.trim();
+        const porcentajeRaw = row.porcentajeFormula?.trim();
+        const cantidad = cantidadRaw ? Number(cantidadRaw) : NaN;
+        const porcentaje = porcentajeRaw ? Number(porcentajeRaw) : NaN;
+        if (Number.isNaN(cantidad) || cantidad <= 0) {
+          throw new Error(`Fila ${index + 2}: cantidadKg debe ser un número mayor a 0`);
+        }
+        if (Number.isNaN(porcentaje)) {
+          throw new Error(`Fila ${index + 2}: porcentajeFormula debe ser un número válido`);
+        }
+
+        if (!detallesMap.has(codigoFormula)) {
+          detallesMap.set(codigoFormula, []);
+        }
+        detallesMap.get(codigoFormula)!.push({
+          codigoMateriaPrima: codigoMateria,
+          cantidadKg: cantidad,
+          porcentajeFormula: porcentaje,
+        });
+      } else {
+        throw new Error(`Fila ${index + 2}: tipo debe ser CABECERA o DETALLE`);
+      }
+    });
+
+    if (cabecerasMap.size === 0) {
+      return res.status(400).json({ error: 'El archivo no contiene cabeceras de fórmulas para importar' });
+    }
+
+    const codigosAnimales = Array.from(new Set(Array.from(cabecerasMap.values()).map((c) => c.codigoAnimal)));
+    const codigosMaterias = Array.from(new Set(Array.from(detallesMap.values()).flat().map((d) => d.codigoMateriaPrima)));
+
+    const [animales, materiasPrimas] = await Promise.all([
+      prisma.animal.findMany({
+        where: {
+          idGranja,
+          codigoAnimal: { in: codigosAnimales },
+        },
+      }),
+      prisma.materiaPrima.findMany({
+        where: {
+          idGranja,
+          codigoMateriaPrima: { in: codigosMaterias },
+        },
+      }),
+    ]);
+
+    const animalesMap = new Map(animales.map((a) => [a.codigoAnimal, a]));
+    const materiasMap = new Map(materiasPrimas.map((m) => [m.codigoMateriaPrima, m]));
+
+    codigosAnimales.forEach((codigo) => {
+      if (!animalesMap.has(codigo)) {
+        throw new Error(`El animal con código ${codigo} no existe en la granja`);
+      }
+    });
+
+    codigosMaterias.forEach((codigo) => {
+      if (!materiasMap.has(codigo)) {
+        throw new Error(`La materia prima con código ${codigo} no existe en la granja`);
+      }
+    });
+
+    await prisma.$transaction(async (tx) => {
+      for (const [codigoFormula, cabecera] of cabecerasMap.entries()) {
+        const detalles = detallesMap.get(codigoFormula) || [];
+        const animal = animalesMap.get(cabecera.codigoAnimal)!;
+
+        const formulaCreada = await tx.formulaCabecera.create({
+          data: {
+            idGranja,
+            idAnimal: animal.id,
+            codigoFormula: cabecera.codigoFormula,
+            descripcionFormula: cabecera.descripcionFormula,
+            pesoTotalFormula: cabecera.pesoTotalFormula,
+            costoTotalFormula: 0,
+          },
+        });
+
+        let costoTotalFormula = 0;
+
+        for (const detalle of detalles) {
+          const materia = materiasMap.get(detalle.codigoMateriaPrima)!;
+          const precioUnitario = materia.precioPorKilo || 0;
+          const costoParcial = precioUnitario * detalle.cantidadKg;
+          costoTotalFormula += costoParcial;
+
+          await tx.formulaDetalle.create({
+            data: {
+              idFormula: formulaCreada.id,
+              idMateriaPrima: materia.id,
+              cantidadKg: detalle.cantidadKg,
+              porcentajeFormula: detalle.porcentajeFormula,
+              precioUnitarioMomentoCreacion: precioUnitario,
+              costoParcial,
+            },
+          });
+        }
+
+        await tx.formulaCabecera.update({
+          where: { id: formulaCreada.id },
+          data: { costoTotalFormula },
+        });
+      }
+    });
+
+    res.json({ mensaje: `Importación exitosa de ${cabecerasMap.size} fórmula(s)` });
+  } catch (error: any) {
+    console.error('Error importando fórmulas:', error);
+    res.status(400).json({ error: error.message || 'Error al importar fórmulas' });
+  }
+}
+
+export async function exportarFormulas(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const granja = await prisma.granja.findFirst({ where: { id: idGranja, idUsuario: userId } });
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    const formulas = await prisma.formulaCabecera.findMany({
+      where: { idGranja },
+      orderBy: { codigoFormula: 'asc' },
+      include: {
+        animal: true,
+        formulasDetalle: {
+          include: {
+            materiaPrima: true,
+          },
+        },
+      },
+    });
+
+    const filas = [] as Array<Record<string, any>>;
+
+    for (const formula of formulas) {
+      filas.push({
+        tipo: 'CABECERA',
+        codigoFormula: formula.codigoFormula,
+        descripcionFormula: formula.descripcionFormula,
+        codigoAnimal: formula.animal?.codigoAnimal ?? '',
+        descripcionAnimal: formula.animal?.descripcionAnimal ?? '',
+        categoriaAnimal: formula.animal?.categoriaAnimal ?? '',
+        pesoTotalFormula: formula.pesoTotalFormula,
+        costoTotalFormula: formula.costoTotalFormula,
+        fechaCreacion: formula.fechaCreacion.toISOString(),
+      });
+
+      for (const detalle of formula.formulasDetalle) {
+        filas.push({
+          tipo: 'DETALLE',
+          codigoFormula: formula.codigoFormula,
+          codigoMateriaPrima: detalle.materiaPrima?.codigoMateriaPrima ?? '',
+          nombreMateriaPrima: detalle.materiaPrima?.nombreMateriaPrima ?? '',
+          cantidadKg: detalle.cantidadKg,
+          porcentajeFormula: detalle.porcentajeFormula,
+          precioUnitarioMomentoCreacion: detalle.precioUnitarioMomentoCreacion,
+          costoParcial: detalle.costoParcial,
+        });
+      }
+    }
+
+    const csv = buildCsv({
+      fields: [
+        'tipo',
+        'codigoFormula',
+        'descripcionFormula',
+        'codigoAnimal',
+        'descripcionAnimal',
+        'categoriaAnimal',
+        'pesoTotalFormula',
+        'costoTotalFormula',
+        'fechaCreacion',
+        'codigoMateriaPrima',
+        'nombreMateriaPrima',
+        'cantidadKg',
+        'porcentajeFormula',
+        'precioUnitarioMomentoCreacion',
+        'costoParcial',
+      ],
+      data: filas,
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="formulas_${idGranja}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    console.error('Error exportando fórmulas:', error);
+    res.status(500).json({ error: 'Error al exportar fórmulas' });
   }
 }

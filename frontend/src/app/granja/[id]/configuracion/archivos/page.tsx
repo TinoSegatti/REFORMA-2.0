@@ -15,6 +15,7 @@ import {
   Box,
   Trash2,
   PlusCircle,
+  Download,
 } from 'lucide-react';
 
 type TablaOrigen = 'COMPRA' | 'FABRICACION' | 'INVENTARIO';
@@ -93,6 +94,7 @@ export default function ArchivosPage() {
   const [descripcion, setDescripcion] = useState('');
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
   const [accionEnProgreso, setAccionEnProgreso] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -201,6 +203,32 @@ export default function ArchivosPage() {
     router.push(`/granja/${idGranja}/configuracion/archivos/${archivo.id}`);
   };
 
+  const manejarExportacion = async () => {
+    setIsExportingCsv(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('Sesión expirada');
+        return;
+      }
+
+      const blob = await apiClient.exportarArchivos(token, idGranja);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `archivos_${idGranja}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exportando archivos:', error);
+      alert(error instanceof Error ? error.message : 'Error al exportar archivos');
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
   const formatDate = (isoDate: string) =>
     new Date(isoDate).toLocaleString('es-AR', {
       dateStyle: 'medium',
@@ -237,6 +265,25 @@ export default function ArchivosPage() {
                 Genera una foto instantánea de tus datos críticos (compras, fabricaciones e inventario) para
                 consultarla en el futuro sin riesgos de modificaciones accidentales.
               </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                 onClick={manejarExportacion}
+                 disabled={isExportingCsv}
+                 className={`px-4 py-2.5 glass-surface text-foreground rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                   isExportingCsv ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+                 }`}
+               >
+                 <Download className="h-4 w-4" />
+                 {isExportingCsv ? 'Exportando...' : 'Exportar CSV'}
+               </button>
+               <button
+                onClick={() => abrirModalCrear(secciones[0])}
+                className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+               >
+                 <PlusCircle className="h-5 w-5" />
+                 Nuevo archivo
+               </button>
             </div>
             <div className="glass-card px-5 py-4 border border-white/10 rounded-2xl backdrop-blur-xl">
               <p className="text-sm text-foreground/60">Consejo</p>

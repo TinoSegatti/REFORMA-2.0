@@ -691,3 +691,79 @@ export async function obtenerFabricacionesEliminadas(idGranja: string) {
   });
 }
 
+/**
+ * Verificar existencias antes de crear una fabricación
+ * Retorna información sobre materias primas que no tienen suficiente stock
+ */
+export async function verificarExistenciasFabricacion(params: {
+  idGranja: string;
+  idFormula: string;
+  cantidadFabricacion: number;
+}) {
+  const { idGranja, idFormula, cantidadFabricacion } = params;
+
+  // Obtener la fórmula con sus detalles
+  const formula = await prisma.formulaCabecera.findUnique({
+    where: { id: idFormula },
+    include: {
+      formulasDetalle: {
+        include: {
+          materiaPrima: true
+        }
+      }
+    }
+  });
+
+  if (!formula) {
+    throw new Error('Fórmula no encontrada');
+  }
+
+  // Interpretar cantidadFabricacion como "veces". 1 vez = 1000 kg de producto
+  const cantidadProductoKg = cantidadFabricacion * 1000;
+
+  // Verificar existencias para cada materia prima
+  const faltantes: Array<{
+    codigoMateriaPrima: string;
+    nombreMateriaPrima: string;
+    cantidadNecesaria: number;
+    cantidadDisponible: number;
+    falta: number;
+  }> = [];
+
+  for (const detalleFormula of formula.formulasDetalle) {
+    const materiaPrima = detalleFormula.materiaPrima;
+    
+    // Calcular cantidad de materia prima a usar
+    const cantidadUsada = (detalleFormula.cantidadKg / 1000) * cantidadProductoKg;
+
+    // Obtener inventario actual
+    const inventario = await prisma.inventario.findUnique({
+      where: {
+        idGranja_idMateriaPrima: {
+          idGranja,
+          idMateriaPrima: materiaPrima.id
+        }
+      }
+    });
+
+    const cantidadDisponible = inventario?.cantidadReal || 0;
+
+    if (cantidadDisponible < cantidadUsada) {
+      faltantes.push({
+        codigoMateriaPrima: materiaPrima.codigoMateriaPrima,
+        nombreMateriaPrima: materiaPrima.nombreMateriaPrima,
+        cantidadNecesaria: cantidadUsada,
+        cantidadDisponible,
+        falta: cantidadUsada - cantidadDisponible
+      });
+    }
+  }
+
+  return {
+    tieneFaltantes: faltantes.length > 0,
+    faltantes,
+    codigoFormula: formula.codigoFormula,
+    descripcionFormula: formula.descripcionFormula
+  };
+}
+

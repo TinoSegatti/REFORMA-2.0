@@ -260,6 +260,207 @@ export const apiClient = {
     return await response.json();
   },
 
+  // Importación / Exportación CSV
+  async importarMateriasPrimas(token: string, idGranja: string, archivo: File) {
+    const formData = new FormData();
+    formData.append('file', archivo);
+
+    const response = await fetch(`${API_URL}/api/materias-primas/${idGranja}/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Error al importar materias primas');
+    }
+
+    return payload;
+  },
+
+  async exportarMateriasPrimas(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/materias-primas/${idGranja}/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar materias primas');
+    }
+
+    return await response.blob();
+  },
+
+  async importarProveedores(token: string, idGranja: string, archivo: File) {
+    const formData = new FormData();
+    formData.append('file', archivo);
+
+    const response = await fetch(`${API_URL}/api/proveedores/${idGranja}/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Error al importar proveedores');
+    }
+
+    return payload;
+  },
+
+  async exportarProveedores(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/proveedores/${idGranja}/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar proveedores');
+    }
+
+    return await response.blob();
+  },
+
+  async importarPiensos(token: string, idGranja: string, archivo: File) {
+    const formData = new FormData();
+    formData.append('file', archivo);
+
+    const response = await fetch(`${API_URL}/api/animales/${idGranja}/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Error al importar piensos');
+    }
+
+    return payload;
+  },
+
+  async exportarPiensos(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/animales/${idGranja}/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar piensos');
+    }
+
+    return await response.blob();
+  },
+
+  async importarFormulas(token: string, idGranja: string, archivo: File) {
+    const formData = new FormData();
+    formData.append('file', archivo);
+
+    const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Error al importar fórmulas');
+    }
+
+    return payload;
+  },
+
+  async exportarFormulas(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar fórmulas');
+    }
+
+    return await response.blob();
+  },
+
+  async exportarInventario(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/inventario/granja/${idGranja}/inventario/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar inventario');
+    }
+
+    return await response.blob();
+  },
+
+  async exportarFabricaciones(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/${idGranja}/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar fabricaciones');
+    }
+
+    return await response.blob();
+  },
+
+  async exportarCompras(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar compras');
+    }
+
+    return await response.blob();
+  },
+
+  async exportarArchivos(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/archivos/granja/${idGranja}/export`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar archivos');
+    }
+
+    return await response.blob();
+  },
+
   // Animales
   async getAnimales(token: string, idGranja: string) {
     const response = await fetch(`${API_URL}/api/animales/${idGranja}`, {
@@ -1024,6 +1225,28 @@ export const apiClient = {
           formulasMasProducidas: []
         };
       }
+    }
+
+    return await response.json();
+  },
+
+  async verificarExistenciasFabricacion(token: string, data: {
+    idGranja: string;
+    idFormula: string;
+    cantidadFabricacion: number;
+  }) {
+    const response = await fetch(`${API_URL}/api/fabricaciones/verificar-existencias`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al verificar existencias');
     }
 
     return await response.json();

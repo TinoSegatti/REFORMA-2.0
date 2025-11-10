@@ -10,14 +10,20 @@ import {
   agregarMultiplesDetallesFormula,
   actualizarDetalleFormula,
   eliminarDetalleFormula,
-  actualizarPreciosFormulas
+  actualizarPreciosFormulas,
+  importarFormulas,
+  exportarFormulas
 } from '../controllers/formulaController';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { uploadCsv } from '../middleware/uploadMiddleware';
 
 const router = Router();
 
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
+
+router.post('/granja/:idGranja/formulas/import', uploadCsv.single('file'), importarFormulas);
+router.get('/granja/:idGranja/formulas/export', exportarFormulas);
 
 // Obtener todas las fórmulas de una granja
 router.get('/granja/:idGranja/formulas', obtenerFormulas);

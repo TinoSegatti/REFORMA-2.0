@@ -6,6 +6,7 @@
 
 import { Request, Response } from 'express';
 import { TablaOrigen } from '@prisma/client';
+import prisma from '../lib/prisma';
 import {
   crearArchivoSnapshot,
   eliminarArchivo,
@@ -13,6 +14,7 @@ import {
   obtenerArchivoConDetalle,
 } from '../services/archivoService';
 import { validateGranja, sendValidationError } from '../utils/granjaValidation';
+import { buildCsv } from '../utils/csvUtils';
 
 const mapTablaKey = (tabla: TablaOrigen) => {
   switch (tabla) {
@@ -143,6 +145,67 @@ export async function eliminarArchivoController(req: Request, res: Response) {
   } catch (error: any) {
     console.error('Error eliminando archivo:', error);
     res.status(error?.status || 500).json({ error: error?.message || 'Error al eliminar archivo' });
+  }
+}
+
+export async function exportarArchivosController(req: Request, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    const validation = await validateGranja(idGranja, userId || '');
+    if (sendValidationError(res, validation)) return;
+
+    const archivos = await prisma.archivoCabecera.findMany({
+      where: { idGranja },
+      orderBy: { fechaArchivo: 'desc' },
+      include: {
+        archivosDetalle: true,
+      },
+    });
+
+    const filas: Array<Record<string, any>> = [];
+
+    for (const archivo of archivos) {
+      filas.push({
+        tipo: 'CABECERA',
+        idArchivo: archivo.id,
+        tablaOrigen: archivo.tablaOrigen,
+        descripcionArchivo: archivo.descripcionArchivo,
+        fechaArchivo: archivo.fechaArchivo.toISOString(),
+        totalRegistros: archivo.totalRegistros,
+        fechaCreacion: archivo.fechaCreacion.toISOString(),
+      });
+
+      for (const detalle of archivo.archivosDetalle) {
+        filas.push({
+          tipo: 'DETALLE',
+          idArchivo: archivo.id,
+          datosJson: JSON.stringify(detalle.datosJson),
+        });
+      }
+    }
+
+    const csv = buildCsv({
+      fields: [
+        'tipo',
+        'idArchivo',
+        'tablaOrigen',
+        'descripcionArchivo',
+        'fechaArchivo',
+        'totalRegistros',
+        'fechaCreacion',
+        'datosJson',
+      ],
+      data: filas,
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="archivos_${idGranja}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    console.error('Error exportando archivos:', error);
+    res.status(500).json({ error: 'Error al exportar archivos' });
   }
 }
 

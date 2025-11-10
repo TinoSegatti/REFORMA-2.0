@@ -8,7 +8,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
 import InventarioExistenciasChart from '@/components/charts/InventarioExistenciasChart';
 import InventarioValorChart from '@/components/charts/InventarioValorChart';
-import { Package, Trash2, Rocket, AlertTriangle, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Package, Trash2, Rocket, AlertTriangle, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Download } from 'lucide-react';
 
 interface MateriaPrima {
   id: string;
@@ -65,6 +65,7 @@ export default function InventarioPage() {
   const [showModalInicializar, setShowModalInicializar] = useState(false);
   const [showModalVaciar, setShowModalVaciar] = useState(false);
   const [showModalEditar, setShowModalEditar] = useState(false);
+  const [showModalEliminadas, setShowModalEliminadas] = useState(false);
   const [showModalAdvertencia, setShowModalAdvertencia] = useState(false);
   const [mensajeAdvertencia, setMensajeAdvertencia] = useState('');
   const [editando, setEditando] = useState<InventarioItem | null>(null);
@@ -72,6 +73,7 @@ export default function InventarioPage() {
     cantidadReal: ''
   });
   const [alertasMinimizadas, setAlertasMinimizadas] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   // Estado para inicialización manual por líneas
   const [lineasInicializacion, setLineasInicializacion] = useState<Array<{
@@ -404,6 +406,55 @@ export default function InventarioPage() {
     );
   }
 
+  const exportarDatos = async () => {
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        return;
+      }
+
+      const blob = await apiClient.exportarInventario(token, idGranja);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `inventario_${idGranja}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exportando inventario:', error);
+      alert(error instanceof Error ? error.message : 'Error al exportar inventario');
+    }
+  };
+
+  const manejarExportacion = async () => {
+    setIsExportingCsv(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        return;
+      }
+
+      const blob = await apiClient.exportarInventario(token, idGranja);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `inventario_${idGranja}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exportando inventario:', error);
+      alert(error instanceof Error ? error.message : 'Error al exportar inventario');
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -424,6 +475,16 @@ export default function InventarioPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
+            <button
+              onClick={manejarExportacion}
+              disabled={isExportingCsv}
+              className={`px-3 py-2.5 glass-surface text-foreground rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                isExportingCsv ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+              }`}
+            >
+              <Download className="h-4 w-4" />
+              {isExportingCsv ? 'Exportando...' : 'Exportar CSV'}
+            </button>
             {inventario.length > 0 ? (
               <button
                 onClick={() => setShowModalVaciar(true)}

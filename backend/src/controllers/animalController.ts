@@ -1,11 +1,12 @@
 /**
  * Controlador de Animales (Piensos)
- * Gestiona los tipos de animales de cada granja
+ * Gestiona los piensos de cada granja
  */
 
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { validateGranja, sendValidationError } from '../utils/granjaValidation';
+import { parseCsvBuffer, buildCsv } from '../utils/csvUtils';
 
 interface AnimalRequest extends Request {
   userId?: string;
@@ -186,6 +187,112 @@ export async function eliminarAnimal(req: AnimalRequest, res: Response) {
     }
     console.error('Error eliminando animal:', error);
     res.status(500).json({ error: 'Error al eliminar animal' });
+  }
+}
+
+export async function importarAnimales(req: AnimalRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibió ningún archivo CSV' });
+    }
+
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
+
+    const existentes = await prisma.animal.count({ where: { idGranja } });
+    if (existentes > 0) {
+      return res.status(400).json({ error: 'Ya existen piensos registrados. La importación solo está disponible en instancias vacías.' });
+    }
+
+    const { rows } = parseCsvBuffer(req.file.buffer, {
+      requiredHeaders: ['codigoAnimal', 'descripcionAnimal', 'categoriaAnimal'],
+    });
+
+    const animales = rows.map((row, index) => {
+      const codigo = row.codigoAnimal?.trim();
+      const descripcion = row.descripcionAnimal?.trim();
+      const categoria = row.categoriaAnimal?.trim();
+
+      if (!codigo || !descripcion || !categoria) {
+        throw new Error(`Fila ${index + 2}: se requieren codigoAnimal, descripcionAnimal y categoriaAnimal`);
+      }
+
+      return {
+        codigoAnimal: codigo,
+        descripcionAnimal: descripcion,
+        categoriaAnimal: categoria,
+      };
+    });
+
+    const codigos = new Set<string>();
+    for (const animal of animales) {
+      if (codigos.has(animal.codigoAnimal)) {
+        throw new Error(`Código duplicado en el archivo: ${animal.codigoAnimal}`);
+      }
+      codigos.add(animal.codigoAnimal);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const animal of animales) {
+        await tx.animal.create({
+          data: {
+            idGranja,
+            codigoAnimal: animal.codigoAnimal,
+            descripcionAnimal: animal.descripcionAnimal,
+            categoriaAnimal: animal.categoriaAnimal,
+          },
+        });
+      }
+    });
+
+    res.json({ mensaje: `Importación exitosa de ${animales.length} pienso(s)` });
+  } catch (error: any) {
+    console.error('Error importando piensos:', error);
+    res.status(400).json({ error: error.message || 'Error al importar piensos' });
+  }
+}
+
+export async function exportarAnimales(req: AnimalRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
+
+    const animales = await prisma.animal.findMany({
+      where: { idGranja },
+      orderBy: { codigoAnimal: 'asc' },
+    });
+
+    const csv = buildCsv({
+      fields: ['codigoAnimal', 'descripcionAnimal', 'categoriaAnimal', 'activo', 'fechaCreacion'],
+      data: animales.map((animal) => ({
+        codigoAnimal: animal.codigoAnimal,
+        descripcionAnimal: animal.descripcionAnimal,
+        categoriaAnimal: animal.categoriaAnimal,
+        activo: animal.activo ? 'SI' : 'NO',
+        fechaCreacion: animal.fechaCreacion.toISOString(),
+      })),
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="piensos_${idGranja}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    console.error('Error exportando piensos:', error);
+    res.status(500).json({ error: 'Error al exportar piensos' });
   }
 }
 

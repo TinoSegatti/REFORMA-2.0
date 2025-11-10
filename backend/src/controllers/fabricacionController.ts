@@ -5,7 +5,8 @@
 
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { crearFabricacion, obtenerFabricacionesGranja, obtenerFabricacion, eliminarFabricacion, editarFabricacion, obtenerEstadisticasFabricaciones, eliminarTodasLasFabricaciones, restaurarFabricacion, obtenerFabricacionesEliminadas } from '../services/fabricacionService';
+import { crearFabricacion, obtenerFabricacionesGranja, obtenerFabricacion, eliminarFabricacion, editarFabricacion, obtenerEstadisticasFabricaciones, eliminarTodasLasFabricaciones, restaurarFabricacion, obtenerFabricacionesEliminadas, verificarExistenciasFabricacion } from '../services/fabricacionService';
+import { buildCsv } from '../utils/csvUtils';
 
 interface FabricacionRequest extends Request {
   userId?: string;
@@ -370,6 +371,151 @@ export async function obtenerFabricacionesEliminadasCtrl(req: FabricacionRequest
   } catch (error: any) {
     console.error('Error obteniendo fabricaciones eliminadas:', error);
     res.status(500).json({ error: 'Error al obtener fabricaciones eliminadas' });
+  }
+}
+
+/**
+ * Verificar existencias antes de crear una fabricación
+ */
+export async function verificarExistenciasFabricacionCtrl(req: FabricacionRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, idFormula, cantidadFabricacion } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!idGranja || !idFormula || !cantidadFabricacion) {
+      return res.status(400).json({ error: 'Faltan campos requeridos' });
+    }
+
+    if (cantidadFabricacion <= 0) {
+      return res.status(400).json({ error: 'La cantidad debe ser mayor a 0' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Verificar existencias
+    const resultado = await verificarExistenciasFabricacion({
+      idGranja,
+      idFormula,
+      cantidadFabricacion
+    });
+
+    res.json(resultado);
+  } catch (error: any) {
+    console.error('Error verificando existencias:', error);
+    res.status(500).json({ error: 'Error al verificar existencias', detalle: error.message });
+  }
+}
+
+export async function exportarFabricacionesCtrl(req: FabricacionRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const validation = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!validation) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    const fabricaciones = await prisma.fabricacion.findMany({
+      where: { idGranja },
+      orderBy: { fechaFabricacion: 'desc' },
+      include: {
+        formula: {
+          include: {
+            animal: true,
+          },
+        },
+        usuario: true,
+        detallesFabricacion: {
+          include: {
+            materiaPrima: true,
+          },
+        },
+      },
+    });
+
+    const filas: Array<Record<string, any>> = [];
+
+    for (const fabricacion of fabricaciones) {
+      filas.push({
+        tipo: 'CABECERA',
+        idFabricacion: fabricacion.id,
+        descripcionFabricacion: fabricacion.descripcionFabricacion,
+        codigoFormula: fabricacion.formula?.codigoFormula ?? '',
+        descripcionFormula: fabricacion.formula?.descripcionFormula ?? '',
+        codigoAnimal: fabricacion.formula?.animal?.codigoAnimal ?? '',
+        nombreAnimal: fabricacion.formula?.animal?.descripcionAnimal ?? '',
+        cantidadFabricacion: fabricacion.cantidadFabricacion,
+        costoTotalFabricacion: fabricacion.costoTotalFabricacion,
+        costoPorKilo: fabricacion.costoPorKilo,
+        fechaFabricacion: fabricacion.fechaFabricacion.toISOString(),
+        sinExistencias: fabricacion.sinExistencias ? 'SI' : 'NO',
+        observaciones: fabricacion.observaciones ?? '',
+        usuario: fabricacion.usuario ? `${fabricacion.usuario.nombreUsuario} ${fabricacion.usuario.apellidoUsuario}` : '',
+      });
+
+      for (const detalle of fabricacion.detallesFabricacion) {
+        filas.push({
+          tipo: 'DETALLE',
+          idFabricacion: fabricacion.id,
+          codigoMateriaPrima: detalle.materiaPrima?.codigoMateriaPrima ?? '',
+          nombreMateriaPrima: detalle.materiaPrima?.nombreMateriaPrima ?? '',
+          cantidadUsada: detalle.cantidadUsada,
+          precioUnitario: detalle.precioUnitario,
+          costoParcial: detalle.costoParcial,
+        });
+      }
+    }
+
+    const csv = buildCsv({
+      fields: [
+        'tipo',
+        'idFabricacion',
+        'descripcionFabricacion',
+        'codigoFormula',
+        'descripcionFormula',
+        'codigoAnimal',
+        'nombreAnimal',
+        'cantidadFabricacion',
+        'costoTotalFabricacion',
+        'costoPorKilo',
+        'fechaFabricacion',
+        'sinExistencias',
+        'observaciones',
+        'usuario',
+        'codigoMateriaPrima',
+        'nombreMateriaPrima',
+        'cantidadUsada',
+        'precioUnitario',
+        'costoParcial',
+      ],
+      data: filas,
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="fabricaciones_${idGranja}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    console.error('Error exportando fabricaciones:', error);
+    res.status(500).json({ error: 'Error al exportar fabricaciones' });
   }
 }
 

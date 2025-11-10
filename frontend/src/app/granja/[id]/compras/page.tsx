@@ -62,6 +62,7 @@ export default function ComprasPage() {
   const [showEliminadas, setShowEliminadas] = useState(false);
   const [comprasEliminadas, setComprasEliminadas] = useState<CompraEliminada[]>([]);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -154,6 +155,32 @@ export default function ComprasPage() {
       alert(error instanceof Error ? error.message : 'Error al eliminar compra');
     } finally {
       setIsDeletingCompra(false);
+    }
+  };
+
+  const manejarExportacion = async () => {
+    setIsExportingCsv(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        return;
+      }
+
+      const blob = await apiClient.exportarCompras(token, idGranja);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `compras_${idGranja}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exportando compras:', error);
+      alert(error instanceof Error ? error.message : 'Error al exportar compras');
+    } finally {
+      setIsExportingCsv(false);
     }
   };
 
@@ -253,13 +280,15 @@ export default function ComprasPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2">
+              <button
+                onClick={manejarExportacion}
+                disabled={isExportingCsv}
+                className={`px-6 py-3 glass-surface text-foreground rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                  isExportingCsv ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+                }`}
+              >
                 <Download className="h-5 w-5" />
-                Exportar Datos
-              </button>
-              <button className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Importar Datos
+                {isExportingCsv ? 'Exportando...' : 'Exportar Datos'}
               </button>
               <button
                 onClick={async () => {

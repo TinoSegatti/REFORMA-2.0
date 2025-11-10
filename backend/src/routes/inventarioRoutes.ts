@@ -5,7 +5,8 @@ import {
   inicializarInventario,
   actualizarCantidadReal,
   recalcularInventario,
-  vaciarInventario
+  vaciarInventario,
+  exportarInventario
 } from '../controllers/inventarioController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
@@ -15,6 +16,7 @@ const router = Router();
 router.use(authenticateToken);
 
 // Rutas de inventario
+router.get('/granja/:idGranja/inventario/export', exportarInventario);
 router.get('/granja/:idGranja/inventario', obtenerInventario);
 router.get('/granja/:idGranja/inventario/estadisticas', obtenerEstadisticasInventario);
 router.post('/granja/:idGranja/inventario/inicializar', inicializarInventario);

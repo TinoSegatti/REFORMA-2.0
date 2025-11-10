@@ -20,7 +20,8 @@ import {
   eliminarCompraEndpoint,
   eliminarTodasLasComprasCtrl,
   restaurarCompraCtrl,
-  obtenerComprasEliminadasCtrl
+  obtenerComprasEliminadasCtrl,
+  exportarComprasCtrl
 } from '../controllers/compraController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
@@ -32,6 +33,7 @@ router.use(authenticateToken);
 // Rutas de compras
 // IMPORTANTE: Las rutas más específicas deben ir ANTES que las rutas con parámetros
 router.post('/granja/:idGranja/compras', registrarCompra);
+router.get('/granja/:idGranja/compras/export', exportarComprasCtrl);
 router.get('/granja/:idGranja/compras/estadisticas', obtenerEstadisticas);
 router.get('/granja/:idGranja/compras/eliminadas', obtenerComprasEliminadasCtrl);
 router.delete('/granja/:idGranja/compras', eliminarTodasLasComprasCtrl);

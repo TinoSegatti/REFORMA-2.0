@@ -12,7 +12,9 @@ import {
   obtenerEstadisticas,
   eliminarTodasLasFabricacionesCtrl,
   restaurarFabricacionCtrl,
-  obtenerFabricacionesEliminadasCtrl
+  obtenerFabricacionesEliminadasCtrl,
+  exportarFabricacionesCtrl,
+  verificarExistenciasFabricacionCtrl
 } from '../controllers/fabricacionController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
@@ -21,7 +23,9 @@ const router = express.Router();
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
 
+router.get('/:idGranja/export', exportarFabricacionesCtrl);
 router.get('/:idGranja', obtenerFabricaciones);
+router.post('/verificar-existencias', verificarExistenciasFabricacionCtrl);
 router.post('/', crearNuevaFabricacion);
 router.get('/detalle/:idFabricacion', obtenerFabricacionDetalle);
 router.put('/:idFabricacion', editarFabricacionCtrl);

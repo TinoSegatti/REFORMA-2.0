@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { calcularPrecioAlmacen } from '../services/inventarioService';
+import { calcularStockDesdeCompras } from '../services/compraService';
+import { validateGranja, sendValidationError } from '../utils/granjaValidation';
+import { buildCsv } from '../utils/csvUtils';
 
 interface InventarioRequest extends Request {
   userId?: string;
@@ -522,5 +525,63 @@ export async function vaciarInventario(req: InventarioRequest, res: Response) {
   } catch (error: any) {
     console.error('Error vaciando inventario:', error);
     res.status(500).json({ error: error.message || 'Error al vaciar inventario' });
+  }
+}
+
+export async function exportarInventario(req: InventarioRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
+
+    const inventario = await prisma.inventario.findMany({
+      where: { idGranja },
+      include: {
+        materiaPrima: true,
+      },
+      orderBy: {
+        materiaPrima: {
+          codigoMateriaPrima: 'asc',
+        },
+      },
+    });
+
+    const csv = buildCsv({
+      fields: [
+        'codigoMateriaPrima',
+        'nombreMateriaPrima',
+        'cantidadAcumulada',
+        'cantidadSistema',
+        'cantidadReal',
+        'merma',
+        'precioAlmacen',
+        'valorStock',
+        'fechaUltimaActualizacion',
+      ],
+      data: inventario.map((item) => ({
+        codigoMateriaPrima: item.materiaPrima.codigoMateriaPrima,
+        nombreMateriaPrima: item.materiaPrima.nombreMateriaPrima,
+        cantidadAcumulada: item.cantidadAcumulada,
+        cantidadSistema: item.cantidadSistema,
+        cantidadReal: item.cantidadReal,
+        merma: item.merma,
+        precioAlmacen: item.precioAlmacen,
+        valorStock: item.valorStock,
+        fechaUltimaActualizacion: item.fechaUltimaActualizacion.toISOString(),
+      })),
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="inventario_${idGranja}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    console.error('Error exportando inventario:', error);
+    res.status(500).json({ error: 'Error al exportar inventario' });
   }
 }

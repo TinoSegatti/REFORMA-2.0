@@ -6,6 +6,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { validateGranja, sendValidationError } from '../utils/granjaValidation';
+import { parseCsvBuffer, buildCsv } from '../utils/csvUtils';
 
 interface ProveedorRequest extends Request {
   userId?: string;
@@ -190,6 +191,111 @@ export async function eliminarProveedor(req: ProveedorRequest, res: Response) {
     }
     console.error('Error eliminando proveedor:', error);
     res.status(500).json({ error: 'Error al eliminar proveedor' });
+  }
+}
+
+export async function importarProveedores(req: ProveedorRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibió ningún archivo CSV' });
+    }
+
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
+
+    const existentes = await prisma.proveedor.count({ where: { idGranja } });
+    if (existentes > 0) {
+      return res.status(400).json({ error: 'Ya existen proveedores registrados. La importación solo está disponible en instancias vacías.' });
+    }
+
+    const { rows } = parseCsvBuffer(req.file.buffer, {
+      requiredHeaders: ['codigoProveedor', 'nombreProveedor'],
+      optionalHeaders: ['direccion', 'localidad'],
+    });
+
+    const proveedores = rows.map((row, index) => {
+      const codigo = row.codigoProveedor?.trim();
+      const nombre = row.nombreProveedor?.trim();
+
+      if (!codigo || !nombre) {
+        throw new Error(`Fila ${index + 2}: se requieren codigoProveedor y nombreProveedor`);
+      }
+
+      return {
+        codigoProveedor: codigo,
+        nombreProveedor: nombre,
+        direccion: row.direccion?.trim() || null,
+        localidad: row.localidad?.trim() || null,
+      };
+    });
+
+    const codigos = new Set<string>();
+    for (const proveedor of proveedores) {
+      if (codigos.has(proveedor.codigoProveedor)) {
+        throw new Error(`Código duplicado en el archivo: ${proveedor.codigoProveedor}`);
+      }
+      codigos.add(proveedor.codigoProveedor);
+    }
+
+    await prisma.proveedor.createMany({
+      data: proveedores.map((proveedor) => ({
+        idGranja,
+        codigoProveedor: proveedor.codigoProveedor,
+        nombreProveedor: proveedor.nombreProveedor,
+        direccion: proveedor.direccion || undefined,
+        localidad: proveedor.localidad || undefined,
+      })),
+    });
+
+    res.json({ mensaje: `Importación exitosa de ${proveedores.length} proveedor(es)` });
+  } catch (error: any) {
+    console.error('Error importando proveedores:', error);
+    res.status(400).json({ error: error.message || 'Error al importar proveedores' });
+  }
+}
+
+export async function exportarProveedores(req: ProveedorRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const validation = await validateGranja(idGranja, userId);
+    if (sendValidationError(res, validation)) return;
+
+    const proveedores = await prisma.proveedor.findMany({
+      where: { idGranja },
+      orderBy: { codigoProveedor: 'asc' },
+    });
+
+    const csv = buildCsv({
+      fields: ['codigoProveedor', 'nombreProveedor', 'direccion', 'localidad', 'activo', 'fechaCreacion'],
+      data: proveedores.map((p) => ({
+        codigoProveedor: p.codigoProveedor,
+        nombreProveedor: p.nombreProveedor,
+        direccion: p.direccion ?? '',
+        localidad: p.localidad ?? '',
+        activo: p.activo ? 'SI' : 'NO',
+        fechaCreacion: p.fechaCreacion.toISOString(),
+      })),
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="proveedores_${idGranja}.csv"`);
+    res.send(csv);
+  } catch (error: any) {
+    console.error('Error exportando proveedores:', error);
+    res.status(500).json({ error: 'Error al exportar proveedores' });
   }
 }
 

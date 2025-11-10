@@ -6,7 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { Modal } from '@/components/ui';
-import { Download, Upload, Plus, Factory, Calendar, AlertCircle, Archive, RotateCcw } from 'lucide-react';
+import { Download, Plus, Factory, Calendar, AlertCircle, Archive, RotateCcw } from 'lucide-react';
 import FabricacionesMateriasChart from '@/components/charts/FabricacionesMateriasChart';
 import FabricacionesFormulasChart from '@/components/charts/FabricacionesFormulasChart';
 
@@ -95,6 +95,7 @@ export default function FabricacionesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [restaurandoId, setRestaurandoId] = useState<string | null>(null);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -142,6 +143,32 @@ export default function FabricacionesPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const manejarExportacion = async () => {
+    setIsExportingCsv(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        return;
+      }
+
+      const blob = await apiClient.exportarFabricaciones(token, idGranja);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `fabricaciones_${idGranja}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exportando fabricaciones:', error);
+      alert(error instanceof Error ? error.message : 'Error al exportar fabricaciones');
+    } finally {
+      setIsExportingCsv(false);
     }
   };
 
@@ -246,17 +273,14 @@ export default function FabricacionesPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <button
-              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              onClick={manejarExportacion}
+              disabled={isExportingCsv}
+              className={`px-6 py-3 glass-surface text-foreground rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                isExportingCsv ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+              }`}
             >
               <Download className="h-5 w-5" />
-              Exportar
-            </button>
-            <button
-              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
-              onClick={() => alert('Función de importar próximamente')}
-            >
-              <Upload className="h-5 w-5" />
-              Importar
+              {isExportingCsv ? 'Exportando...' : 'Exportar'}
             </button>
             <button
               onClick={() => setShowModalEliminarTodas(true)}
@@ -741,6 +765,21 @@ function ModalNuevaFabricacion({
     observaciones: '',
   });
   const [loading, setLoading] = useState(false);
+  const [showAdvertenciaExistencias, setShowAdvertenciaExistencias] = useState(false);
+  const [infoExistencias, setInfoExistencias] = useState<{
+    tieneFaltantes: boolean;
+    faltantes: Array<{
+      codigoMateriaPrima: string;
+      nombreMateriaPrima: string;
+      cantidadNecesaria: number;
+      cantidadDisponible: number;
+      falta: number;
+    }>;
+    codigoFormula: string;
+    descripcionFormula: string;
+  } | null>(null);
+
+  const formatNumber = (n: number) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -754,6 +793,41 @@ function ModalNuevaFabricacion({
       const token = authService.getToken();
       if (!token) {
         alert('No autenticado');
+        setLoading(false);
+        return;
+      }
+
+      // Verificar existencias antes de crear
+      const verificacion = await apiClient.verificarExistenciasFabricacion(token, {
+        idGranja,
+        idFormula: formData.idFormula,
+        cantidadFabricacion: parseFloat(formData.cantidadFabricacion),
+      });
+
+      // Si hay faltantes, mostrar advertencia
+      if (verificacion.tieneFaltantes) {
+        setInfoExistencias(verificacion);
+        setShowAdvertenciaExistencias(true);
+        setLoading(false);
+        return;
+      }
+
+      // Si no hay faltantes, crear directamente
+      await crearFabricacionConfirmada();
+    } catch (error: unknown) {
+      console.error('Error verificando existencias:', error);
+      alert(error instanceof Error ? error.message : 'Error al verificar existencias');
+      setLoading(false);
+    }
+  };
+
+  const crearFabricacionConfirmada = async () => {
+    setLoading(true);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        alert('No autenticado');
+        setLoading(false);
         return;
       }
 
@@ -766,6 +840,8 @@ function ModalNuevaFabricacion({
         observaciones: formData.observaciones || undefined,
       });
 
+      setShowAdvertenciaExistencias(false);
+      setInfoExistencias(null);
       onSuccess();
     } catch (error: unknown) {
       console.error('Error creando fabricación:', error);
@@ -775,113 +851,201 @@ function ModalNuevaFabricacion({
     }
   };
 
+  const handleCancelarAdvertencia = () => {
+    setShowAdvertenciaExistencias(false);
+    setInfoExistencias(null);
+    setLoading(false);
+    // No cerrar el modal, solo volver al formulario
+  };
+
+  const handleClose = () => {
+    setShowAdvertenciaExistencias(false);
+    setInfoExistencias(null);
+    setLoading(false);
+    onClose();
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Nueva Fabricación" size="lg">
-      <form onSubmit={handleSubmit} className="p-6">
-        <div className="space-y-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={showAdvertenciaExistencias ? "⚠️ Advertencia: Existencias Insuficientes" : "Nueva Fabricación"}
+      size="lg"
+    >
+      {showAdvertenciaExistencias && infoExistencias ? (
+        // Vista de advertencia
+        <div className="p-6 space-y-6">
+          <div className="p-4 bg-orange-500/20 border border-orange-500/30 rounded-xl">
+            <p className="text-orange-300 font-semibold mb-2">⚠️ ADVERTENCIA</p>
+            <p className="text-foreground/90 text-sm">
+              NO tienes las cantidades necesarias de las materias primas utilizadas en la fórmula{' '}
+              <span className="font-semibold">{infoExistencias.codigoFormula}</span> ({infoExistencias.descripcionFormula}){' '}
+              para la siguiente fabricación.
+            </p>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Fórmula *
-            </label>
-            <select
-              value={formData.idFormula}
-              onChange={(e) => setFormData({ ...formData, idFormula: e.target.value })}
-              className="glass-input text-foreground"
-              required
+            <h4 className="text-sm font-semibold text-foreground/90 mb-3">Materias primas con faltantes:</h4>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {infoExistencias.faltantes.map((falta, index) => (
+                <div key={index} className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {falta.codigoMateriaPrima} - {falta.nombreMateriaPrima}
+                      </p>
+                      <div className="mt-1 text-xs text-foreground/70 space-y-1">
+                        <p>Cantidad necesaria: {formatNumber(falta.cantidadNecesaria)} kg</p>
+                        <p>Cantidad disponible: {formatNumber(falta.cantidadDisponible)} kg</p>
+                        <p className="text-red-300 font-semibold">
+                          Faltan: {formatNumber(falta.falta)} kg
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+            <p className="text-sm text-foreground/90">
+              ¿Deseas continuar con la fabricación de todas formas? Esta acción marcará la fabricación como "sin existencias".
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-4">
+            <button
+              onClick={handleCancelarAdvertencia}
+              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
-              <option value="" className="bg-[#1a1a2e] text-foreground">Seleccionar fórmula...</option>
-              {formulas.map((formula) => (
-                <option key={formula.id} value={formula.id} className="bg-[#1a1a2e] text-foreground">
-                  {formula.codigoFormula} - {formula.descripcionFormula}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Descripción Fabricación *
-            </label>
-            <input
-              type="text"
-              value={formData.descripcionFabricacion}
-              onChange={(e) => setFormData({ ...formData, descripcionFabricacion: e.target.value })}
-              className="glass-input"
-              required
+              Volver
+            </button>
+            <button
+              onClick={crearFabricacionConfirmada}
+              className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Veces a fabricar *
-            </label>
-            <input
-              type="number"
-              step="0.0001"
-              min="0"
-              value={formData.cantidadFabricacion}
-              onChange={(e) => setFormData({ ...formData, cantidadFabricacion: e.target.value })}
-              className="glass-input"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Fecha Fabricación *
-            </label>
-            <input
-              type="date"
-              value={formData.fechaFabricacion}
-              onChange={(e) => setFormData({ ...formData, fechaFabricacion: e.target.value })}
-              className="glass-input"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Observaciones
-            </label>
-            <textarea
-              value={formData.observaciones}
-              onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-              rows={3}
-              className="glass-input"
-              disabled={loading}
-            />
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Creando...
+                </>
+              ) : (
+                'Continuar sin existencias'
+              )}
+            </button>
           </div>
         </div>
+      ) : (
+        // Vista del formulario
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
+                Fórmula *
+              </label>
+              <select
+                value={formData.idFormula}
+                onChange={(e) => setFormData({ ...formData, idFormula: e.target.value })}
+                className="glass-input text-foreground"
+                required
+                disabled={loading}
+              >
+                <option value="" className="bg-[#1a1a2e] text-foreground">Seleccionar fórmula...</option>
+                {formulas.map((formula) => (
+                  <option key={formula.id} value={formula.id} className="bg-[#1a1a2e] text-foreground">
+                    {formula.codigoFormula} - {formula.descripcionFormula}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className="flex justify-end gap-4 mt-6">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading}
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Guardando...
-              </>
-            ) : (
-              'Crear Fabricación'
-            )}
-          </button>
-        </div>
-      </form>
+            <div>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
+                Descripción Fabricación *
+              </label>
+              <input
+                type="text"
+                value={formData.descripcionFabricacion}
+                onChange={(e) => setFormData({ ...formData, descripcionFabricacion: e.target.value })}
+                className="glass-input"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
+                Veces a fabricar *
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={formData.cantidadFabricacion}
+                onChange={(e) => setFormData({ ...formData, cantidadFabricacion: e.target.value })}
+                className="glass-input"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
+                Fecha Fabricación *
+              </label>
+              <input
+                type="date"
+                value={formData.fechaFabricacion}
+                onChange={(e) => setFormData({ ...formData, fechaFabricacion: e.target.value })}
+                className="glass-input"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
+                Observaciones
+              </label>
+              <textarea
+                value={formData.observaciones}
+                onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+                rows={3}
+                className="glass-input"
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-4 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Verificando...
+                </>
+              ) : (
+                'Crear Fabricación'
+              )}
+            </button>
+          </div>
+        </form>
+      )}
     </Modal>
   );
 }
