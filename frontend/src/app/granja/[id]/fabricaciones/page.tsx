@@ -910,7 +910,7 @@ function ModalNuevaFabricacion({
 
           <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
             <p className="text-sm text-foreground/90">
-              ¿Deseas continuar con la fabricación de todas formas? Esta acción marcará la fabricación como "sin existencias".
+              ¿Deseas continuar con la fabricación de todas formas? Esta acción marcará la fabricación como &quot;sin existencias&quot;.
             </p>
           </div>
 
