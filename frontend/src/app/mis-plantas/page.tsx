@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { Modal } from '@/components/ui';
-import { Moon, Sun, Factory } from 'lucide-react';
+import { Moon, Sun, Factory, AlertCircle, Rocket } from 'lucide-react';
 
 interface Granja {
   id: string;
@@ -26,6 +26,8 @@ export default function MisPlantasPage() {
   const [nombreGranja, setNombreGranja] = useState('');
   const [creando, setCreando] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+  const [showModalLimite, setShowModalLimite] = useState(false);
+  const [mensajeLimite, setMensajeLimite] = useState('');
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -112,7 +114,16 @@ export default function MisPlantasPage() {
     } catch (error: unknown) {
       const err = error as Error;
       console.error('Error creando granja:', error);
-      alert(err.message || 'Error al crear la granja');
+      
+      // Verificar si es un error de límite de granjas
+      const mensajeError = err.message || 'Error al crear la granja';
+      if (mensajeError.includes('Límite') || mensajeError.includes('limite') || mensajeError.includes('alcanzado')) {
+        setMensajeLimite(mensajeError);
+        setShowModalLimite(true);
+        setShowModalCrear(false);
+      } else {
+        alert(mensajeError);
+      }
     } finally {
       setCreando(false);
     }
@@ -432,6 +443,80 @@ export default function MisPlantasPage() {
           <br />
           Esta acción no se puede deshacer.
         </p>
+      </Modal>
+
+      {/* Modal Límite Alcanzado */}
+      <Modal
+        isOpen={showModalLimite}
+        onClose={() => setShowModalLimite(false)}
+        title=""
+        footer={
+          <>
+            <button
+              onClick={() => setShowModalLimite(false)}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold glass-surface text-foreground hover:bg-white/10 transition-all"
+            >
+              Entendido
+            </button>
+            <button
+              onClick={() => {
+                setShowModalLimite(false);
+                // TODO: Redirigir a página de planes/upgrade cuando esté implementada
+                // router.push('/planes');
+              }}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
+            >
+              <Rocket className="h-5 w-5" />
+              Ver Planes
+            </button>
+          </>
+        }
+      >
+        <div className="text-center">
+          <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/30">
+            <AlertCircle className="h-12 w-12 text-white" />
+          </div>
+          
+          <h3 className="text-2xl font-bold text-foreground mb-4">
+            Límite de Plantas Alcanzado
+          </h3>
+          
+          <div className="glass-card p-6 mb-6 text-left">
+            <p className="text-foreground/90 mb-4 leading-relaxed">
+              {mensajeLimite || 'Has alcanzado el límite de plantas permitidas en tu plan actual.'}
+            </p>
+            
+            <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+              <p className="text-sm text-purple-300 font-semibold mb-2">
+                💡 Plan Demo Gratuita
+              </p>
+              <p className="text-sm text-foreground/80">
+                Tu plan actual permite <strong className="text-foreground">1 planta</strong>. 
+                Para crear más plantas, considera actualizar a un plan superior.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm text-foreground/70">
+              Con un plan superior podrás:
+            </p>
+            <ul className="text-sm text-foreground/80 space-y-2 text-left max-w-md mx-auto">
+              <li className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                Crear múltiples plantas
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                Más registros por tabla
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                Funcionalidades avanzadas
+              </li>
+            </ul>
+          </div>
+        </div>
       </Modal>
     </div>
   );

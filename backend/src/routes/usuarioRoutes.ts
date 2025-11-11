@@ -9,8 +9,14 @@ import {
   obtenerPerfil,
   actualizarPerfil,
   obtenerUsuarios,
-  actualizarPlanUsuario
+  actualizarPlanUsuario,
+  verificarEmail,
+  reenviarEmailVerificacionCtrl
 } from '../controllers/usuarioController';
+import {
+  googleAuth,
+  verifyGoogleToken
+} from '../controllers/googleAuthController';
 import { authenticateToken, requireAdmin } from '../middleware/authMiddleware';
 
 const router = express.Router();
@@ -18,6 +24,10 @@ const router = express.Router();
 // Rutas públicas
 router.post('/registro', registrarUsuario);
 router.post('/login', loginUsuario);
+router.post('/google', googleAuth);
+router.post('/google/verify', verifyGoogleToken);
+router.post('/verificar-email', verificarEmail);
+router.post('/reenviar-verificacion', reenviarEmailVerificacionCtrl);
 
 // Rutas protegidas (requieren autenticación)
 router.get('/perfil', authenticateToken, obtenerPerfil);

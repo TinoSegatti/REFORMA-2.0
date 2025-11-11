@@ -42,19 +42,23 @@ enum TablaOrigen {
 // ============================================
 
 model Usuario {
-  id               String          @id @default(cuid())
-  email            String          @unique
-  passwordHash     String?         // nullable para login con Google
-  nombreUsuario    String
-  apellidoUsuario  String
-  tipoUsuario      TipoUsuario     @default(CLIENTE)
-  planSuscripcion  PlanSuscripcion @default(PLAN_0)
-  maxGranjas       Int             @default(1)
-  activo           Boolean         @default(true)
-  fechaRegistro    DateTime        @default(now())
-  ultimoAcceso     DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                    String          @id @default(cuid())
+  email                 String          @unique
+  passwordHash          String?         // nullable para login con Google
+  googleId              String?         @unique // ID de Google OAuth
+  nombreUsuario         String
+  apellidoUsuario       String
+  tipoUsuario           TipoUsuario     @default(CLIENTE)
+  planSuscripcion       PlanSuscripcion @default(PLAN_0)
+  maxGranjas            Int             @default(1)
+  activo                Boolean         @default(true)
+  emailVerificado       Boolean         @default(false) // Verificación de email
+  tokenVerificacion     String?         @unique // Token para verificar email
+  fechaExpiracionToken  DateTime?       // Fecha de expiración del token
+  fechaRegistro         DateTime        @default(now())
+  ultimoAcceso          DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
   // Relaciones
   granjas          Granja[]

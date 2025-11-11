@@ -15,12 +15,17 @@ export const apiClient = {
       body: JSON.stringify({ email, password }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al iniciar sesión');
+      // Si requiere verificación, retornar el objeto completo para manejar en el frontend
+      if (data.requiereVerificacion) {
+        return data;
+      }
+      throw new Error(data.error || 'Error al iniciar sesión');
     }
 
-    return await response.json();
+    return data;
   },
 
   // Registro
@@ -41,6 +46,67 @@ export const apiClient = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al registrar');
+    }
+
+    return await response.json();
+  },
+
+  // Autenticación con Google
+  async googleAuth(data: {
+    idToken?: string;
+    googleId: string;
+    email: string;
+    given_name?: string;
+    family_name?: string;
+    picture?: string;
+  }) {
+    const response = await fetch(`${API_URL}/api/usuarios/google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al autenticar con Google');
+    }
+
+    return await response.json();
+  },
+
+  // Verificar email con token
+  async verificarEmail(token: string) {
+    const response = await fetch(`${API_URL}/api/usuarios/verificar-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al verificar email');
+    }
+
+    return await response.json();
+  },
+
+  // Reenviar email de verificación
+  async reenviarEmailVerificacion(email: string) {
+    const response = await fetch(`${API_URL}/api/usuarios/reenviar-verificacion`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al reenviar email de verificación');
     }
 
     return await response.json();

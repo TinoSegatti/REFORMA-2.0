@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { generarTokenVerificacion, enviarEmailVerificacion, reenviarEmailVerificacion, verificarConfiguracionEmail } from '../services/emailService';
 
 interface UsuarioRequest extends Request {
   userId?: string;
@@ -37,7 +38,12 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
     // Hash de la contraseña
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Crear usuario
+    // Generar token de verificación
+    const tokenVerificacion = generarTokenVerificacion();
+    const fechaExpiracion = new Date();
+    fechaExpiracion.setHours(fechaExpiracion.getHours() + 24); // Expira en 24 horas
+
+    // Crear usuario (inactivo hasta verificar email)
     const usuario = await prisma.usuario.create({
       data: {
         email,
@@ -45,7 +51,11 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
         nombreUsuario,
         apellidoUsuario,
         tipoUsuario: 'CLIENTE',
-        planSuscripcion: 'PLAN_0'
+        planSuscripcion: 'PLAN_0',
+        emailVerificado: false,
+        tokenVerificacion,
+        fechaExpiracionToken: fechaExpiracion,
+        activo: false // Inactivo hasta verificar email
       },
       select: {
         id: true,
@@ -53,21 +63,31 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
         nombreUsuario: true,
         apellidoUsuario: true,
         tipoUsuario: true,
-        planSuscripcion: true
+        planSuscripcion: true,
+        emailVerificado: true
       }
     });
 
-    // Generar token JWT
-    const JWT_SECRET = process.env.JWT_SECRET || '';
-    const token = jwt.sign(
-      { userId: usuario.id, email: usuario.email, tipo: usuario.tipoUsuario },
-      JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRATION || '24h' } as jwt.SignOptions
-    );
+    // Enviar email de verificación
+    try {
+      if (verificarConfiguracionEmail()) {
+        await enviarEmailVerificacion(email, nombreUsuario, tokenVerificacion);
+      } else {
+        console.warn('⚠️  Email no configurado. No se envió email de verificación.');
+      }
+    } catch (error: any) {
+      console.error('Error enviando email de verificación:', error);
+      // No fallar el registro si falla el email, pero informar al usuario
+    }
 
+    // NO generar token JWT todavía - el usuario debe verificar su email primero
     res.status(201).json({
-      usuario,
-      token
+      mensaje: 'Usuario registrado exitosamente. Por favor verifica tu email para activar tu cuenta.',
+      usuario: {
+        ...usuario,
+        requiereVerificacion: true
+      },
+      emailEnviado: verificarConfiguracionEmail()
     });
   } catch (error: any) {
     console.error('Error registrando usuario:', error);
@@ -93,6 +113,15 @@ export async function loginUsuario(req: Request, res: Response) {
 
     if (!usuario || !usuario.activo) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    // Verificar si el email está verificado
+    if (!usuario.emailVerificado) {
+      return res.status(403).json({ 
+        error: 'Email no verificado',
+        requiereVerificacion: true,
+        mensaje: 'Por favor verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada.'
+      });
     }
 
     // Verificar contraseña
@@ -283,6 +312,146 @@ export async function actualizarPlanUsuario(req: UsuarioRequest, res: Response) 
   } catch (error: any) {
     console.error('Error actualizando plan:', error);
     res.status(500).json({ error: 'Error al actualizar plan' });
+  }
+}
+
+/**
+ * Verificar email con token
+ */
+export async function verificarEmail(req: Request, res: Response) {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token de verificación requerido' });
+    }
+
+    // Buscar usuario por token de verificación
+    const usuario = await prisma.usuario.findUnique({
+      where: { tokenVerificacion: token }
+    });
+
+    if (!usuario) {
+      return res.status(404).json({ error: 'Token de verificación inválido' });
+    }
+
+    // Verificar si el token expiró
+    if (usuario.fechaExpiracionToken && usuario.fechaExpiracionToken < new Date()) {
+      return res.status(400).json({ 
+        error: 'Token de verificación expirado',
+        tokenExpirado: true
+      });
+    }
+
+    // Verificar si ya está verificado
+    if (usuario.emailVerificado) {
+      return res.status(400).json({ 
+        error: 'Email ya verificado',
+        yaVerificado: true
+      });
+    }
+
+    // Actualizar usuario: verificar email, activar cuenta, limpiar token
+    await prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        emailVerificado: true,
+        activo: true,
+        tokenVerificacion: null,
+        fechaExpiracionToken: null
+      }
+    });
+
+    // Generar token JWT para login automático
+    const JWT_SECRET = process.env.JWT_SECRET || '';
+    const jwtToken = jwt.sign(
+      { userId: usuario.id, email: usuario.email, tipo: usuario.tipoUsuario },
+      JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRATION || '24h' } as jwt.SignOptions
+    );
+
+    res.json({
+      mensaje: 'Email verificado exitosamente',
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombreUsuario: usuario.nombreUsuario,
+        apellidoUsuario: usuario.apellidoUsuario,
+        tipoUsuario: usuario.tipoUsuario,
+        planSuscripcion: usuario.planSuscripcion,
+        emailVerificado: true
+      },
+      token: jwtToken
+    });
+  } catch (error: any) {
+    console.error('Error verificando email:', error);
+    res.status(500).json({ error: 'Error al verificar email' });
+  }
+}
+
+/**
+ * Reenviar email de verificación
+ */
+export async function reenviarEmailVerificacionCtrl(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email requerido' });
+    }
+
+    // Buscar usuario
+    const usuario = await prisma.usuario.findUnique({
+      where: { email }
+    });
+
+    if (!usuario) {
+      // Por seguridad, no revelar si el email existe o no
+      return res.json({
+        mensaje: 'Si el email existe, se enviará un nuevo correo de verificación'
+      });
+    }
+
+    // Verificar si ya está verificado
+    if (usuario.emailVerificado) {
+      return res.status(400).json({ error: 'Email ya verificado' });
+    }
+
+    // Generar nuevo token
+    const nuevoToken = generarTokenVerificacion();
+    const fechaExpiracion = new Date();
+    fechaExpiracion.setHours(fechaExpiracion.getHours() + 24);
+
+    // Actualizar token en la base de datos
+    await prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        tokenVerificacion: nuevoToken,
+        fechaExpiracionToken: fechaExpiracion
+      }
+    });
+
+    // Enviar email
+    try {
+      if (verificarConfiguracionEmail()) {
+        await reenviarEmailVerificacion(
+          usuario.email,
+          usuario.nombreUsuario,
+          nuevoToken
+        );
+        res.json({
+          mensaje: 'Email de verificación reenviado exitosamente'
+        });
+      } else {
+        res.status(500).json({ error: 'Servicio de email no configurado' });
+      }
+    } catch (error: any) {
+      console.error('Error reenviando email:', error);
+      res.status(500).json({ error: 'Error al reenviar email de verificación' });
+    }
+  } catch (error: any) {
+    console.error('Error en reenviar email:', error);
+    res.status(500).json({ error: 'Error al procesar solicitud' });
   }
 }
 
