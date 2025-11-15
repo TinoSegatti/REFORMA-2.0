@@ -21,38 +21,49 @@ interface GoogleUserInfo {
  */
 export async function findOrCreateGoogleUser(googleInfo: GoogleUserInfo) {
   try {
+    // Campos que siempre necesitamos retornar
+    const usuarioSelect = {
+      id: true,
+      email: true,
+      nombreUsuario: true,
+      apellidoUsuario: true,
+      tipoUsuario: true,
+      planSuscripcion: true
+    };
+
     // Buscar usuario existente por googleId
     let usuario = await prisma.usuario.findUnique({
-      where: { googleId: googleInfo.id }
+      where: { googleId: googleInfo.id },
+      select: usuarioSelect
     });
 
     // Si no existe por googleId, buscar por email
     if (!usuario) {
-      usuario = await prisma.usuario.findUnique({
+      const usuarioPorEmail = await prisma.usuario.findUnique({
         where: { email: googleInfo.email }
       });
 
       // Si existe por email pero no tiene googleId, actualizar
-      if (usuario && !usuario.googleId) {
+      if (usuarioPorEmail && !usuarioPorEmail.googleId) {
         usuario = await prisma.usuario.update({
-          where: { id: usuario.id },
+          where: { id: usuarioPorEmail.id },
           data: {
             googleId: googleInfo.id,
             // Actualizar nombre si viene de Google
-            nombreUsuario: googleInfo.given_name || usuario.nombreUsuario,
-            apellidoUsuario: googleInfo.family_name || usuario.apellidoUsuario,
+            nombreUsuario: googleInfo.given_name || usuarioPorEmail.nombreUsuario,
+            apellidoUsuario: googleInfo.family_name || usuarioPorEmail.apellidoUsuario,
             emailVerificado: true, // Google ya verifica el email
             activo: true, // Activar cuenta si estaba inactiva
             ultimoAcceso: new Date()
           },
-          select: {
-            id: true,
-            email: true,
-            nombreUsuario: true,
-            apellidoUsuario: true,
-            tipoUsuario: true,
-            planSuscripcion: true
-          }
+          select: usuarioSelect
+        });
+      } else if (usuarioPorEmail) {
+        // Si existe y ya tiene googleId, solo actualizar último acceso
+        usuario = await prisma.usuario.update({
+          where: { id: usuarioPorEmail.id },
+          data: { ultimoAcceso: new Date() },
+          select: usuarioSelect
         });
       }
     }
@@ -72,20 +83,14 @@ export async function findOrCreateGoogleUser(googleInfo: GoogleUserInfo) {
           activo: true,
           ultimoAcceso: new Date()
         },
-        select: {
-          id: true,
-          email: true,
-          nombreUsuario: true,
-          apellidoUsuario: true,
-          tipoUsuario: true,
-          planSuscripcion: true
-        }
+        select: usuarioSelect
       });
     } else {
-      // Actualizar último acceso
-      await prisma.usuario.update({
+      // Actualizar último acceso y retornar usuario actualizado
+      usuario = await prisma.usuario.update({
         where: { id: usuario.id },
-        data: { ultimoAcceso: new Date() }
+        data: { ultimoAcceso: new Date() },
+        select: usuarioSelect
       });
     }
 

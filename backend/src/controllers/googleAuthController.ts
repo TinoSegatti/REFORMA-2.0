@@ -46,6 +46,13 @@ export async function googleAuth(req: GoogleAuthRequest, res: Response) {
       picture: picture
     });
 
+    // Validar que el usuario fue creado/encontrado
+    if (!usuario) {
+      return res.status(500).json({
+        error: 'Error al crear o encontrar usuario'
+      });
+    }
+
     // Generar token JWT
     const token = generateToken({
       id: usuario.id,
