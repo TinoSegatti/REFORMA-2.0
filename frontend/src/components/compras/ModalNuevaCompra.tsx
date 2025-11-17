@@ -75,9 +75,10 @@ export default function ModalNuevaCompra({ isOpen, onClose, onSuccess, idGranja 
       });
 
       onSuccess(compra.id);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creando compra:', error);
-      alert(error.message || 'Error al crear compra');
+      const errorMessage = error instanceof Error ? error.message : 'Error al crear compra';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

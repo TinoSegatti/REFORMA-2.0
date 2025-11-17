@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Package,
@@ -26,36 +26,36 @@ import {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [granjaActiva, setGranjaActiva] = useState<{ id: string; nombre: string } | null>(null);
-  const [darkMode, setDarkMode] = useState(true);
+  // Inicializar darkMode desde localStorage usando función lazy para evitar renders en cascada
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const savedTheme = localStorage.getItem('theme');
+    const isDark = savedTheme !== 'light';
+    // Aplicar tema inicial al DOM
+    document.documentElement.className = isDark ? 'dark' : 'light';
+    document.body.style.backgroundColor = isDark ? '#0a0a0f' : '#ffffff';
+    return isDark;
+  });
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hasManualToggle, setHasManualToggle] = useState(false);
 
-  useEffect(() => {
-    // Cargar tema inicial
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-      setDarkMode(false);
-      document.documentElement.className = 'light';
-      document.body.style.backgroundColor = '#ffffff';
-    } else {
-      setDarkMode(true);
-      document.documentElement.className = 'dark';
-      document.body.style.backgroundColor = '#0a0a0f';
-    }
-
-    // Solo actualizar si la ruta cambia
+  // Calcular granjaActiva desde pathname usando useMemo para evitar renders en cascada
+  const granjaActiva = useMemo(() => {
     const idGranja = pathname.match(/\/granja\/([^/]+)/)?.[1];
     if (idGranja) {
-      const granja = localStorage.getItem('granjaInfo');
-      if (granja) {
-        setGranjaActiva(JSON.parse(granja));
-      } else {
-        setGranjaActiva({ id: idGranja, nombre: 'Mi Planta' });
+      if (typeof window !== 'undefined') {
+        const granja = localStorage.getItem('granjaInfo');
+        if (granja) {
+          try {
+            return JSON.parse(granja);
+          } catch {
+            return { id: idGranja, nombre: 'Mi Planta' };
+          }
+        }
       }
-    } else {
-      setGranjaActiva(null);
+      return { id: idGranja, nombre: 'Mi Planta' };
     }
+    return null;
   }, [pathname]);
 
   useEffect(() => {

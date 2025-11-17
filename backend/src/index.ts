@@ -44,6 +44,7 @@ import proveedorRoutes from './routes/proveedorRoutes';
 import animalRoutes from './routes/animalRoutes';
 import auditoriaRoutes from './routes/auditoriaRoutes';
 import archivoRoutes from './routes/archivoRoutes';
+import reporteCompletoRoutes from './routes/reporteCompletoRoutes';
 
 // Rutas
 app.use('/api/usuarios', usuarioRoutes);
@@ -57,6 +58,7 @@ app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/animales', animalRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
 app.use('/api/archivos', archivoRoutes);
+app.use('/api/reporte', reporteCompletoRoutes);
 
 // Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

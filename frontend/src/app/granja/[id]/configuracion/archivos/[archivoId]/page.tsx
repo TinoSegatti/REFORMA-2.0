@@ -10,13 +10,85 @@ import { ArrowLeft, Archive, ShoppingCart, Factory, Box } from 'lucide-react';
 
 type TablaOrigen = 'COMPRA' | 'FABRICACION' | 'INVENTARIO';
 
+interface CompraDetalle {
+  id: string;
+  cantidadComprada: number;
+  precioUnitario: number;
+  subtotal: number;
+  materiaPrima?: {
+    codigoMateriaPrima: string;
+    nombreMateriaPrima: string;
+  };
+}
+
+interface Compra {
+  id: string;
+  numeroFactura?: string;
+  fechaCompra: string;
+  totalFactura: number;
+  observaciones?: string;
+  proveedor?: {
+    nombreProveedor: string;
+  };
+  usuario?: {
+    nombreUsuario: string;
+    apellidoUsuario: string;
+    email: string;
+  };
+  detalles: CompraDetalle[];
+}
+
+interface FabricacionDetalle {
+  id: string;
+  cantidadUsada: number;
+  precioUnitario: number;
+  costoParcial: number;
+  materiaPrima?: {
+    codigoMateriaPrima: string;
+    nombreMateriaPrima: string;
+  };
+}
+
+interface Fabricacion {
+  id: string;
+  descripcionFabricacion?: string;
+  fechaFabricacion: string;
+  costoTotalFabricacion: number;
+  costoPorKilo: number;
+  observaciones?: string;
+  formula?: {
+    codigoFormula: string;
+    descripcionFormula: string;
+  };
+  usuario?: {
+    nombreUsuario: string;
+    apellidoUsuario: string;
+    email: string;
+  };
+  detalles: FabricacionDetalle[];
+}
+
+interface InventarioItem {
+  id: string;
+  cantidadSistema: number;
+  cantidadReal: number;
+  merma: number;
+  precioAlmacen: number;
+  valorStock: number;
+  observaciones?: string;
+  materiaPrima?: {
+    codigoMateriaPrima: string;
+    nombreMateriaPrima: string;
+  };
+}
+
 interface ArchivoDetalleResponse {
   id: string;
   descripcion: string;
   fechaArchivo: string;
   totalRegistros: number;
   tablaOrigen: TablaOrigen;
-  detalles: any[];
+  detalles: Compra[] | Fabricacion[] | InventarioItem[];
 }
 
 export default function DetalleArchivoPage() {
@@ -78,7 +150,7 @@ export default function DetalleArchivoPage() {
               <p className="text-foreground/80 font-medium">No había compras activas al momento del archivo.</p>
             </div>
           ) : (
-            archivo.detalles.map((compra: any) => (
+            (archivo.detalles as Compra[]).map((compra) => (
               <article key={compra.id} className="glass-card p-6 rounded-2xl border border-white/10 space-y-5">
                 <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
@@ -116,7 +188,7 @@ export default function DetalleArchivoPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {compra.detalles.map((detalle: any) => (
+                      {compra.detalles.map((detalle) => (
                         <tr key={detalle.id} className="border-b border-white/5">
                           <td className="px-4 py-3 text-foreground/85">
                             <div>
@@ -156,7 +228,7 @@ export default function DetalleArchivoPage() {
               <p className="text-foreground/80 font-medium">No había fabricaciones activas al momento del archivo.</p>
             </div>
           ) : (
-            archivo.detalles.map((fabricacion: any) => (
+            (archivo.detalles as Fabricacion[]).map((fabricacion) => (
               <article key={fabricacion.id} className="glass-card p-6 rounded-2xl border border-white/10 space-y-5">
                 <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
@@ -201,7 +273,7 @@ export default function DetalleArchivoPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {fabricacion.detalles.map((detalle: any) => (
+                      {fabricacion.detalles.map((detalle) => (
                         <tr key={detalle.id} className="border-b border-white/5">
                           <td className="px-4 py-3">
                             <div>
@@ -254,7 +326,7 @@ export default function DetalleArchivoPage() {
                 </tr>
               </thead>
               <tbody>
-                {archivo.detalles.map((item: any) => (
+                {(archivo.detalles as InventarioItem[]).map((item) => (
                   <tr key={item.id} className="border-b border-white/5">
                     <td className="px-4 py-3 text-foreground/85">
                       <div>

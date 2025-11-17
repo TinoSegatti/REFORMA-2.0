@@ -320,8 +320,8 @@ export default function InventarioPage() {
     if (!sortColumn) return inventarioFiltrado;
     const datos = [...inventarioFiltrado];
     datos.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      let aValue: string | number;
+      let bValue: string | number;
 
       switch (sortColumn) {
         case 'codigo':
@@ -367,7 +367,10 @@ export default function InventarioPage() {
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       }
-      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      return 0;
     });
     return datos;
   }, [inventarioFiltrado, sortColumn, sortDirection]);
@@ -378,8 +381,7 @@ export default function InventarioPage() {
     : inventario.reduce((sum, item) => sum + item.cantidadSistema, 0);
   const totalKgReal = inventario.reduce((sum, item) => sum + item.cantidadReal, 0);
   const totalValorStock = estadisticas?.costoTotalStock ?? inventario.reduce((sum, item) => sum + item.valorStock, 0);
-  const promedioCostoKg =
-    estadisticas?.promedioCostoPorKg ?? (totalKgReal > 0 ? totalValorStock / totalKgReal : 0);
+  const promedioCostoKg = totalKgReal > 0 ? totalValorStock / totalKgReal : 0;
   const alertasStock = estadisticas?.alertasStock ?? [];
 
   const formatNumber = (n: number, fraction: number = 2) =>

@@ -1,6 +1,6 @@
 'use client';
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, PieLabelRenderProps } from 'recharts';
 
 interface FabricacionesMateriasChartProps {
   data: Array<{
@@ -60,9 +60,9 @@ export default function FabricacionesMateriasChart({ data }: FabricacionesMateri
             outerRadius={110}
             paddingAngle={2}
             labelLine={false}
-            label={(entry: any) => {
-              const percent = total > 0 ? (entry.value / total) * 100 : 0;
-              return `${percent.toFixed(1)}%`;
+            label={(props: PieLabelRenderProps) => {
+              const percent = typeof props.percent === 'number' ? props.percent : (typeof props.value === 'number' && total > 0 ? (props.value / total) * 100 : 0);
+              return typeof percent === 'number' ? `${percent.toFixed(1)}%` : '';
             }}
           >
             {processed.map((entry, index) => (
@@ -78,7 +78,7 @@ export default function FabricacionesMateriasChart({ data }: FabricacionesMateri
               color: '#111827',
               padding: '10px'
             }}
-            formatter={(value: number, _name: string, props: any) => {
+            formatter={(value: number, _name: string, props: { payload?: { name?: string } }) => {
               const pct = total > 0 ? (Number(value) / total) * 100 : 0;
               return [
                 `${Number(value).toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg · ${pct.toFixed(1)}%`,

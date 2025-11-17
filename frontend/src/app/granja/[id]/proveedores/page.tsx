@@ -174,10 +174,9 @@ export default function ProveedoresPage() {
         return;
       }
 
-      let proveedorActualizado;
       if (editando) {
         // Editar: actualizar solo ese proveedor en el estado
-        proveedorActualizado = await apiClient.updateProveedor(token, idGranja, editando.id, {
+        const proveedorActualizado = await apiClient.updateProveedor(token, idGranja, editando.id, {
           codigoProveedor: formData.codigo,
           nombreProveedor: formData.nombre,
           direccionProveedor: formData.direccion || '',
@@ -191,14 +190,14 @@ export default function ProveedoresPage() {
                 id: proveedorActualizado.id,
                 codigo: proveedorActualizado.codigoProveedor,
                 nombre: proveedorActualizado.nombreProveedor,
-                direccion: proveedorActualizado.direccion,
-                localidad: proveedorActualizado.localidad,
+                direccion: proveedorActualizado.direccion || undefined,
+                localidad: proveedorActualizado.localidad || undefined,
               }
             : p
         ));
       } else {
         // Crear: agregar solo el nuevo proveedor al estado
-        proveedorActualizado = await apiClient.createProveedor(token, idGranja, {
+        const proveedorActualizado = await apiClient.createProveedor(token, idGranja, {
           codigoProveedor: formData.codigo,
           nombreProveedor: formData.nombre,
           direccionProveedor: formData.direccion || '',
@@ -210,8 +209,8 @@ export default function ProveedoresPage() {
           id: proveedorActualizado.id,
           codigo: proveedorActualizado.codigoProveedor,
           nombre: proveedorActualizado.nombreProveedor,
-          direccion: proveedorActualizado.direccion,
-          localidad: proveedorActualizado.localidad,
+          direccion: proveedorActualizado.direccion || undefined,
+          localidad: proveedorActualizado.localidad || undefined,
         };
         setProveedores(prev => [...prev, nuevoProveedor].sort((a, b) => 
           a.nombre.localeCompare(b.nombre)
@@ -219,10 +218,13 @@ export default function ProveedoresPage() {
         
         // Actualizar solo el contador de estadísticas (sin recargar las queries complejas)
         if (estadisticas) {
-          setEstadisticas(prev => ({
-            ...prev,
-            cantidadProveedores: (prev?.cantidadProveedores || 0) + 1
-          }));
+          setEstadisticas(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              cantidadProveedores: prev.cantidadProveedores + 1
+            };
+          });
         }
       }
 
@@ -256,16 +258,19 @@ export default function ProveedoresPage() {
       
       // Actualizar contador de estadísticas
       if (estadisticas) {
-        setEstadisticas(prev => ({
-          ...prev,
-          cantidadProveedores: Math.max(0, (prev?.cantidadProveedores || 0) - 1)
-        }));
+        setEstadisticas(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            cantidadProveedores: Math.max(0, prev.cantidadProveedores - 1)
+          };
+        });
         
         // Recalcular estadísticas solo si el proveedor tenía compras (verificar en las estadísticas actuales)
         const proveedorEnStats = estadisticas.proveedoresConMasCompras?.some(
-          (p: any) => p.id === eliminando.id
+          (p) => p.id === eliminando.id
         ) || estadisticas.proveedoresConMasGasto?.some(
-          (p: any) => p.id === eliminando.id && Number(p.totalGastado) > 0
+          (p) => p.id === eliminando.id && Number(p.totalGastado) > 0
         );
         
         // Solo recargar estadísticas si el proveedor tenía compras asociadas

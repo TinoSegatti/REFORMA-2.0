@@ -307,10 +307,10 @@ export default function FormulaDetallePage() {
 
       // Evitar duplicados dentro del mismo formulario
       const duplicadoEnFormulario = itemsData.slice(0, i).some(otherItem => 
-        otherItem.materiaPrimaSeleccionada?.id === item.materiaPrimaSeleccionada.id
+        otherItem.materiaPrimaSeleccionada?.id === item.materiaPrimaSeleccionada?.id
       );
       if (duplicadoEnFormulario) {
-        setMensajeConfirmacion(`Fila ${i + 1}: La materia prima "${item.materiaPrimaSeleccionada.codigoMateriaPrima}" ya está en otra fila`);
+        setMensajeConfirmacion(`Fila ${i + 1}: La materia prima "${item.materiaPrimaSeleccionada?.codigoMateriaPrima}" ya está en otra fila`);
         setShowModalConfirmacion(true);
         return;
       }

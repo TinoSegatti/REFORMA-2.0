@@ -289,8 +289,8 @@ export const apiClient = {
     return await response.json();
   },
 
-  // Importar datos
-  async importarMateriasPrimas(token: string, idGranjaOrigen: string, idGranjaDestino: string) {
+  // Importar datos entre granjas
+  async importarMateriasPrimasEntreGranjas(token: string, idGranjaOrigen: string, idGranjaDestino: string) {
     const response = await fetch(`${API_URL}/api/granjas/importar/materias-primas`, {
       method: 'POST',
       headers: {
@@ -308,7 +308,7 @@ export const apiClient = {
     return await response.json();
   },
 
-  async importarProveedores(token: string, idGranjaOrigen: string, idGranjaDestino: string) {
+  async importarProveedoresEntreGranjas(token: string, idGranjaOrigen: string, idGranjaDestino: string) {
     const response = await fetch(`${API_URL}/api/granjas/importar/proveedores`, {
       method: 'POST',
       headers: {
@@ -1623,6 +1623,26 @@ export const apiClient = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al eliminar archivo');
+    }
+
+    return await response.json();
+  },
+
+  // ============================================
+  // REPORTE COMPLETO
+  // ============================================
+
+  async obtenerReporteCompleto(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/reporte/granja/${idGranja}/reporte-completo`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener el reporte completo');
     }
 
     return await response.json();

@@ -1,6 +1,7 @@
 'use client';
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { useMemo } from 'react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, PieLabelRenderProps } from 'recharts';
 
 interface InventarioExistenciasChartProps {
   data: Array<{
@@ -17,13 +18,93 @@ const COLORS = [
   '#FAA381', '#D4A574'
 ];
 
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      name: string;
+      value: number;
+      esOtras?: boolean;
+      detalleCompleto?: Array<{
+        codigo: string;
+        nombre: string;
+        cantidad: number;
+        porcentaje: number;
+      }>;
+    };
+  }>;
+}
+
+interface CustomTooltipProps extends TooltipProps {
+  total: number;
+}
+
+const CustomTooltip = ({ active, payload, total }: CustomTooltipProps) => {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0].payload;
+  const pct = total > 0 ? (data.value / total) * 100 : 0;
+
+    if (data.esOtras && data.detalleCompleto && data.detalleCompleto.length > 0) {
+      return (
+        <div style={{
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: '12px',
+          color: '#111827',
+          padding: '12px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          minWidth: '250px'
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: '8px', color: '#111827' }}>
+            Otras: {data.value.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg · {pct.toFixed(1)}%
+          </div>
+        <div style={{ fontSize: '12px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+          <div style={{ fontWeight: 600, marginBottom: '6px', color: '#111827' }}>Desglose:</div>
+          {data.detalleCompleto.map((item, index: number) => (
+            <div key={index} style={{ marginBottom: '4px', color: '#374151' }}>
+              • {item.codigo} - {item.nombre}: {item.cantidad.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg ({item.porcentaje.toFixed(2)}%)
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.95)',
+      backdropFilter: 'blur(8px)',
+      border: '1px solid rgba(255,255,255,0.2)',
+      borderRadius: '12px',
+      color: '#111827',
+      padding: '12px',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: '4px' }}>{data.name}</div>
+      <div>{data.value.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg · {pct.toFixed(1)}%</div>
+    </div>
+  );
+};
+
 export default function InventarioExistenciasChart({ data }: InventarioExistenciasChartProps) {
-  const chartData = data.map((item) => ({
+  const chartData = useMemo(() => data.map((item) => ({
     name: `${item.codigo} - ${item.nombre}`,
     value: Number(item.cantidad || 0), // usamos kg
     code: item.codigo,
     nombreCompleto: item.nombre,
-  }));
+  })), [data]);
+
+  const total = useMemo(() => chartData.reduce((s, i) => s + i.value, 0), [chartData]);
+
+  // Crear función wrapper para pasar total al CustomTooltip (antes del early return)
+  const TooltipWrapper = useMemo(() => {
+    function TooltipWrapperComponent(props: TooltipProps) {
+      return <CustomTooltip {...props} total={total} />;
+    }
+    return TooltipWrapperComponent;
+  }, [total]);
 
   if (chartData.length === 0) {
     return (
@@ -37,13 +118,8 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
     );
   }
 
-  const total = chartData.reduce((s, i) => s + i.value, 0);
-
   // Ordenar por cantidad descendente
   const sorted = [...chartData].sort((a, b) => b.value - a.value);
-
-  // Agrupar TODAS las materias primas que representan menos del 4% del total
-  const threshold = total * 0.04;
 
   const processed = (() => {
     if (total === 0) return chartData;
@@ -85,55 +161,6 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
     return importantes;
   })();
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || !payload.length) return null;
-
-    const data = payload[0].payload;
-    const pct = total > 0 ? (data.value / total) * 100 : 0;
-
-    if (data.esOtras && data.detalleCompleto && data.detalleCompleto.length > 0) {
-      return (
-        <div style={{
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255,255,255,0.2)',
-          borderRadius: '12px',
-          color: '#111827',
-          padding: '12px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          minWidth: '250px'
-        }}>
-          <div style={{ fontWeight: 600, marginBottom: '8px', color: '#111827' }}>
-            Otras: {data.value.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg · {pct.toFixed(1)}%
-          </div>
-          <div style={{ fontSize: '12px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-            <div style={{ fontWeight: 600, marginBottom: '6px', color: '#111827' }}>Desglose:</div>
-            {data.detalleCompleto.map((item: any, index: number) => (
-              <div key={index} style={{ marginBottom: '4px', color: '#374151' }}>
-                • {item.codigo} - {item.nombre}: {item.cantidad.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg ({item.porcentaje.toFixed(2)}%)
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div style={{
-        background: 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.2)',
-        borderRadius: '12px',
-        color: '#111827',
-        padding: '12px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ fontWeight: 600, marginBottom: '4px' }}>{data.name}</div>
-        <div>{data.value.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg · {pct.toFixed(1)}%</div>
-      </div>
-    );
-  };
-
   return (
     <div className="h-64 w-full glass-card p-4">
       <ResponsiveContainer width="100%" height="100%">
@@ -146,25 +173,20 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
             outerRadius={80}
             paddingAngle={2}
             labelLine={false}
-            label={(entry: any) => {
-              const percent = total > 0 ? (entry.value / total) * 100 : 0;
+            label={(props: PieLabelRenderProps) => {
+              const percent = typeof props.percent === 'number' ? props.percent : (typeof props.value === 'number' && total > 0 ? (props.value / total) * 100 : 0);
               // Solo mostrar label dentro del gráfico si el porcentaje es mayor a 4%
-              if (percent >= 4) {
+              if (typeof percent === 'number' && percent >= 4) {
                 return `${percent.toFixed(1)}%`;
               }
               return '';
-            }}
-            labelStyle={{
-              fontSize: '11px',
-              fontWeight: 'bold',
-              fill: '#111827',
             }}
           >
             {processed.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={TooltipWrapper} />
         </PieChart>
       </ResponsiveContainer>
 

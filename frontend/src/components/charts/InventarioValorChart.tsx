@@ -17,6 +17,70 @@ const COLORS = [
   '#FAA381', '#6b7280'
 ];
 
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      label: string;
+      valorStock: number;
+      esOtras?: boolean;
+      detalleCompleto?: Array<{
+        codigo: string;
+        nombre: string;
+        valorStock: number;
+      }>;
+    };
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: TooltipProps) => {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0].payload;
+
+  if (data.esOtras && data.detalleCompleto && data.detalleCompleto.length > 0) {
+    return (
+      <div style={{
+        background: 'rgba(0,0,0,0.8)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.2)',
+        borderRadius: '12px',
+        boxShadow: '0 6px 12px rgba(0,0,0,0.3)',
+        padding: '12px',
+        color: '#9ca3af',
+        minWidth: '250px'
+      }}>
+        <div style={{ fontWeight: 600, marginBottom: '8px', color: '#9ca3af' }}>
+          Otras: {data.valorStock.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })}
+        </div>
+        <div style={{ fontSize: '12px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+          <div style={{ fontWeight: 600, marginBottom: '6px', color: '#9ca3af' }}>Desglose:</div>
+          {data.detalleCompleto.map((item, index: number) => (
+            <div key={index} style={{ marginBottom: '4px', color: '#9ca3af' }}>
+              • {item.codigo} - {item.nombre}: {item.valorStock.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.12)',
+      backdropFilter: 'blur(8px)',
+      border: '1px solid rgba(255,255,255,0.2)',
+      borderRadius: '12px',
+      boxShadow: '0 6px 12px -2px rgba(0, 0, 0, 0.1), 0 3px 7px -3px rgba(0, 0, 0, 0.05)',
+      padding: '12px',
+      color: '#fff'
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: '4px' }}>{data.label}</div>
+      <div>{data.valorStock.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })}</div>
+    </div>
+  );
+};
+
 export default function InventarioValorChart({ data }: InventarioValorChartProps) {
   const chartData = data.map(item => ({
     name: item.codigo,
@@ -72,54 +136,6 @@ export default function InventarioValorChart({ data }: InventarioValorChartProps
       }, // Columna 10: "Otras" con el resto
     ];
   })();
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || !payload.length) return null;
-
-    const data = payload[0].payload;
-
-    if (data.esOtras && data.detalleCompleto && data.detalleCompleto.length > 0) {
-      return (
-        <div style={{
-          background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255,255,255,0.2)',
-          borderRadius: '12px',
-          boxShadow: '0 6px 12px rgba(0,0,0,0.3)',
-          padding: '12px',
-          color: '#9ca3af',
-          minWidth: '250px'
-        }}>
-          <div style={{ fontWeight: 600, marginBottom: '8px', color: '#9ca3af' }}>
-            Otras: {data.valorStock.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })}
-          </div>
-          <div style={{ fontSize: '12px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-            <div style={{ fontWeight: 600, marginBottom: '6px', color: '#9ca3af' }}>Desglose:</div>
-            {data.detalleCompleto.map((item: any, index: number) => (
-              <div key={index} style={{ marginBottom: '4px', color: '#9ca3af' }}>
-                • {item.codigo} - {item.nombre}: {item.valorStock.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })}
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div style={{
-        background: 'rgba(255,255,255,0.12)',
-        backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.2)',
-        borderRadius: '12px',
-        boxShadow: '0 6px 12px -2px rgba(0, 0, 0, 0.1), 0 3px 7px -3px rgba(0, 0, 0, 0.05)',
-        padding: '12px',
-        color: '#fff'
-      }}>
-        <div style={{ fontWeight: 600, marginBottom: '4px' }}>{data.label}</div>
-        <div>{data.valorStock.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })}</div>
-      </div>
-    );
-  };
 
   return (
     <div className="h-64 w-full glass-card p-4">
