@@ -20,11 +20,39 @@ enum TipoUsuario {
 }
 
 enum PlanSuscripcion {
-  PLAN_0  // gratis - 1 granja, 10 registros por tabla
-  PLAN_1  // 1 granja, 50 registros por tabla
-  PLAN_2  // 1 granja, 50 registros por tabla
-  PLAN_3  // 1 granja, 100 registros por tabla
-  PLAN_4  // 1 granja, 200 registros por tabla
+  DEMO      // Gratuito - 30 días
+  STARTER   // $35/mes o $350/año
+  BUSINESS  // $99/mes o $990/año
+  ENTERPRISE // $229/mes o $2,290/año
+}
+
+enum EstadoSuscripcion {
+  ACTIVA
+  CANCELADA
+  SUSPENDIDA
+  EXPIRADA
+  PENDIENTE_PAGO
+}
+
+enum PeriodoFacturacion {
+  MENSUAL
+  ANUAL
+}
+
+enum MetodoPago {
+  STRIPE
+  PAYPAL
+  MERCADOPAGO
+  TRANSFERENCIA
+  ADMIN
+}
+
+enum EstadoPago {
+  PENDIENTE
+  COMPLETADO
+  FALLIDO
+  REEMBOLSADO
+  CANCELADO
 }
 
 // CategoriaAnimal ya no se usa - se eliminó (campo libre en Animal)
@@ -49,7 +77,7 @@ model Usuario {
   nombreUsuario         String
   apellidoUsuario       String
   tipoUsuario           TipoUsuario     @default(CLIENTE)
-  planSuscripcion       PlanSuscripcion @default(PLAN_0)
+  planSuscripcion       PlanSuscripcion @default(DEMO)
   maxGranjas            Int             @default(1)
   activo                Boolean         @default(true)
   emailVerificado       Boolean         @default(false) // Verificación de email
@@ -65,6 +93,7 @@ model Usuario {
   compras          CompraCabecera[]
   fabricaciones    Fabricacion[]
   auditorias       Auditoria[]
+  suscripcion      Suscripcion?
 
   @@map("t_usuarios")
 }
@@ -405,6 +434,89 @@ model Auditoria {
   @@index([tablaOrigen])
   @@index([fechaOperacion])
   @@map("t_auditoria")
+}
+
+// ============================================
+// SUSCRIPCIONES Y PAGOS
+// ============================================
+
+model Suscripcion {
+  id                    String            @id @default(cuid())
+  idUsuario             String            @unique
+  planSuscripcion       PlanSuscripcion
+  estadoSuscripcion     EstadoSuscripcion @default(ACTIVA)
+  periodoFacturacion    PeriodoFacturacion // MENSUAL o ANUAL
+  fechaInicio           DateTime          @default(now())
+  fechaFin              DateTime
+  fechaProximaRenovacion DateTime?
+  precio                Float
+  moneda                String            @default("USD")
+  
+  // Stripe
+  stripeCustomerId      String?           @unique
+  stripeSubscriptionId  String?           @unique
+  stripePriceId         String?
+  
+  // Mercado Pago
+  mercadoPagoPreapprovalId String?        @unique
+  
+  // PayPal (futuro)
+  paypalSubscriptionId  String?           @unique
+  
+  // Transferencia bancaria
+  referenciaTransferencia String?
+  fechaPagoTransferencia  DateTime?
+  confirmadoTransferencia Boolean          @default(false)
+  
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  
+  // Relaciones
+  usuario               Usuario          @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  pagos                 Pago[]
+  
+  @@index([idUsuario])
+  @@index([estadoSuscripcion])
+  @@index([fechaProximaRenovacion])
+  @@map("t_suscripciones")
+}
+
+model Pago {
+  id                    String            @id @default(cuid())
+  idSuscripcion         String
+  metodoPago            MetodoPago        // STRIPE, PAYPAL, TRANSFERENCIA
+  monto                 Float
+  moneda                String            @default("USD")
+  estadoPago            EstadoPago        @default(PENDIENTE)
+  
+  // Stripe
+  stripePaymentIntentId String?           @unique
+  stripeChargeId        String?
+  
+  // Mercado Pago
+  mercadoPagoPaymentId  String?           @unique
+  mercadoPagoPreapprovalId String?
+  
+  // PayPal (futuro)
+  paypalOrderId         String?           @unique
+  paypalTransactionId   String?
+  
+  // Transferencia bancaria
+  referenciaTransferencia String?
+  comprobanteTransferencia String?        // URL de imagen/PDF
+  fechaTransferencia    DateTime?
+  
+  fechaPago             DateTime?
+  fechaCreacion         DateTime          @default(now())
+  fechaActualizacion    DateTime          @updatedAt
+  
+  // Relaciones
+  suscripcion           Suscripcion       @relation(fields: [idSuscripcion], references: [id], onDelete: Cascade)
+  
+  @@index([idSuscripcion])
+  @@index([estadoPago])
+  @@index([metodoPago])
+  @@map("t_pagos")
 }
 
 

@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Sidebar from '@/components/layout/Sidebar';
-import { Archive, Search, LucideIcon, Settings } from 'lucide-react';
+import { Archive, Search, LucideIcon, Settings, Shield, Users } from 'lucide-react';
+import { authService } from '@/lib/auth';
+import { apiClient } from '@/lib/api';
 
 type BackgroundMode = 'solid' | 'image';
 
@@ -25,6 +27,8 @@ export default function ConfiguracionPage() {
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [esSuperusuario, setEsSuperusuario] = useState(false);
+  const [verificandoSuperusuario, setVerificandoSuperusuario] = useState(true);
 
   useEffect(() => {
     try {
@@ -37,6 +41,28 @@ export default function ConfiguracionPage() {
       }
     } catch {}
   }, [id]);
+
+  useEffect(() => {
+    verificarSuperusuario();
+  }, []);
+
+  const verificarSuperusuario = async () => {
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        setVerificandoSuperusuario(false);
+        return;
+      }
+
+      const response = await apiClient.verificarSuperusuario(token);
+      setEsSuperusuario(response.esSuperusuario || false);
+    } catch (err) {
+      console.error('Error verificando superusuario:', err);
+      setEsSuperusuario(false);
+    } finally {
+      setVerificandoSuperusuario(false);
+    }
+  };
 
   const handleFile = async (file?: File) => {
     if (!file) return;
@@ -131,6 +157,58 @@ export default function ConfiguracionPage() {
               >
                 <Archive className="h-4 w-4" />
                 Gestionar archivos
+              </Button>
+            </div>
+          </Card>
+
+          {/* Card de Usuarios de Testing (Solo Superusuario) */}
+          {!verificandoSuperusuario && esSuperusuario && (
+            <Card>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-cyan-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                    <Shield className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-foreground">Usuarios de Testing</h2>
+                    <p className="text-sm text-foreground/70">Gestiona usuarios de testing y asigna planes para pruebas</p>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground/80">
+                  Crea usuarios de testing, asigna planes y permisos para el equipo de pruebas de caja negra. 
+                  Solo accesible para el superusuario.
+                </p>
+                <Button
+                  onClick={() => router.push(`/granja/${id}/configuracion/usuarios-testing`)}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Gestionar Usuarios de Testing
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Card de Upgrade */}
+          <Card className="border-2 border-amber-400/30">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-400 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30">
+                  <span className="text-2xl">⭐</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">Upgrade</h2>
+                  <p className="text-sm text-foreground/70">Desbloquea funciones premium y aumenta tus límites</p>
+                </div>
+              </div>
+              <p className="text-sm text-foreground/80">
+                Mejora tu plan para acceder a más funcionalidades, aumentar límites y desbloquear características avanzadas.
+              </p>
+              <Button
+                onClick={() => router.push('/planes')}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-400 text-gray-900 hover:from-amber-600 hover:to-amber-500"
+              >
+                Ver Planes y Precios
               </Button>
             </div>
           </Card>

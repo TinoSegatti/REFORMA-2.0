@@ -127,8 +127,8 @@ export default function LandingPage() {
     },
     {
       name: 'Starter',
-      price: 35,
-      priceAnnual: 350,
+      price: 50750, // $35 USD * 1450 ARS
+      priceAnnual: 507500, // $350 USD * 1450 ARS
       description: 'Para operaciones pequeñas',
       features: [
         '2 plantas',
@@ -151,8 +151,8 @@ export default function LandingPage() {
     },
     {
       name: 'Business',
-      price: 99,
-      priceAnnual: 990,
+      price: 143550, // $99 USD * 1450 ARS
+      priceAnnual: 1435500, // $990 USD * 1450 ARS
       description: 'Para operaciones profesionales',
       features: [
         '5 plantas',
@@ -178,8 +178,8 @@ export default function LandingPage() {
     },
     {
       name: 'Enterprise',
-      price: 229,
-      priceAnnual: 2290,
+      price: 332050, // $229 USD * 1450 ARS
+      priceAnnual: 3320500, // $2,290 USD * 1450 ARS
       description: 'Para grandes operaciones',
       features: [
         '25 plantas',
@@ -438,7 +438,7 @@ export default function LandingPage() {
                   </p>
                   <div className="flex items-baseline justify-center gap-2">
                     <span className="text-5xl font-bold text-foreground">
-                      ${isAnnual ? plan.priceAnnual : plan.price}
+                      {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(isAnnual ? plan.priceAnnual : plan.price)}
                     </span>
                     <span className="text-foreground/60">
                       /{isAnnual ? 'año' : 'mes'}
@@ -446,7 +446,7 @@ export default function LandingPage() {
                   </div>
                   {isAnnual && plan.price > 0 && (
                     <p className="text-sm text-foreground/60 mt-2">
-                      ${Math.round(plan.priceAnnual / 12)}/mes facturado anualmente
+                      {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(Math.round(plan.priceAnnual / 12))}/mes facturado anualmente
                     </p>
                   )}
                 </div>
@@ -458,7 +458,7 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/login" className="block w-full">
+                <Link href="/planes" className="block w-full">
                   <Button
                     variant={plan.popular ? 'primary' : 'neutral'}
                     className={`w-full bg-gradient-to-r ${plan.color} hover:opacity-90 text-white border-0`}

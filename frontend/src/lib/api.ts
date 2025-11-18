@@ -1647,6 +1647,223 @@ export const apiClient = {
 
     return await response.json();
   },
+
+  // ============================================
+  // SUSCRIPCIONES Y PAGOS
+  // ============================================
+
+  /**
+   * Obtener todos los planes disponibles
+   */
+  async obtenerPlanes() {
+    const response = await fetch(`${API_URL}/api/suscripcion/planes`);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener planes');
+    }
+    return await response.json();
+  },
+
+  /**
+   * Obtener plan actual del usuario
+   */
+  async obtenerMiPlan(token: string) {
+    const response = await fetch(`${API_URL}/api/suscripcion/mi-plan`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener plan del usuario');
+    }
+    return await response.json();
+  },
+
+  /**
+   * Crear sesión de checkout
+   */
+  async crearCheckout(token: string, plan: string, periodoFacturacion: string) {
+    const response = await fetch(`${API_URL}/api/suscripcion/crear-checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ plan, periodoFacturacion }),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      // Si hay detalles en el error, incluirlos
+      const errorMessage = data.detalles 
+        ? `${data.error}: ${data.detalles}`
+        : data.error || 'Error al crear checkout';
+      throw new Error(errorMessage);
+    }
+    
+    return data;
+  },
+
+  /**
+   * Cambiar plan del usuario
+   */
+  async cambiarPlan(token: string, nuevoPlan: string, nuevoPeriodoFacturacion: string) {
+    const response = await fetch(`${API_URL}/api/suscripcion/cambiar-plan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ nuevoPlan, nuevoPeriodoFacturacion }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al cambiar plan');
+    }
+    return await response.json();
+  },
+
+  /**
+   * Cancelar suscripción
+   */
+  async cancelarSuscripcion(token: string) {
+    const response = await fetch(`${API_URL}/api/suscripcion/cancelar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al cancelar suscripción');
+    }
+    return await response.json();
+  },
+
+  /**
+   * Reactivar suscripción
+   */
+  async reactivarSuscripcion(token: string) {
+    const response = await fetch(`${API_URL}/api/suscripcion/reactivar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al reactivar suscripción');
+    }
+    return await response.json();
+  },
+
+  /**
+   * Verificar pago después de checkout
+   */
+  async verificarPago(token: string, sessionId: string) {
+    const response = await fetch(`${API_URL}/api/suscripcion/verificar-pago?session_id=${sessionId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al verificar pago');
+    }
+    return await response.json();
+  },
+
+  // ============================================
+  // ADMINISTRACIÓN (SOLO SUPERUSUARIO)
+  // ============================================
+
+  /**
+   * Verificar si el usuario actual es superusuario
+   */
+  async verificarSuperusuario(token: string) {
+    const response = await fetch(`${API_URL}/api/admin/verificar-superusuario`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      return { esSuperusuario: false };
+    }
+    return await response.json();
+  },
+
+  /**
+   * Obtener todos los usuarios de testing
+   */
+  async obtenerUsuariosTesting(token: string) {
+    const response = await fetch(`${API_URL}/api/admin/usuarios-testing`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener usuarios de testing');
+    }
+    return await response.json();
+  },
+
+  /**
+   * Crear usuario de testing
+   */
+  async crearUsuarioTesting(token: string, datos: { email: string; nombreUsuario?: string; apellidoUsuario?: string; plan: string; periodoFacturacion: string }) {
+    const response = await fetch(`${API_URL}/api/admin/usuarios-testing`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(datos),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al crear usuario de testing');
+    }
+    return await response.json();
+  },
+
+  /**
+   * Actualizar plan de usuario de testing
+   */
+  async actualizarPlanUsuario(token: string, usuarioId: string, nuevoPlan: string, nuevoPeriodoFacturacion: string) {
+    const response = await fetch(`${API_URL}/api/admin/usuarios-testing/${usuarioId}/plan`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ nuevoPlan, nuevoPeriodoFacturacion }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al actualizar plan');
+    }
+    return await response.json();
+  },
+
+  /**
+   * Eliminar usuario de testing
+   */
+  async eliminarUsuarioTesting(token: string, usuarioId: string) {
+    const response = await fetch(`${API_URL}/api/admin/usuarios-testing/${usuarioId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar usuario');
+    }
+    return await response.json();
+  },
 };
 
 export default apiClient;

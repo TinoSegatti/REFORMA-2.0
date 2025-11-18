@@ -20,6 +20,11 @@ const PORT = process.env.PORT || 3000;
 
 // Middlewares
 app.use(cors());
+
+// IMPORTANTE: Webhook de Mercado Pago usa JSON
+// Por eso lo configuramos antes de express.json() general
+app.use('/api/suscripcion/webhook/mercadopago', express.json());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -45,6 +50,8 @@ import animalRoutes from './routes/animalRoutes';
 import auditoriaRoutes from './routes/auditoriaRoutes';
 import archivoRoutes from './routes/archivoRoutes';
 import reporteCompletoRoutes from './routes/reporteCompletoRoutes';
+import suscripcionRoutes from './routes/suscripcionRoutes';
+import adminRoutes from './routes/adminRoutes';
 
 // Rutas
 app.use('/api/usuarios', usuarioRoutes);
@@ -59,6 +66,8 @@ app.use('/api/animales', animalRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
 app.use('/api/archivos', archivoRoutes);
 app.use('/api/reporte', reporteCompletoRoutes);
+app.use('/api/suscripcion', suscripcionRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

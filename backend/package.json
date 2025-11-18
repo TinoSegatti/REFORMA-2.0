@@ -15,6 +15,12 @@
     "seed:proveedores": "node scripts/cargar-proveedores.js",
     "eliminar-compras": "node scripts/eliminar-compras-y-verificar-inventario.js",
     "probar-flujo": "tsx scripts/probar-compra-inventario.ts",
+    "migrar-usuarios-demo": "tsx scripts/migrar-usuarios-demo.ts",
+    "migrar-planes-antiguos": "tsx scripts/migrar-planes-antiguos.ts",
+    "actualizar-enum-plan": "tsx scripts/actualizar-enum-plan.ts",
+    "migracion-paso-a-paso": "tsx scripts/migracion-paso-a-paso.ts",
+    "migracion-mercado-pago": "tsx scripts/migracion-mercado-pago.ts",
+    "test-suscripcion": "tsx scripts/test-endpoints-suscripcion.ts",
     "lint": "eslint src --ext .ts",
     "test": "jest",
     "test:watch": "jest --watch"
@@ -40,10 +46,12 @@
     "express": "^4.21.1",
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.2",
+    "mercadopago": "^2.10.0",
     "multer": "^2.0.0",
     "nodemailer": "^7.0.10",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "stripe": "^19.3.1",
     "zod": "^4.1.12"
   },
   "devDependencies": {

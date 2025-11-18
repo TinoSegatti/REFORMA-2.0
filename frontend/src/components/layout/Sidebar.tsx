@@ -256,13 +256,13 @@ export default function Sidebar() {
       <div className="p-4 space-y-3 border-t border-white/10">
         <div className={`glass-card rounded-lg border border-amber-400/30 ${isCollapsed ? 'p-2 flex items-center justify-center' : 'p-3'}`}>
           {isCollapsed ? (
-            <button
-              onClick={() => alert('Desbloquea funciones premium')}
-              className="w-9 h-9 bg-gradient-to-br from-amber-500 to-amber-400 rounded-md flex items-center justify-center shadow-lg shadow-amber-500/30 text-base"
+            <Link
+              href="/planes"
+              className="w-9 h-9 bg-gradient-to-br from-amber-500 to-amber-400 rounded-md flex items-center justify-center shadow-lg shadow-amber-500/30 text-base hover:brightness-110 transition-all"
               aria-label="Ver planes"
             >
               ⭐
-            </button>
+            </Link>
           ) : (
             <div className="flex items-start gap-2">
               <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-amber-400 rounded-md flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0">
@@ -271,9 +271,12 @@ export default function Sidebar() {
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-semibold text-amber-300 uppercase tracking-wide mb-1">Upgrade</p>
                 <p className="text-xs text-white leading-tight mb-2">Desbloquea funciones premium.</p>
-                <button className="w-full px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-400 text-gray-900 rounded-md font-semibold text-xs hover:shadow-lg hover:brightness-110 transition-all">
+                <Link
+                  href="/planes"
+                  className="block w-full px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-400 text-gray-900 rounded-md font-semibold text-xs hover:shadow-lg hover:brightness-110 transition-all text-center"
+                >
                   Ver planes
-                </button>
+                </Link>
               </div>
             </div>
           )}

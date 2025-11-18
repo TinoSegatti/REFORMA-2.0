@@ -51,7 +51,7 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
         nombreUsuario,
         apellidoUsuario,
         tipoUsuario: 'CLIENTE',
-        planSuscripcion: 'PLAN_0',
+        planSuscripcion: 'DEMO',
         emailVerificado: false,
         tokenVerificacion,
         fechaExpiracionToken: fechaExpiracion,
