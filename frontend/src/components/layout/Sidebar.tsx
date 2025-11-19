@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Package,
@@ -38,25 +38,59 @@ export default function Sidebar() {
   });
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hasManualToggle, setHasManualToggle] = useState(false);
-
-  // Calcular granjaActiva desde pathname usando useMemo para evitar renders en cascada
-  const granjaActiva = useMemo(() => {
-    const idGranja = pathname.match(/\/granja\/([^/]+)/)?.[1];
+  
+  // Obtener ID de granja desde pathname
+  const idGranja = pathname.match(/\/granja\/([^/]+)/)?.[1];
+  
+  // Estado para la granja activa - inicializado con valor por defecto para evitar hidratación
+  // Usamos función lazy para inicializar solo en el cliente
+  const [granjaActiva, setGranjaActiva] = useState<{ id: string; nombre: string } | null>(() => {
+    if (typeof window === 'undefined') {
+      // En el servidor, siempre retornar valor por defecto
+      return idGranja ? { id: idGranja, nombre: 'Mi Planta' } : null;
+    }
+    
+    // En el cliente, intentar cargar desde localStorage
     if (idGranja) {
-      if (typeof window !== 'undefined') {
-        const granja = localStorage.getItem('granjaInfo');
-        if (granja) {
-          try {
-            return JSON.parse(granja);
-          } catch {
-            return { id: idGranja, nombre: 'Mi Planta' };
+      const granja = localStorage.getItem('granjaInfo');
+      if (granja) {
+        try {
+          const granjaData = JSON.parse(granja);
+          if (granjaData.id === idGranja) {
+            return granjaData;
           }
+        } catch {
+          // Si hay error, usar valor por defecto
         }
       }
       return { id: idGranja, nombre: 'Mi Planta' };
     }
     return null;
-  }, [pathname]);
+  });
+
+  // Actualizar información de la granja cuando cambia idGranja o localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined' || !idGranja) return;
+    
+    // Usar setTimeout para diferir la actualización y evitar cascading renders
+    const timeoutId = setTimeout(() => {
+      const granja = localStorage.getItem('granjaInfo');
+      if (granja) {
+        try {
+          const granjaData = JSON.parse(granja);
+          if (granjaData.id === idGranja) {
+            setGranjaActiva(granjaData);
+            return;
+          }
+        } catch {
+          // Si hay error, usar valor por defecto
+        }
+      }
+      setGranjaActiva({ id: idGranja, nombre: 'Mi Planta' });
+    }, 0);
+    
+    return () => clearTimeout(timeoutId);
+  }, [idGranja]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -87,9 +121,6 @@ export default function Sidebar() {
     setHasManualToggle(true);
   };
 
-  // Obtener el ID de la granja de la ruta actual
-  const idGranja = pathname.match(/\/granja\/([^/]+)/)?.[1];
-  
   // Función para generar href correcto
   const getHref = (modulo: string) => {
     if (idGranja) {
@@ -202,7 +233,7 @@ export default function Sidebar() {
           </span>
         </button>
 
-        {estaEnGranja && granjaActiva && (
+        {estaEnGranja && idGranja && (
           <div className={`glass-card rounded-lg ${isCollapsed ? 'p-2 flex items-center justify-center' : 'p-3'}`}>
             {isCollapsed ? (
               <Factory className="text-lg text-cyan-400" />
@@ -212,7 +243,7 @@ export default function Sidebar() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Granja Activa</p>
                   <p className="text-sm font-semibold text-white truncate">
-                    {granjaActiva.nombre || 'Mi Planta'}
+                    {granjaActiva?.nombre || 'Mi Planta'}
                   </p>
                 </div>
               </div>
