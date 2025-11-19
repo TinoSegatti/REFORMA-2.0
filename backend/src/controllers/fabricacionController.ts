@@ -5,8 +5,9 @@
 
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { crearFabricacion, obtenerFabricacionesGranja, obtenerFabricacion, eliminarFabricacion, editarFabricacion, obtenerEstadisticasFabricaciones, eliminarTodasLasFabricaciones, restaurarFabricacion, obtenerFabricacionesEliminadas, verificarExistenciasFabricacion } from '../services/fabricacionService';
+import { crearFabricacion, obtenerFabricacionesGranja, obtenerFabricacion, eliminarFabricacion, editarFabricacion, obtenerEstadisticasFabricaciones, eliminarTodasLasFabricaciones, obtenerFabricacionesEliminadas, verificarExistenciasFabricacion } from '../services/fabricacionService';
 import { buildCsv } from '../utils/csvUtils';
+import { validarAccesoGranjaPorId } from '../middleware/validarAccesoGranja';
 
 interface FabricacionRequest extends Request {
   userId?: string;
@@ -17,23 +18,10 @@ interface FabricacionRequest extends Request {
  */
 export async function obtenerFabricaciones(req: FabricacionRequest, res: Response) {
   try {
-    const userId = req.userId;
     const { idGranja } = req.params;
     const { desde, hasta, descripcionFormula } = req.query;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
-
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
+    // El middleware validarAccesoGranja ya validó el acceso
     const filters = {
       desde: desde as string | undefined,
       hasta: hasta as string | undefined,
@@ -69,14 +57,7 @@ export async function crearNuevaFabricacion(req: FabricacionRequest, res: Respon
       return res.status(400).json({ error: 'La cantidad debe ser mayor a 0' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
+    // El middleware validarAccesoGranja ya validó el acceso (busca idGranja en el body)
 
     // Crear la fabricación
     const fabricacion = await crearFabricacion({
@@ -114,13 +95,10 @@ export async function obtenerFabricacionDetalle(req: FabricacionRequest, res: Re
       return res.status(404).json({ error: 'Fabricación no encontrada' });
     }
 
-    // Verificar que la fabricación pertenece a una granja del usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: fabricacion.idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(403).json({ error: 'Acceso denegado' });
+    // Validar acceso a la granja de la fabricación
+    const validacion = await validarAccesoGranjaPorId(userId!, fabricacion.idGranja);
+    if (!validacion.tieneAcceso) {
+      return res.status(403).json({ error: validacion.error || 'Acceso denegado' });
     }
 
     res.json(fabricacion);
@@ -143,15 +121,11 @@ export async function editarFabricacionCtrl(req: FabricacionRequest, res: Respon
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la fabricación pertenece al usuario
+    // Verificar que la fabricación existe
     const fabricacionActual = await prisma.fabricacion.findUnique({
       where: { id: idFabricacion },
-      include: {
-        granja: {
-          select: {
-            idUsuario: true
-          }
-        }
+      select: {
+        idGranja: true
       }
     });
 
@@ -159,8 +133,10 @@ export async function editarFabricacionCtrl(req: FabricacionRequest, res: Respon
       return res.status(404).json({ error: 'Fabricación no encontrada' });
     }
 
-    if (fabricacionActual.granja.idUsuario !== userId) {
-      return res.status(403).json({ error: 'Acceso denegado' });
+    // Validar acceso a la granja de la fabricación
+    const validacion = await validarAccesoGranjaPorId(userId!, fabricacionActual.idGranja);
+    if (!validacion.tieneAcceso) {
+      return res.status(403).json({ error: validacion.error || 'Acceso denegado' });
     }
 
     // Validar cantidad
@@ -304,48 +280,9 @@ export async function eliminarTodasLasFabricacionesCtrl(req: FabricacionRequest,
 }
 
 /**
- * Restaurar una fabricación eliminada
- */
-export async function restaurarFabricacionCtrl(req: FabricacionRequest, res: Response) {
-  try {
-    const userId = req.userId;
-    const { idFabricacion } = req.params;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
-
-    // Verificar que la fabricación pertenece al usuario
-    const fabricacion = await prisma.fabricacion.findUnique({
-      where: { id: idFabricacion },
-      include: {
-        granja: {
-          select: {
-            idUsuario: true
-          }
-        }
-      }
-    });
-
-    if (!fabricacion) {
-      return res.status(404).json({ error: 'Fabricación no encontrada' });
-    }
-
-    if (fabricacion.granja.idUsuario !== userId) {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    const resultado = await restaurarFabricacion(idFabricacion, userId);
-
-    res.json(resultado);
-  } catch (error: any) {
-    console.error('Error restaurando fabricación:', error);
-    res.status(500).json({ error: error.message || 'Error al restaurar fabricación' });
-  }
-}
-
-/**
  * Obtener fabricaciones eliminadas de una granja
+ * NOTA: Las fabricaciones ahora se eliminan permanentemente, esta función siempre retorna un array vacío
+ * @deprecated Se mantiene por compatibilidad pero ya no hay fabricaciones eliminadas
  */
 export async function obtenerFabricacionesEliminadasCtrl(req: FabricacionRequest, res: Response) {
   try {
@@ -356,18 +293,14 @@ export async function obtenerFabricacionesEliminadasCtrl(req: FabricacionRequest
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
+    // Verificar acceso a la granja
+    const validacion = await validarAccesoGranjaPorId(userId, idGranja);
+    if (!validacion.tieneAcceso) {
+      return res.status(403).json({ error: validacion.error || 'Acceso denegado' });
     }
 
-    const fabricacionesEliminadas = await obtenerFabricacionesEliminadas(idGranja);
-
-    res.json(fabricacionesEliminadas);
+    // Las fabricaciones ahora se eliminan permanentemente, no hay eliminadas
+    res.json([]);
   } catch (error: any) {
     console.error('Error obteniendo fabricaciones eliminadas:', error);
     res.status(500).json({ error: 'Error al obtener fabricaciones eliminadas' });

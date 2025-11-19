@@ -3,8 +3,14 @@ import prisma from '../lib/prisma';
 import { actualizarPreciosTodasFormulas } from '../services/formulaService';
 import { parseCsvBuffer, buildCsv } from '../utils/csvUtils';
 
-interface FormulaRequest extends Request {
+interface FormulaRequest extends Omit<Request, 'file'> {
   userId?: string;
+  file?: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+    size: number;
+  };
 }
 
 /**
@@ -821,15 +827,8 @@ export async function importarFormulas(req: FormulaRequest, res: Response) {
       return res.status(400).json({ error: 'No se recibió ningún archivo CSV' });
     }
 
-    const granja = await prisma.granja.findFirst({ where: { id: idGranja, idUsuario: userId } });
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
-    const existentes = await prisma.formulaCabecera.count({ where: { idGranja } });
-    if (existentes > 0) {
-      return res.status(400).json({ error: 'Ya existen fórmulas registradas. La importación solo está disponible en instancias vacías.' });
-    }
+    // La validación de plan y datos previos se hace en el middleware validateImportacionCSV
+    // Solo validar acceso a granja (ya hecho por middleware)
 
     const { rows } = parseCsvBuffer(req.file.buffer, {
       requiredHeaders: ['tipo', 'codigoFormula'],
@@ -1090,5 +1089,146 @@ export async function exportarFormulas(req: FormulaRequest, res: Response) {
   } catch (error: any) {
     console.error('Error exportando fórmulas:', error);
     res.status(500).json({ error: 'Error al exportar fórmulas' });
+  }
+}
+
+/**
+ * Obtener historial de cambios de una fórmula
+ * Nota: Como no hay auditoría implementada para fórmulas, se muestra la información actual
+ * con fechas de creación y modificación
+ */
+export async function obtenerHistorialFormula(req: FormulaRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const { idGranja, id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Verificar que la granja pertenece al usuario
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    // Obtener la fórmula con todos sus detalles
+    const formula = await prisma.formulaCabecera.findFirst({
+      where: { id, idGranja },
+      include: {
+        animal: {
+          select: {
+            codigoAnimal: true,
+            descripcionAnimal: true,
+            categoriaAnimal: true
+          }
+        },
+        formulasDetalle: {
+          include: {
+            materiaPrima: {
+              select: {
+                codigoMateriaPrima: true,
+                nombreMateriaPrima: true,
+                precioPorKilo: true
+              }
+            }
+          },
+          orderBy: {
+            porcentajeFormula: 'desc'
+          }
+        }
+      }
+    });
+
+    if (!formula) {
+      return res.status(404).json({ error: 'Fórmula no encontrada' });
+    }
+
+    // Buscar registros de auditoría relacionados (si existen)
+    // Nota: Actualmente TablaOrigen no incluye FORMULA, pero buscamos por idRegistro
+    const auditorias = await prisma.auditoria.findMany({
+      where: {
+        idGranja,
+        idRegistro: id,
+        tablaOrigen: {
+          in: ['INVENTARIO', 'FABRICACION', 'COMPRA'] // Buscar en tablas relacionadas
+        }
+      },
+      include: {
+        usuario: {
+          select: {
+            nombreUsuario: true,
+            apellidoUsuario: true,
+            email: true
+          }
+        }
+      },
+      orderBy: {
+        fechaOperacion: 'desc'
+      },
+      take: 50
+    });
+
+    // Formatear respuesta
+    res.json({
+      formula: {
+        id: formula.id,
+        codigoFormula: formula.codigoFormula,
+        descripcionFormula: formula.descripcionFormula,
+        pesoTotalFormula: formula.pesoTotalFormula,
+        costoTotalFormula: formula.costoTotalFormula,
+        fechaCreacion: formula.fechaCreacion,
+        fechaUltimaModificacion: formula.fechaUltimaModificacion,
+        animal: formula.animal,
+        detalles: formula.formulasDetalle.map(detalle => ({
+          id: detalle.id,
+          materiaPrima: {
+            codigo: detalle.materiaPrima.codigoMateriaPrima,
+            nombre: detalle.materiaPrima.nombreMateriaPrima,
+            precioPorKilo: detalle.materiaPrima.precioPorKilo
+          },
+          cantidadKg: detalle.cantidadKg,
+          porcentajeFormula: detalle.porcentajeFormula,
+          precioUnitarioMomentoCreacion: detalle.precioUnitarioMomentoCreacion,
+          costoParcial: detalle.costoParcial
+        }))
+      },
+      historial: [
+        {
+          fecha: formula.fechaCreacion,
+          accion: 'CREACION',
+          descripcion: 'Fórmula creada',
+          usuario: null,
+          cambios: {
+            descripcion: 'Fórmula creada inicialmente',
+            detalles: formula.formulasDetalle.length
+          }
+        },
+        ...(formula.fechaUltimaModificacion.getTime() !== formula.fechaCreacion.getTime() ? [{
+          fecha: formula.fechaUltimaModificacion,
+          accion: 'UPDATE',
+          descripcion: 'Última modificación',
+          usuario: null,
+          cambios: {
+            descripcion: 'Fórmula modificada',
+            costoTotal: formula.costoTotalFormula
+          }
+        }] : [])
+      ],
+      auditoriasRelacionadas: auditorias.map(aud => ({
+        fecha: aud.fechaOperacion,
+        accion: aud.accion,
+        descripcion: aud.descripcion,
+        usuario: aud.usuario ? `${aud.usuario.nombreUsuario} ${aud.usuario.apellidoUsuario}` : 'Sistema',
+        tablaOrigen: aud.tablaOrigen
+      })),
+      nota: 'Nota: El historial completo de cambios de fórmulas requiere implementación de auditoría específica para fórmulas.'
+    });
+  } catch (error: any) {
+    console.error('Error obteniendo historial de fórmula:', error);
+    res.status(500).json({ error: 'Error al obtener historial de fórmula' });
   }
 }

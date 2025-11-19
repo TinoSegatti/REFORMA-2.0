@@ -127,7 +127,7 @@ async function manejarPreapproval(preapprovalData: any) {
   }
 
   try {
-    const suscripcion = await prisma.suscripcion.findUnique({
+    let suscripcion = await prisma.suscripcion.findUnique({
       where: { mercadoPagoPreapprovalId: preapprovalId },
     });
 

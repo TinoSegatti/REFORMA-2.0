@@ -16,8 +16,8 @@ interface CrearArchivoParams {
   descripcion: string;
 }
 
-const sanitizeJson = (value: any): Prisma.JsonValue =>
-  JSON.parse(JSON.stringify(value));
+const sanitizeJson = (value: any): Prisma.InputJsonValue =>
+  JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 
 async function snapshotCompras(idGranja: string) {
   const compras = await prisma.compraCabecera.findMany({
@@ -199,7 +199,7 @@ export async function crearArchivoSnapshot({
     await prisma.archivoDetalle.createMany({
       data: datos.map((dato) => ({
         idArchivo: archivo.id,
-        datosJson: sanitizeJson(dato),
+        datosJson: sanitizeJson(dato) as Prisma.InputJsonValue,
       })),
     });
   }

@@ -6,6 +6,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { obtenerLimitesPlan, PlanSuscripcion } from '../constants/planes';
+import { obtenerPlantasAccesibles } from '../services/usuarioEmpleadoService';
 
 interface GranjaRequest extends Request {
   userId?: string;
@@ -13,6 +14,7 @@ interface GranjaRequest extends Request {
 
 /**
  * Obtener granjas del usuario
+ * Si es empleado, incluye las granjas de su dueño
  */
 export async function obtenerGranjas(req: GranjaRequest, res: Response) {
   try {
@@ -22,20 +24,59 @@ export async function obtenerGranjas(req: GranjaRequest, res: Response) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    const granjas = await prisma.granja.findMany({
-      where: { idUsuario: userId, activa: true },
-      orderBy: { fechaCreacion: 'desc' },
-      include: {
-        _count: {
-          select: {
-            materiasPrimas: true,
-            proveedores: true,
-            piensos: true,
-            formulasCab: true
-          }
-        }
+    // Obtener información del usuario
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: userId },
+      select: {
+        esUsuarioEmpleado: true,
+        idUsuarioDueño: true,
+        activoComoEmpleado: true
       }
     });
+
+    if (!usuario) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    let granjas;
+
+    if (usuario.esUsuarioEmpleado && usuario.idUsuarioDueño && usuario.activoComoEmpleado) {
+      // Si es empleado, obtener las granjas de su dueño
+      const plantasAccesibles = await obtenerPlantasAccesibles(userId);
+      granjas = await prisma.granja.findMany({
+        where: {
+          id: { in: plantasAccesibles.map(p => p.id) },
+          activa: true
+        },
+        orderBy: { fechaCreacion: 'desc' },
+        include: {
+          _count: {
+            select: {
+              materiasPrimas: true,
+              proveedores: true,
+              piensos: true,
+              formulasCab: true
+            }
+          }
+        }
+      });
+    } else {
+      // Si es dueño, obtener sus propias granjas
+      granjas = await prisma.granja.findMany({
+        where: { idUsuario: userId, activa: true },
+        orderBy: { fechaCreacion: 'desc' },
+        include: {
+          _count: {
+            select: {
+              materiasPrimas: true,
+              proveedores: true,
+              piensos: true,
+              formulasCab: true
+            }
+          }
+        }
+      });
+    }
 
     res.json(granjas);
   } catch (error: any) {
@@ -72,16 +113,23 @@ export async function crearGranja(req: GranjaRequest, res: Response) {
 
     // Verificar límite de granjas
     const limites = obtenerLimitesPlan(usuario.planSuscripcion as PlanSuscripcion);
-    const granjasCount = await prisma.granja.count({
-      where: { idUsuario: userId, activa: true }
-    });
-
-    if (granjasCount >= limites.maxGranjas) {
-      return res.status(403).json({
-        error: `Límite de ${limites.maxGranjas} granja(s) alcanzado en tu plan`,
-        limite: limites.maxGranjas,
-        actual: granjasCount
+    const maxGranjas = limites.maxGranjas;
+    
+    // Si es ilimitado, permitir
+    if (maxGranjas === null) {
+      // Continuar con la creación
+    } else {
+      const granjasCount = await prisma.granja.count({
+        where: { idUsuario: userId, activa: true }
       });
+
+      if (granjasCount >= maxGranjas) {
+        return res.status(403).json({
+          error: `Límite de ${maxGranjas} granja(s) alcanzado en tu plan`,
+          limite: maxGranjas,
+          actual: granjasCount
+        });
+      }
     }
 
     // Crear granja
@@ -103,26 +151,14 @@ export async function crearGranja(req: GranjaRequest, res: Response) {
 
 /**
  * Actualizar granja
+ * NOTA: El middleware validarAccesoGranja ya validó el acceso
  */
 export async function actualizarGranja(req: GranjaRequest, res: Response) {
   try {
-    const userId = req.userId;
     const { idGranja } = req.params;
     const { nombreGranja, descripcion } = req.body;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
-
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
-    });
-
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
-    }
-
+    // El middleware validarAccesoGranja ya validó el acceso
     const granjaActualizada = await prisma.granja.update({
       where: { id: idGranja },
       data: { nombreGranja, descripcion }
@@ -137,6 +173,8 @@ export async function actualizarGranja(req: GranjaRequest, res: Response) {
 
 /**
  * Eliminar granja (soft delete)
+ * NOTA: El middleware validarAccesoGranja ya validó el acceso
+ * IMPORTANTE: Solo el dueño puede eliminar granjas, no los empleados
  */
 export async function eliminarGranja(req: GranjaRequest, res: Response) {
   try {
@@ -147,15 +185,17 @@ export async function eliminarGranja(req: GranjaRequest, res: Response) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar que la granja pertenece al usuario
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId }
+    // Verificar si es empleado (los empleados no pueden eliminar granjas)
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: userId },
+      select: { esUsuarioEmpleado: true }
     });
 
-    if (!granja) {
-      return res.status(404).json({ error: 'Granja no encontrada' });
+    if (usuario?.esUsuarioEmpleado) {
+      return res.status(403).json({ error: 'Los empleados no pueden eliminar granjas' });
     }
 
+    // El middleware validarAccesoGranja ya validó el acceso
     // Soft delete
     await prisma.granja.update({
       where: { id: idGranja },
@@ -171,18 +211,15 @@ export async function eliminarGranja(req: GranjaRequest, res: Response) {
 
 /**
  * Obtener una granja específica
+ * NOTA: El middleware validarAccesoGranja ya validó el acceso, así que solo obtenemos la granja
  */
 export async function obtenerGranja(req: GranjaRequest, res: Response) {
   try {
-    const userId = req.userId;
     const { idGranja } = req.params;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
-
-    const granja = await prisma.granja.findFirst({
-      where: { id: idGranja, idUsuario: userId, activa: true },
+    // El middleware validarAccesoGranja ya validó el acceso, así que obtenemos la granja directamente
+    const granja = await prisma.granja.findUnique({
+      where: { id: idGranja },
       include: {
         _count: {
           select: {
@@ -196,7 +233,7 @@ export async function obtenerGranja(req: GranjaRequest, res: Response) {
       }
     });
 
-    if (!granja) {
+    if (!granja || !granja.activa) {
       return res.status(404).json({ error: 'Granja no encontrada' });
     }
 

@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { calcularPrecioAlmacen } from '../services/inventarioService';
-import { calcularStockDesdeCompras } from '../services/compraService';
 import { validateGranja, sendValidationError } from '../utils/granjaValidation';
 import { buildCsv } from '../utils/csvUtils';
 

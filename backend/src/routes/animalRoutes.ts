@@ -12,6 +12,8 @@ import {
   exportarAnimales
 } from '../controllers/animalController';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { validarAccesoGranja } from '../middleware/validarAccesoGranja';
+import { validateImportacionCSV } from '../middleware/validateImportacionCSV';
 import { uploadCsv } from '../middleware/uploadMiddleware';
 
 const router = express.Router();
@@ -19,12 +21,12 @@ const router = express.Router();
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
 
-router.post('/:idGranja/import', uploadCsv.single('file'), importarAnimales);
-router.get('/:idGranja/export', exportarAnimales);
-router.get('/:idGranja', obtenerAnimales);
-router.post('/:idGranja', crearAnimal);
-router.put('/:idGranja/:id', actualizarAnimal);
-router.delete('/:idGranja/:id', eliminarAnimal);
+router.post('/:idGranja/import', validarAccesoGranja, uploadCsv.single('file'), validateImportacionCSV('piensos'), importarAnimales);
+router.get('/:idGranja/export', validarAccesoGranja, exportarAnimales);
+router.get('/:idGranja', validarAccesoGranja, obtenerAnimales);
+router.post('/:idGranja', validarAccesoGranja, crearAnimal);
+router.put('/:idGranja/:id', validarAccesoGranja, actualizarAnimal);
+router.delete('/:idGranja/:id', validarAccesoGranja, eliminarAnimal);
 
 export default router;
 

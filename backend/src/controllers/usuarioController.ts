@@ -8,6 +8,9 @@ import prisma from '../lib/prisma';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { generarTokenVerificacion, enviarEmailVerificacion, reenviarEmailVerificacion, verificarConfiguracionEmail } from '../services/emailService';
+import { validarCodigoReferencia, vincularUsuarioEmpleado, validarLimiteUsuariosEmpleados } from '../services/usuarioEmpleadoService';
+import { notificarEmpleadoAceptaInvitacion } from '../services/notificacionService';
+import { PlanSuscripcion } from '../constants/planes';
 
 interface UsuarioRequest extends Request {
   userId?: string;
@@ -19,7 +22,7 @@ interface UsuarioRequest extends Request {
  */
 export async function registrarUsuario(req: UsuarioRequest, res: Response) {
   try {
-    const { email, password, nombreUsuario, apellidoUsuario } = req.body;
+    const { email, password, nombreUsuario, apellidoUsuario, codigoReferencia } = req.body;
 
     // Validaciones
     if (!email || !password || !nombreUsuario || !apellidoUsuario) {
@@ -33,6 +36,43 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
 
     if (usuarioExistente) {
       return res.status(400).json({ error: 'El email ya está registrado' });
+    }
+
+    // Validar código de referencia si se proporciona
+    let usuarioDueño = null;
+    let planAsignado: PlanSuscripcion = PlanSuscripcion.DEMO;
+    
+    if (codigoReferencia) {
+      try {
+        const validacionCodigo = await validarCodigoReferencia(codigoReferencia);
+        
+        if (!validacionCodigo.valido || !validacionCodigo.usuarioDueño) {
+          return res.status(400).json({ 
+            error: 'Código de referencia inválido o expirado',
+            detalles: validacionCodigo.error || 'El código proporcionado no es válido'
+          });
+        }
+
+        usuarioDueño = validacionCodigo.usuarioDueño;
+        
+        // Verificar que el dueño tenga espacio para más empleados
+        const validacionLimite = await validarLimiteUsuariosEmpleados(usuarioDueño.id);
+        if (!validacionLimite.puedeAgregar) {
+          return res.status(400).json({
+            error: 'Límite de usuarios alcanzado',
+            detalles: `El plan del dueño no permite más empleados. Límite: ${validacionLimite.limite}, Actual: ${validacionLimite.actual}`
+          });
+        }
+
+        // Asignar el plan del dueño al nuevo empleado
+        planAsignado = usuarioDueño.planSuscripcion as PlanSuscripcion;
+      } catch (error: any) {
+        console.error('Error validando código de referencia:', error);
+        return res.status(400).json({
+          error: 'Error al validar código de referencia',
+          detalles: error.message || 'Error desconocido'
+        });
+      }
     }
 
     // Hash de la contraseña
@@ -51,11 +91,16 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
         nombreUsuario,
         apellidoUsuario,
         tipoUsuario: 'CLIENTE',
-        planSuscripcion: 'DEMO',
+        planSuscripcion: planAsignado,
         emailVerificado: false,
         tokenVerificacion,
         fechaExpiracionToken: fechaExpiracion,
-        activo: false // Inactivo hasta verificar email
+        activo: false, // Inactivo hasta verificar email
+        // Si hay código de referencia, configurar como empleado
+        esUsuarioEmpleado: !!codigoReferencia,
+        idUsuarioDueño: usuarioDueño?.id || null,
+        fechaVinculacion: codigoReferencia ? new Date() : null,
+        rolEmpleado: codigoReferencia ? 'EDITOR' : null
       },
       select: {
         id: true,
@@ -64,9 +109,21 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
         apellidoUsuario: true,
         tipoUsuario: true,
         planSuscripcion: true,
-        emailVerificado: true
+        emailVerificado: true,
+        esUsuarioEmpleado: true
       }
     });
+
+    // Si hay código de referencia válido, vincular al empleado
+    if (codigoReferencia && usuarioDueño) {
+      try {
+        await vincularUsuarioEmpleado(usuario.id, codigoReferencia);
+        console.log(`[Registro] Usuario ${usuario.email} vinculado como empleado de ${usuarioDueño.email}`);
+      } catch (error: any) {
+        console.error('Error vinculando empleado durante registro:', error);
+        // No fallar el registro si falla la vinculación, pero registrar el error
+      }
+    }
 
     // Enviar email de verificación
     try {
@@ -82,12 +139,15 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
 
     // NO generar token JWT todavía - el usuario debe verificar su email primero
     res.status(201).json({
-      mensaje: 'Usuario registrado exitosamente. Por favor verifica tu email para activar tu cuenta.',
+      mensaje: codigoReferencia 
+        ? 'Usuario registrado exitosamente como empleado. Por favor verifica tu email para activar tu cuenta.'
+        : 'Usuario registrado exitosamente. Por favor verifica tu email para activar tu cuenta.',
       usuario: {
         ...usuario,
         requiereVerificacion: true
       },
-      emailEnviado: verificarConfiguracionEmail()
+      emailEnviado: verificarConfiguracionEmail(),
+      esEmpleado: !!codigoReferencia
     });
   } catch (error: any) {
     console.error('Error registrando usuario:', error);
@@ -352,20 +412,58 @@ export async function verificarEmail(req: Request, res: Response) {
     }
 
     // Actualizar usuario: verificar email, activar cuenta, limpiar token
-    await prisma.usuario.update({
+    const usuarioActualizado = await prisma.usuario.update({
       where: { id: usuario.id },
       data: {
         emailVerificado: true,
         activo: true,
+        activoComoEmpleado: usuario.esUsuarioEmpleado ? true : undefined, // Activar como empleado si corresponde
         tokenVerificacion: null,
         fechaExpiracionToken: null
+      },
+      select: {
+        id: true,
+        email: true,
+        nombreUsuario: true,
+        apellidoUsuario: true,
+        tipoUsuario: true,
+        planSuscripcion: true,
+        emailVerificado: true,
+        esUsuarioEmpleado: true,
+        idUsuarioDueño: true
       }
     });
+
+    // Si es empleado, enviar notificación al dueño cuando acepta la invitación
+    if (usuarioActualizado.esUsuarioEmpleado && usuarioActualizado.idUsuarioDueño) {
+      try {
+        const dueño = await prisma.usuario.findUnique({
+          where: { id: usuarioActualizado.idUsuarioDueño },
+          select: {
+            email: true,
+            nombreUsuario: true,
+            apellidoUsuario: true
+          }
+        });
+
+        if (dueño) {
+          await notificarEmpleadoAceptaInvitacion(
+            dueño.email,
+            `${dueño.nombreUsuario} ${dueño.apellidoUsuario}`,
+            `${usuarioActualizado.nombreUsuario} ${usuarioActualizado.apellidoUsuario}`,
+            usuarioActualizado.email
+          );
+        }
+      } catch (error) {
+        console.error('Error enviando notificación de empleado acepta invitación:', error);
+        // No fallar la verificación si falla la notificación
+      }
+    }
 
     // Generar token JWT para login automático
     const JWT_SECRET = process.env.JWT_SECRET || '';
     const jwtToken = jwt.sign(
-      { userId: usuario.id, email: usuario.email, tipo: usuario.tipoUsuario },
+      { userId: usuarioActualizado.id, email: usuarioActualizado.email, tipo: usuarioActualizado.tipoUsuario },
       JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRATION || '24h' } as jwt.SignOptions
     );
@@ -373,12 +471,12 @@ export async function verificarEmail(req: Request, res: Response) {
     res.json({
       mensaje: 'Email verificado exitosamente',
       usuario: {
-        id: usuario.id,
-        email: usuario.email,
-        nombreUsuario: usuario.nombreUsuario,
-        apellidoUsuario: usuario.apellidoUsuario,
-        tipoUsuario: usuario.tipoUsuario,
-        planSuscripcion: usuario.planSuscripcion,
+        id: usuarioActualizado.id,
+        email: usuarioActualizado.email,
+        nombreUsuario: usuarioActualizado.nombreUsuario,
+        apellidoUsuario: usuarioActualizado.apellidoUsuario,
+        tipoUsuario: usuarioActualizado.tipoUsuario,
+        planSuscripcion: usuarioActualizado.planSuscripcion,
         emailVerificado: true
       },
       token: jwtToken

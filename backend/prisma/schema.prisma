@@ -20,9 +20,9 @@ enum TipoUsuario {
 }
 
 enum PlanSuscripcion {
-  DEMO      // Gratuito - 30 días
-  STARTER   // $35/mes o $350/año
-  BUSINESS  // $99/mes o $990/año
+  DEMO // Gratuito - 30 días
+  STARTER // $35/mes o $350/año
+  BUSINESS // $99/mes o $990/año
   ENTERPRISE // $229/mes o $2,290/año
 }
 
@@ -65,84 +65,104 @@ enum TablaOrigen {
   COMPRA
 }
 
+enum RolEmpleado {
+  ADMIN // Acceso completo (solo para dueño o empleado designado)
+  EDITOR // Puede crear, editar, eliminar
+  LECTOR // Solo lectura
+}
+
 // ============================================
 // MODELOS PRINCIPALES
 // ============================================
 
 model Usuario {
-  id                    String          @id @default(cuid())
-  email                 String          @unique
-  passwordHash          String?         // nullable para login con Google
-  googleId              String?         @unique // ID de Google OAuth
-  nombreUsuario         String
-  apellidoUsuario       String
-  tipoUsuario           TipoUsuario     @default(CLIENTE)
-  planSuscripcion       PlanSuscripcion @default(DEMO)
-  maxGranjas            Int             @default(1)
-  activo                Boolean         @default(true)
-  emailVerificado       Boolean         @default(false) // Verificación de email
-  tokenVerificacion     String?         @unique // Token para verificar email
-  fechaExpiracionToken  DateTime?       // Fecha de expiración del token
-  fechaRegistro         DateTime        @default(now())
-  ultimoAcceso          DateTime?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  id                   String          @id @default(cuid())
+  email                String          @unique
+  passwordHash         String? // nullable para login con Google
+  googleId             String?         @unique // ID de Google OAuth
+  nombreUsuario        String
+  apellidoUsuario      String
+  tipoUsuario          TipoUsuario     @default(CLIENTE)
+  planSuscripcion      PlanSuscripcion @default(DEMO)
+  maxGranjas           Int             @default(1)
+  activo               Boolean         @default(true)
+  emailVerificado      Boolean         @default(false) // Verificación de email
+  tokenVerificacion    String?         @unique // Token para verificar email
+  fechaExpiracionToken DateTime? // Fecha de expiración del token
+  fechaRegistro        DateTime        @default(now())
+  ultimoAcceso         DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  // Sistema de usuarios empleados
+  codigoReferencia      String?      @unique // Código único para invitar empleados
+  fechaGeneracionCodigo DateTime? // Fecha de generación del código
+  codigoExpiracion      DateTime? // Fecha de expiración del código (opcional)
+  esUsuarioEmpleado     Boolean      @default(false)
+  idUsuarioDueño       String? // ID del dueño si es empleado
+  fechaVinculacion      DateTime? // Fecha en que se vinculó como empleado
+  rolEmpleado           RolEmpleado? @default(EDITOR)
+  activoComoEmpleado    Boolean      @default(true) // Para desvincular sin eliminar cuenta
 
   // Relaciones
-  granjas          Granja[]
-  compras          CompraCabecera[]
-  fabricaciones    Fabricacion[]
-  auditorias       Auditoria[]
-  suscripcion      Suscripcion?
+  granjas       Granja[]
+  compras       CompraCabecera[]
+  fabricaciones Fabricacion[]
+  auditorias    Auditoria[]
+  suscripcion   Suscripcion?
+
+  // Relaciones de usuarios empleados
+  usuariosEmpleados Usuario[] @relation("UsuarioEmpleados")
+  usuarioDueño     Usuario?  @relation("UsuarioEmpleados", fields: [idUsuarioDueño], references: [id], onDelete: SetNull)
 
   @@map("t_usuarios")
 }
 
 model Granja {
-  id              String   @id @default(cuid())
-  idUsuario       String
-  nombreGranja    String
-  descripcion     String?  @db.Text
-  fechaCreacion   DateTime @default(now())
-  activa          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid())
+  idUsuario     String
+  nombreGranja  String
+  descripcion   String?  @db.Text
+  fechaCreacion DateTime @default(now())
+  activa        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relaciones
-  usuario         Usuario            @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
-  materiasPrimas  MateriaPrima[]
-  proveedores     Proveedor[]
-  piensos         Animal[]
-  formulasCab     FormulaCabecera[]
-  fabricaciones   Fabricacion[]
-  inventario      Inventario[]
+  usuario           Usuario             @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  materiasPrimas    MateriaPrima[]
+  proveedores       Proveedor[]
+  piensos           Animal[]
+  formulasCab       FormulaCabecera[]
+  fabricaciones     Fabricacion[]
+  inventario        Inventario[]
   inventarioInicial InventarioInicial[]
-  compras         CompraCabecera[]
-  archivos        ArchivoCabecera[]
-  auditorias     Auditoria[]
+  compras           CompraCabecera[]
+  archivos          ArchivoCabecera[]
+  auditorias        Auditoria[]
 
   @@index([idUsuario])
   @@map("t_granja")
 }
 
 model MateriaPrima {
-  id                      String    @id @default(cuid())
-  idGranja               String
-  codigoMateriaPrima      String
-  nombreMateriaPrima      String
-  precioPorKilo           Float     @default(0)
-  activa                  Boolean   @default(true)
-  fechaCreacion           DateTime  @default(now())
+  id                       String   @id @default(cuid())
+  idGranja                 String
+  codigoMateriaPrima       String
+  nombreMateriaPrima       String
+  precioPorKilo            Float    @default(0)
+  activa                   Boolean  @default(true)
+  fechaCreacion            DateTime @default(now())
   fechaUltimaActualizacion DateTime @updatedAt
 
   // Relaciones
-  granja                  Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  formulasDetalle         FormulaDetalle[]
-  comprasDetalle          CompraDetalle[]
-  inventario              Inventario[]
-  inventarioInicial       InventarioInicial[]
-  detallesFabricacion     DetalleFabricacion[]
-  registrosPrecio         RegistroPrecio[]
+  granja              Granja               @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  formulasDetalle     FormulaDetalle[]
+  comprasDetalle      CompraDetalle[]
+  inventario          Inventario[]
+  inventarioInicial   InventarioInicial[]
+  detallesFabricacion DetalleFabricacion[]
+  registrosPrecio     RegistroPrecio[]
 
   @@unique([idGranja, codigoMateriaPrima])
   @@index([idGranja])
@@ -152,16 +172,16 @@ model MateriaPrima {
 model Proveedor {
   id              String   @id @default(cuid())
   idGranja        String
-  codigoProveedor  String
-  nombreProveedor  String
+  codigoProveedor String
+  nombreProveedor String
   direccion       String?
   localidad       String?
   activo          Boolean  @default(true)
   fechaCreacion   DateTime @default(now())
 
   // Relaciones
-  granja          Granja          @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  compras         CompraCabecera[]
+  granja  Granja           @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  compras CompraCabecera[]
 
   @@unique([idGranja, codigoProveedor])
   @@index([idGranja])
@@ -169,17 +189,17 @@ model Proveedor {
 }
 
 model Animal {
-  id                    String    @id @default(cuid())
-  idGranja              String
-  codigoAnimal          String
-  descripcionAnimal     String
-  categoriaAnimal        String    // Campo de texto libre para categorías
-  activo                Boolean   @default(true)
-  fechaCreacion         DateTime  @default(now())
+  id                String   @id @default(cuid())
+  idGranja          String
+  codigoAnimal      String
+  descripcionAnimal String
+  categoriaAnimal   String // Campo de texto libre para categorías
+  activo            Boolean  @default(true)
+  fechaCreacion     DateTime @default(now())
 
   // Relaciones
-  granja                Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  formulasCab            FormulaCabecera[]
+  granja      Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  formulasCab FormulaCabecera[]
 
   @@unique([idGranja, codigoAnimal])
   @@index([idGranja])
@@ -199,10 +219,10 @@ model FormulaCabecera {
   fechaUltimaModificacion DateTime @updatedAt
 
   // Relaciones
-  granja                  Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  animal                  Animal            @relation(fields: [idAnimal], references: [id])
-  formulasDetalle         FormulaDetalle[]
-  fabricaciones           Fabricacion[]
+  granja          Granja           @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  animal          Animal           @relation(fields: [idAnimal], references: [id])
+  formulasDetalle FormulaDetalle[]
+  fabricaciones   Fabricacion[]
 
   @@unique([idGranja, codigoFormula])
   @@index([idGranja])
@@ -210,17 +230,17 @@ model FormulaCabecera {
 }
 
 model FormulaDetalle {
-  id                              String  @id @default(cuid())
-  idFormula                       String
-  idMateriaPrima                  String
-  cantidadKg                      Float
-  porcentajeFormula               Float
-  precioUnitarioMomentoCreacion   Float
-  costoParcial                    Float
+  id                            String @id @default(cuid())
+  idFormula                     String
+  idMateriaPrima                String
+  cantidadKg                    Float
+  porcentajeFormula             Float
+  precioUnitarioMomentoCreacion Float
+  costoParcial                  Float
 
   // Relaciones
-  formula                         FormulaCabecera @relation(fields: [idFormula], references: [id], onDelete: Cascade)
-  materiaPrima                    MateriaPrima    @relation(fields: [idMateriaPrima], references: [id])
+  formula      FormulaCabecera @relation(fields: [idFormula], references: [id], onDelete: Cascade)
+  materiaPrima MateriaPrima    @relation(fields: [idMateriaPrima], references: [id])
 
   @@index([idFormula])
   @@index([idMateriaPrima])
@@ -228,28 +248,28 @@ model FormulaDetalle {
 }
 
 model Fabricacion {
-  id                      String              @id @default(cuid())
-  idGranja                String
-  idUsuario               String
-  idFormula               String
-  descripcionFabricacion  String
-  cantidadFabricacion     Float
-  costoTotalFabricacion   Float
-  costoPorKilo            Float
-  fechaFabricacion        DateTime
-  fechaCreacion           DateTime            @default(now())
-  observaciones           String?
-  sinExistencias          Boolean             @default(false)
+  id                     String    @id @default(cuid())
+  idGranja               String
+  idUsuario              String
+  idFormula              String
+  descripcionFabricacion String
+  cantidadFabricacion    Float
+  costoTotalFabricacion  Float
+  costoPorKilo           Float
+  fechaFabricacion       DateTime
+  fechaCreacion          DateTime  @default(now())
+  observaciones          String?
+  sinExistencias         Boolean   @default(false)
   // Soft delete
-  activo                  Boolean             @default(true)
-  fechaEliminacion        DateTime?
-  eliminadoPor            String?
+  activo                 Boolean   @default(true)
+  fechaEliminacion       DateTime?
+  eliminadoPor           String?
 
   // Relaciones
-  granja                  Granja              @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  usuario                 Usuario             @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
-  formula                 FormulaCabecera     @relation(fields: [idFormula], references: [id])
-  detallesFabricacion     DetalleFabricacion[]
+  granja              Granja               @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  usuario             Usuario              @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  formula             FormulaCabecera      @relation(fields: [idFormula], references: [id])
+  detallesFabricacion DetalleFabricacion[]
 
   @@index([idGranja])
   @@index([idUsuario])
@@ -259,16 +279,16 @@ model Fabricacion {
 }
 
 model DetalleFabricacion {
-  id                      String      @id @default(cuid())
-  idFabricacion           String
-  idMateriaPrima          String
-  cantidadUsada           Float
-  precioUnitario          Float
-  costoParcial            Float
+  id             String @id @default(cuid())
+  idFabricacion  String
+  idMateriaPrima String
+  cantidadUsada  Float
+  precioUnitario Float
+  costoParcial   Float
 
   // Relaciones
-  fabricacion             Fabricacion @relation(fields: [idFabricacion], references: [id], onDelete: Cascade)
-  materiaPrima            MateriaPrima @relation(fields: [idMateriaPrima], references: [id])
+  fabricacion  Fabricacion  @relation(fields: [idFabricacion], references: [id], onDelete: Cascade)
+  materiaPrima MateriaPrima @relation(fields: [idMateriaPrima], references: [id])
 
   @@index([idFabricacion])
   @@index([idMateriaPrima])
@@ -276,22 +296,22 @@ model DetalleFabricacion {
 }
 
 model Inventario {
-  id                      String   @id @default(cuid())
-  idGranja                String
-  idMateriaPrima          String
-  cantidadAcumulada       Float    @default(0)
-  cantidadSistema         Float    @default(0)
-  cantidadReal            Float    @default(0)
-  merma                   Float    @default(0)  // calculado: cantidad_sistema - cantidad_real
-  precioAlmacen           Float    @default(0)  // calculado: sum(total_compras) / sum(cantidad_total_adquirida)
-  valorStock              Float    @default(0)  // calculado: cantidad_real * precio_materia_prima
-  version                 Int      @default(0)
+  id                       String   @id @default(cuid())
+  idGranja                 String
+  idMateriaPrima           String
+  cantidadAcumulada        Float    @default(0)
+  cantidadSistema          Float    @default(0)
+  cantidadReal             Float    @default(0)
+  merma                    Float    @default(0) // calculado: cantidad_sistema - cantidad_real
+  precioAlmacen            Float    @default(0) // calculado: sum(total_compras) / sum(cantidad_total_adquirida)
+  valorStock               Float    @default(0) // calculado: cantidad_real * precio_materia_prima
+  version                  Int      @default(0)
   fechaUltimaActualizacion DateTime @updatedAt
-  observaciones           String?  @db.Text
+  observaciones            String?  @db.Text
 
   // Relaciones
-  granja                  Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  materiaPrima            MateriaPrima      @relation(fields: [idMateriaPrima], references: [id])
+  granja       Granja       @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  materiaPrima MateriaPrima @relation(fields: [idMateriaPrima], references: [id])
 
   @@unique([idGranja, idMateriaPrima])
   @@index([idGranja])
@@ -299,15 +319,15 @@ model Inventario {
 }
 
 model InventarioInicial {
-  id               String   @id @default(cuid())
-  idGranja         String
-  idMateriaPrima   String
-  cantidadInicial  Float    @default(0)
-  precioInicial    Float    @default(0)
-  fechaRegistro    DateTime @default(now())
+  id              String   @id @default(cuid())
+  idGranja        String
+  idMateriaPrima  String
+  cantidadInicial Float    @default(0)
+  precioInicial   Float    @default(0)
+  fechaRegistro   DateTime @default(now())
 
-  granja           Granja       @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  materiaPrima     MateriaPrima @relation(fields: [idMateriaPrima], references: [id])
+  granja       Granja       @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  materiaPrima MateriaPrima @relation(fields: [idMateriaPrima], references: [id])
 
   @@unique([idGranja, idMateriaPrima])
   @@index([idGranja])
@@ -315,25 +335,25 @@ model InventarioInicial {
 }
 
 model CompraCabecera {
-  id              String      @id @default(cuid())
-  idGranja          String
-  idUsuario         String
-  idProveedor       String
-  numeroFactura     String?
-  fechaCompra       DateTime
-  totalFactura      Float      @default(0)
-  observaciones      String?    @db.Text
-  fechaCreacion      DateTime   @default(now())
+  id               String    @id @default(cuid())
+  idGranja         String
+  idUsuario        String
+  idProveedor      String
+  numeroFactura    String?
+  fechaCompra      DateTime
+  totalFactura     Float     @default(0)
+  observaciones    String?   @db.Text
+  fechaCreacion    DateTime  @default(now())
   // Soft delete
-  activo            Boolean     @default(true)
-  fechaEliminacion  DateTime?
-  eliminadoPor      String?
+  activo           Boolean   @default(true)
+  fechaEliminacion DateTime?
+  eliminadoPor     String?
 
   // Relaciones
-  granja             Granja          @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  usuario            Usuario         @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
-  proveedor          Proveedor       @relation(fields: [idProveedor], references: [id])
-  comprasDetalle     CompraDetalle[]
+  granja         Granja          @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  usuario        Usuario         @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  proveedor      Proveedor       @relation(fields: [idProveedor], references: [id])
+  comprasDetalle CompraDetalle[]
 
   @@index([idGranja])
   @@index([activo])
@@ -343,17 +363,17 @@ model CompraCabecera {
 }
 
 model CompraDetalle {
-  id                          String           @id @default(cuid())
-  idCompra                    String
-  idMateriaPrima              String
-  cantidadComprada            Float
-  precioUnitario              Float
-  subtotal                    Float
-  precioAnteriorMateriaPrima  Float            // para auditoría
+  id                         String @id @default(cuid())
+  idCompra                   String
+  idMateriaPrima             String
+  cantidadComprada           Float
+  precioUnitario             Float
+  subtotal                   Float
+  precioAnteriorMateriaPrima Float // para auditoría
 
   // Relaciones
-  compra                      CompraCabecera   @relation(fields: [idCompra], references: [id], onDelete: Cascade)
-  materiaPrima               MateriaPrima     @relation(fields: [idMateriaPrima], references: [id])
+  compra       CompraCabecera @relation(fields: [idCompra], references: [id], onDelete: Cascade)
+  materiaPrima MateriaPrima   @relation(fields: [idMateriaPrima], references: [id])
 
   @@index([idCompra])
   @@index([idMateriaPrima])
@@ -361,16 +381,16 @@ model CompraDetalle {
 }
 
 model RegistroPrecio {
-  id                      String   @id @default(cuid())
-  idMateriaPrima          String
-  precioAnterior          Float
-  precioNuevo             Float
-  diferenciaPorcentual    Float
-  fechaCambio             DateTime @default(now())
-  motivo                  String?  @db.Text
+  id                   String   @id @default(cuid())
+  idMateriaPrima       String
+  precioAnterior       Float
+  precioNuevo          Float
+  diferenciaPorcentual Float
+  fechaCambio          DateTime @default(now())
+  motivo               String?  @db.Text
 
   // Relaciones
-  materiaPrima            MateriaPrima @relation(fields: [idMateriaPrima], references: [id], onDelete: Cascade)
+  materiaPrima MateriaPrima @relation(fields: [idMateriaPrima], references: [id], onDelete: Cascade)
 
   @@index([idMateriaPrima])
   @@index([fechaCambio])
@@ -378,17 +398,17 @@ model RegistroPrecio {
 }
 
 model ArchivoCabecera {
-  id                  String      @id @default(cuid())
-  idGranja            String
-  tablaOrigen         TablaOrigen
-  fechaArchivo          DateTime
-  descripcionArchivo   String
-  totalRegistros       Int         @default(0)
-  fechaCreacion        DateTime    @default(now())
+  id                 String      @id @default(cuid())
+  idGranja           String
+  tablaOrigen        TablaOrigen
+  fechaArchivo       DateTime
+  descripcionArchivo String
+  totalRegistros     Int         @default(0)
+  fechaCreacion      DateTime    @default(now())
 
   // Relaciones
-  granja              Granja            @relation(fields: [idGranja], references: [id], onDelete: Cascade)
-  archivosDetalle     ArchivoDetalle[]
+  granja          Granja           @relation(fields: [idGranja], references: [id], onDelete: Cascade)
+  archivosDetalle ArchivoDetalle[]
 
   @@index([idGranja])
   @@index([tablaOrigen])
@@ -396,12 +416,12 @@ model ArchivoCabecera {
 }
 
 model ArchivoDetalle {
-  id              String  @id @default(cuid())
-  idArchivo       String
-  datosJson       Json    // JSON con los datos archivados
+  id        String @id @default(cuid())
+  idArchivo String
+  datosJson Json // JSON con los datos archivados
 
   // Relaciones
-  archivo         ArchivoCabecera @relation(fields: [idArchivo], references: [id], onDelete: Cascade)
+  archivo ArchivoCabecera @relation(fields: [idArchivo], references: [id], onDelete: Cascade)
 
   @@index([idArchivo])
   @@map("t_archivo_detalle")
@@ -412,22 +432,22 @@ model ArchivoDetalle {
 // ============================================
 
 model Auditoria {
-  id                String        @id @default(cuid())
-  idUsuario         String
-  idGranja           String?
-  tablaOrigen       TablaOrigen
-  idRegistro         String
-  accion             String        // CREATE, UPDATE, DELETE, RESTORE
-  descripcion        String?       @db.Text
-  datosAnteriores    Json?         // Datos antes de la modificación
-  datosNuevos        Json?         // Datos después de la modificación
-  fechaOperacion     DateTime      @default(now())
-  ipAddress          String?
-  userAgent          String?
+  id              String      @id @default(cuid())
+  idUsuario       String
+  idGranja        String?
+  tablaOrigen     TablaOrigen
+  idRegistro      String
+  accion          String // CREATE, UPDATE, DELETE, RESTORE
+  descripcion     String?     @db.Text
+  datosAnteriores Json? // Datos antes de la modificación
+  datosNuevos     Json? // Datos después de la modificación
+  fechaOperacion  DateTime    @default(now())
+  ipAddress       String?
+  userAgent       String?
 
   // Relaciones
-  usuario            Usuario       @relation(fields: [idUsuario], references: [id])
-  granja             Granja?       @relation(fields: [idGranja], references: [id])
+  usuario Usuario @relation(fields: [idUsuario], references: [id])
+  granja  Granja? @relation(fields: [idGranja], references: [id])
 
   @@index([idUsuario])
   @@index([idGranja])
@@ -441,40 +461,40 @@ model Auditoria {
 // ============================================
 
 model Suscripcion {
-  id                    String            @id @default(cuid())
-  idUsuario             String            @unique
-  planSuscripcion       PlanSuscripcion
-  estadoSuscripcion     EstadoSuscripcion @default(ACTIVA)
-  periodoFacturacion    PeriodoFacturacion // MENSUAL o ANUAL
-  fechaInicio           DateTime          @default(now())
-  fechaFin              DateTime
+  id                     String             @id @default(cuid())
+  idUsuario              String             @unique
+  planSuscripcion        PlanSuscripcion
+  estadoSuscripcion      EstadoSuscripcion  @default(ACTIVA)
+  periodoFacturacion     PeriodoFacturacion // MENSUAL o ANUAL
+  fechaInicio            DateTime           @default(now())
+  fechaFin               DateTime
   fechaProximaRenovacion DateTime?
-  precio                Float
-  moneda                String            @default("USD")
-  
+  precio                 Float
+  moneda                 String             @default("USD")
+
   // Stripe
-  stripeCustomerId      String?           @unique
-  stripeSubscriptionId  String?           @unique
-  stripePriceId         String?
-  
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
   // Mercado Pago
-  mercadoPagoPreapprovalId String?        @unique
-  
+  mercadoPagoPreapprovalId String? @unique
+
   // PayPal (futuro)
-  paypalSubscriptionId  String?           @unique
-  
+  paypalSubscriptionId String? @unique
+
   // Transferencia bancaria
   referenciaTransferencia String?
   fechaPagoTransferencia  DateTime?
-  confirmadoTransferencia Boolean          @default(false)
-  
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  
+  confirmadoTransferencia Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relaciones
-  usuario               Usuario          @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
-  pagos                 Pago[]
-  
+  usuario Usuario @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  pagos   Pago[]
+
   @@index([idUsuario])
   @@index([estadoSuscripcion])
   @@index([fechaProximaRenovacion])
@@ -482,41 +502,39 @@ model Suscripcion {
 }
 
 model Pago {
-  id                    String            @id @default(cuid())
-  idSuscripcion         String
-  metodoPago            MetodoPago        // STRIPE, PAYPAL, TRANSFERENCIA
-  monto                 Float
-  moneda                String            @default("USD")
-  estadoPago            EstadoPago        @default(PENDIENTE)
-  
+  id            String     @id @default(cuid())
+  idSuscripcion String
+  metodoPago    MetodoPago // STRIPE, PAYPAL, TRANSFERENCIA
+  monto         Float
+  moneda        String     @default("USD")
+  estadoPago    EstadoPago @default(PENDIENTE)
+
   // Stripe
-  stripePaymentIntentId String?           @unique
+  stripePaymentIntentId String? @unique
   stripeChargeId        String?
-  
+
   // Mercado Pago
-  mercadoPagoPaymentId  String?           @unique
+  mercadoPagoPaymentId     String? @unique
   mercadoPagoPreapprovalId String?
-  
+
   // PayPal (futuro)
-  paypalOrderId         String?           @unique
-  paypalTransactionId   String?
-  
+  paypalOrderId       String? @unique
+  paypalTransactionId String?
+
   // Transferencia bancaria
-  referenciaTransferencia String?
-  comprobanteTransferencia String?        // URL de imagen/PDF
-  fechaTransferencia    DateTime?
-  
-  fechaPago             DateTime?
-  fechaCreacion         DateTime          @default(now())
-  fechaActualizacion    DateTime          @updatedAt
-  
+  referenciaTransferencia  String?
+  comprobanteTransferencia String? // URL de imagen/PDF
+  fechaTransferencia       DateTime?
+
+  fechaPago          DateTime?
+  fechaCreacion      DateTime  @default(now())
+  fechaActualizacion DateTime  @updatedAt
+
   // Relaciones
-  suscripcion           Suscripcion       @relation(fields: [idSuscripcion], references: [id], onDelete: Cascade)
-  
+  suscripcion Suscripcion @relation(fields: [idSuscripcion], references: [id], onDelete: Cascade)
+
   @@index([idSuscripcion])
   @@index([estadoPago])
   @@index([metodoPago])
   @@map("t_pagos")
 }
-
-

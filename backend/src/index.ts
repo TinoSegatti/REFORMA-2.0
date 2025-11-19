@@ -52,6 +52,7 @@ import archivoRoutes from './routes/archivoRoutes';
 import reporteCompletoRoutes from './routes/reporteCompletoRoutes';
 import suscripcionRoutes from './routes/suscripcionRoutes';
 import adminRoutes from './routes/adminRoutes';
+import usuarioEmpleadoRoutes from './routes/usuarioEmpleadoRoutes';
 
 // Rutas
 app.use('/api/usuarios', usuarioRoutes);
@@ -68,6 +69,7 @@ app.use('/api/archivos', archivoRoutes);
 app.use('/api/reporte', reporteCompletoRoutes);
 app.use('/api/suscripcion', suscripcionRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/usuarios/empleados', usuarioEmpleadoRoutes);
 
 // Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -77,6 +79,37 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     status: err.status || 500
   });
 });
+
+// Iniciar job de limpieza DEMO (solo en producción o si está habilitado)
+if (process.env.NODE_ENV === 'production' || process.env.ENABLE_DEMO_CLEANUP === 'true') {
+  try {
+    const { iniciarJobLimpiezaDemo } = require('./jobs/demoCleanupJob');
+    iniciarJobLimpiezaDemo();
+    console.log('✅ Job de limpieza DEMO iniciado');
+  } catch (error) {
+    console.error('❌ Error iniciando job de limpieza DEMO:', error);
+  }
+}
+
+// Endpoint para ejecutar limpieza DEMO manualmente (solo para desarrollo/testing)
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/api/admin/demo-cleanup/manual', async (req, res) => {
+    try {
+      const { ejecutarJobLimpiezaDemoManual } = require('./jobs/demoCleanupJob');
+      const resultado = await ejecutarJobLimpiezaDemoManual();
+      res.json({
+        mensaje: 'Limpieza DEMO ejecutada manualmente',
+        resultado
+      });
+    } catch (error: any) {
+      console.error('Error ejecutando limpieza DEMO manual:', error);
+      res.status(500).json({
+        error: 'Error ejecutando limpieza DEMO',
+        detalles: error.message
+      });
+    }
+  });
+}
 
 // Iniciar servidor
 app.listen(PORT, () => {

@@ -19,6 +19,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 /**
  * Obtener granja desde caché o base de datos
+ * Considera tanto dueños como empleados
  */
 export async function getGranjaCached(
   idGranja: string,
@@ -32,9 +33,26 @@ export async function getGranjaCached(
     return cached.granja;
   }
 
+  // Obtener información del usuario para verificar si es empleado
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: idUsuario },
+    select: {
+      esUsuarioEmpleado: true,
+      idUsuarioDueño: true,
+      activoComoEmpleado: true
+    }
+  });
+
+  let idUsuarioReal = idUsuario;
+
+  // Si es empleado activo, usar el ID del dueño para buscar la granja
+  if (usuario?.esUsuarioEmpleado && usuario?.idUsuarioDueño && usuario?.activoComoEmpleado) {
+    idUsuarioReal = usuario.idUsuarioDueño;
+  }
+
   // Consultar base de datos
   const granja = await prisma.granja.findFirst({
-    where: { id: idGranja, idUsuario: idUsuario },
+    where: { id: idGranja, idUsuario: idUsuarioReal },
     select: {
       id: true,
       idUsuario: true,

@@ -4,7 +4,7 @@
  * Controlador de Archivos (Snapshots)
  */
 
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { TablaOrigen } from '@prisma/client';
 import prisma from '../lib/prisma';
 import {
@@ -15,6 +15,9 @@ import {
 } from '../services/archivoService';
 import { validateGranja, sendValidationError } from '../utils/granjaValidation';
 import { buildCsv } from '../utils/csvUtils';
+import { obtenerPlanEfectivo } from '../middleware/validatePlanLimits';
+import { obtenerLimitesPlan, PlanSuscripcion } from '../constants/planes';
+import { AuthRequest } from '../middleware/authMiddleware';
 
 const mapTablaKey = (tabla: TablaOrigen) => {
   switch (tabla) {
@@ -29,13 +32,30 @@ const mapTablaKey = (tabla: TablaOrigen) => {
   }
 };
 
-export async function listarArchivos(req: Request, res: Response) {
+export async function listarArchivos(req: AuthRequest, res: Response) {
   try {
     const userId = req.userId;
     const { idGranja } = req.params;
 
     const validation = await validateGranja(idGranja, userId || '');
     if (sendValidationError(res, validation)) return;
+
+    // Verificar acceso según plan (STARTER no tiene acceso)
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const { plan } = await obtenerPlanEfectivo(userId);
+    const limites = obtenerLimitesPlan(plan);
+    
+    // STARTER no tiene acceso a archivos históricos
+    if (limites.maxArchivosHistoricos === null && plan === PlanSuscripcion.STARTER) {
+      return res.status(403).json({
+        error: 'Los archivos históricos no están disponibles en el plan STARTER',
+        plan: plan,
+        puedeUpgrade: true
+      });
+    }
 
     const archivos = await listarArchivosPorGranja(idGranja);
 
@@ -63,7 +83,7 @@ export async function listarArchivos(req: Request, res: Response) {
   }
 }
 
-export async function crearArchivo(req: Request, res: Response) {
+export async function crearArchivo(req: AuthRequest, res: Response) {
   try {
     const userId = req.userId;
     const { idGranja } = req.params;
@@ -103,7 +123,7 @@ export async function crearArchivo(req: Request, res: Response) {
   }
 }
 
-export async function obtenerArchivoDetalle(req: Request, res: Response) {
+export async function obtenerArchivoDetalle(req: AuthRequest, res: Response) {
   try {
     const userId = req.userId;
     const { idGranja, idArchivo } = req.params;
@@ -127,7 +147,7 @@ export async function obtenerArchivoDetalle(req: Request, res: Response) {
   }
 }
 
-export async function eliminarArchivoController(req: Request, res: Response) {
+export async function eliminarArchivoController(req: AuthRequest, res: Response) {
   try {
     const userId = req.userId;
     const { idGranja, idArchivo } = req.params;
@@ -148,7 +168,7 @@ export async function eliminarArchivoController(req: Request, res: Response) {
   }
 }
 
-export async function exportarArchivosController(req: Request, res: Response) {
+export async function exportarArchivosController(req: AuthRequest, res: Response) {
   try {
     const userId = req.userId;
     const { idGranja } = req.params;

@@ -15,6 +15,8 @@ import {
   importarProveedoresController
 } from '../controllers/importDataController';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { validarAccesoGranja } from '../middleware/validarAccesoGranja';
+import { validateGranjasLimit } from '../middleware/validatePlanLimits';
 
 const router = express.Router();
 
@@ -22,10 +24,10 @@ const router = express.Router();
 router.use(authenticateToken);
 
 router.get('/', obtenerGranjas);
-router.post('/', crearGranja);
-router.get('/:idGranja', obtenerGranja);
-router.put('/:idGranja', actualizarGranja);
-router.delete('/:idGranja', eliminarGranja);
+router.post('/', validateGranjasLimit, crearGranja);
+router.get('/:idGranja', validarAccesoGranja, obtenerGranja);
+router.put('/:idGranja', validarAccesoGranja, actualizarGranja);
+router.delete('/:idGranja', validarAccesoGranja, eliminarGranja);
 
 // Importar datos
 router.post('/importar/materias-primas', importarMateriasPrimasController);

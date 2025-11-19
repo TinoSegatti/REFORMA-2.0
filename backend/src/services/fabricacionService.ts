@@ -181,11 +181,8 @@ export async function obtenerFabricacionesGranja(idGranja: string, filters?: {
     };
   }
 
-  // Por defecto, solo mostrar fabricaciones activas
-  const whereFinal = {
-    ...where,
-    activo: filters?.incluirEliminadas ? undefined : true,
-  };
+  // Las fabricaciones ahora se eliminan permanentemente, no hay filtro por activo
+  const whereFinal = where;
 
   const fabricaciones = await prisma.fabricacion.findMany({
     where: whereFinal,
@@ -410,6 +407,10 @@ export async function editarFabricacion(idFabricacion: string, params: Partial<C
 /**
  * Eliminar una fabricación (reversar el inventario)
  */
+/**
+ * Eliminar una fabricación PERMANENTEMENTE
+ * Restaura las cantidades en inventario y elimina la fabricación de forma permanente
+ */
 export async function eliminarFabricacion(idFabricacion: string, idUsuario: string) {
   const fabricacion = await prisma.fabricacion.findUnique({
     where: { id: idFabricacion },
@@ -422,46 +423,45 @@ export async function eliminarFabricacion(idFabricacion: string, idUsuario: stri
     throw new Error('Fabricación no encontrada');
   }
 
-  // Guardar las materias primas afectadas ANTES del soft delete
+  // Guardar las materias primas afectadas ANTES de eliminar
   const materiasPrimasUsadas = new Set(fabricacion.detallesFabricacion.map(d => d.idMateriaPrima));
   const idGranja = fabricacion.idGranja;
   const fabricacionAnterior = { ...fabricacion };
 
-  // Soft delete: marcar como inactiva en lugar de eliminar
-  await prisma.fabricacion.update({
-    where: { id: idFabricacion },
-    data: {
-      activo: false,
-      fechaEliminacion: new Date(),
-      eliminadoPor: idUsuario,
-    },
-  });
-
-  // Registrar en auditoría
+  // Registrar en auditoría ANTES de eliminar
   await registrarAuditoria({
     idUsuario,
     idGranja: fabricacion.idGranja,
     tablaOrigen: TablaOrigen.FABRICACION,
     idRegistro: idFabricacion,
     accion: 'DELETE',
-    descripcion: `Fabricación eliminada: ${fabricacion.descripcionFabricacion}`,
+    descripcion: `Fabricación eliminada permanentemente: ${fabricacion.descripcionFabricacion}`,
     datosAnteriores: fabricacionAnterior,
   });
 
-  // IMPORTANTE: Recalcular el inventario DESPUÉS del soft delete
-  // Esto asegura que cantidad_sistema = cantidad_acumulada - fabricaciones (ya sin esta fabricación)
-  // y preserva los ajustes manuales de cantidad_real
+  // IMPORTANTE: Recalcular el inventario ANTES de eliminar
+  // Esto restaura las cantidades sumando de vuelta lo que se había restado
   for (const idMateriaPrima of materiasPrimasUsadas) {
     await recalcularInventario({ idGranja, idMateriaPrima });
   }
 
-  return { mensaje: 'Fabricación eliminada exitosamente' };
+  // Eliminar permanentemente (hard delete)
+  // Primero eliminar detalles, luego la cabecera
+  await prisma.detalleFabricacion.deleteMany({
+    where: { idFabricacion }
+  });
+
+  await prisma.fabricacion.delete({
+    where: { id: idFabricacion }
+  });
+
+  return { mensaje: 'Fabricación eliminada permanentemente. Las cantidades en inventario han sido restauradas.' };
 }
 
 /**
- * Eliminar TODAS las fabricaciones de una granja (soft delete)
+ * Eliminar TODAS las fabricaciones de una granja PERMANENTEMENTE
  * Solo para administradores
- * Esta operación afectará el inventario
+ * Restaura las cantidades en inventario y elimina todas las fabricaciones de forma permanente
  */
 export async function eliminarTodasLasFabricaciones(idGranja: string, idUsuario: string) {
   // Obtener todas las fabricaciones activas de la granja
@@ -483,38 +483,40 @@ export async function eliminarTodasLasFabricaciones(idGranja: string, idUsuario:
     }
   }
 
-  // Soft delete: marcar todas las fabricaciones como inactivas
-  const resultado = await prisma.fabricacion.updateMany({
-    where: { 
-      idGranja,
-      activo: true
-    },
-    data: {
-      activo: false,
-      fechaEliminacion: new Date(),
-      eliminadoPor: idUsuario,
-    },
-  });
+  const cantidadEliminadas = fabricaciones.length;
 
-  // Registrar en auditoría
+  // Registrar en auditoría ANTES de eliminar
   await registrarAuditoria({
     idUsuario,
     idGranja,
     tablaOrigen: TablaOrigen.FABRICACION,
     idRegistro: 'BULK',
     accion: 'BULK_DELETE',
-    descripcion: `Eliminación masiva de ${resultado.count} fabricaciones`,
+    descripcion: `Eliminación masiva permanente de ${cantidadEliminadas} fabricaciones`,
   });
 
-  // Recalcular inventario para todas las materias primas afectadas
+  // Recalcular inventario para todas las materias primas afectadas ANTES de eliminar
   // Esto restaurará las cantidades sumando de vuelta lo que se había restado
   for (const idMateriaPrima of materiasPrimasAfectadas) {
     await recalcularInventario({ idGranja, idMateriaPrima });
   }
 
+  // Eliminar permanentemente (hard delete)
+  // Primero eliminar detalles, luego las cabeceras
+  const idsFabricaciones = fabricaciones.map(f => f.id);
+  await prisma.detalleFabricacion.deleteMany({
+    where: { idFabricacion: { in: idsFabricaciones } }
+  });
+
+  await prisma.fabricacion.deleteMany({
+    where: { 
+      idGranja
+    }
+  });
+
   return { 
-    mensaje: 'Todas las fabricaciones eliminadas exitosamente',
-    eliminadas: resultado.count
+    mensaje: `${cantidadEliminadas} fabricación(es) eliminada(s) permanentemente. Las cantidades en inventario han sido restauradas.`,
+    eliminadas: cantidadEliminadas
   };
 }
 
@@ -524,8 +526,7 @@ export async function eliminarTodasLasFabricaciones(idGranja: string, idUsuario:
 export async function obtenerEstadisticasFabricaciones(idGranja: string) {
   const fabricaciones = await prisma.fabricacion.findMany({
     where: { 
-      idGranja,
-      activo: true
+      idGranja
     },
     include: {
       detallesFabricacion: {
@@ -595,8 +596,8 @@ export async function obtenerEstadisticasFabricaciones(idGranja: string) {
     .slice(0, 10);
 
   return {
-    totalFabricaciones: fabricaciones.filter(f => f.activo).length,
-    totalKgFabricados: fabricaciones.filter(f => f.activo).reduce((suma, f) => suma + f.cantidadFabricacion, 0),
+    totalFabricaciones: fabricaciones.length,
+    totalKgFabricados: fabricaciones.reduce((suma, f) => suma + f.cantidadFabricacion, 0),
     totalCosto: fabricaciones.reduce((suma, f) => suma + f.costoTotalFabricacion, 0),
     fabricacionesSinExistencias: fabricaciones.filter(f => f.sinExistencias).length,
     promedioCostoPorKg: fabricaciones.length > 0
@@ -608,87 +609,14 @@ export async function obtenerEstadisticasFabricaciones(idGranja: string) {
 }
 
 /**
- * Restaurar una fabricación eliminada (soft restore)
- */
-export async function restaurarFabricacion(idFabricacion: string, idUsuario: string) {
-  // Verificar que la fabricación existe y está eliminada
-  const fabricacion = await prisma.fabricacion.findUnique({
-    where: { id: idFabricacion },
-    include: {
-      detallesFabricacion: true
-    }
-  });
-
-  if (!fabricacion) {
-    throw new Error('Fabricación no encontrada');
-  }
-
-  if (fabricacion.activo) {
-    throw new Error('La fabricación ya está activa');
-  }
-
-  // Restaurar la fabricación
-  await prisma.fabricacion.update({
-    where: { id: idFabricacion },
-    data: {
-      activo: true,
-      fechaEliminacion: null,
-      eliminadoPor: null,
-    },
-  });
-
-  // Recalcular inventario para todas las materias primas afectadas
-  const materiasPrimasAfectadas = new Set<string>();
-  for (const detalle of fabricacion.detallesFabricacion) {
-    materiasPrimasAfectadas.add(detalle.idMateriaPrima);
-  }
-
-  for (const idMateriaPrima of materiasPrimasAfectadas) {
-    await recalcularInventario({ idGranja: fabricacion.idGranja, idMateriaPrima });
-  }
-
-  // Registrar en auditoría
-  await registrarAuditoria({
-    idUsuario,
-    idGranja: fabricacion.idGranja,
-    tablaOrigen: TablaOrigen.FABRICACION,
-    idRegistro: idFabricacion,
-    accion: 'RESTORE',
-    descripcion: `Fabricación restaurada: ${fabricacion.descripcionFabricacion}`,
-    datosNuevos: { activo: true },
-  });
-
-  return { mensaje: 'Fabricación restaurada exitosamente' };
-}
-
-/**
  * Obtener fabricaciones eliminadas de una granja
+ * NOTA: Esta función ya no es necesaria ya que las fabricaciones se eliminan permanentemente
+ * Se mantiene por compatibilidad pero siempre retornará un array vacío
+ * @deprecated Las fabricaciones ahora se eliminan permanentemente
  */
 export async function obtenerFabricacionesEliminadas(idGranja: string) {
-  return await prisma.fabricacion.findMany({
-    where: {
-      idGranja,
-      activo: false,
-    },
-    include: {
-      formula: {
-        select: {
-          codigoFormula: true,
-          descripcionFormula: true,
-        },
-      },
-      usuario: {
-        select: {
-          nombreUsuario: true,
-          apellidoUsuario: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: {
-      fechaEliminacion: 'desc',
-    },
-  });
+  // Las fabricaciones ahora se eliminan permanentemente, no hay eliminadas
+  return [];
 }
 
 /**

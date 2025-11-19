@@ -88,6 +88,37 @@ export interface DatosReporteCompleto {
     mensaje: string;
     severidad: 'baja' | 'media' | 'alta';
   }>;
+  
+  // Nuevos gráficos para reporte completo (ENTERPRISE)
+  distribucionMateriasEnFormulas: Array<{
+    formulaCodigo: string;
+    formulaDescripcion: string;
+    materias: Array<{
+      materiaCodigo: string;
+      materiaNombre: string;
+      cantidadKg: number;
+      porcentaje: number;
+    }>;
+  }>;
+  evolucionCostosFormulas: Array<{
+    fecha: Date;
+    formulaCodigo: string;
+    formulaDescripcion: string;
+    costoTotal: number;
+    costoPorKilo: number;
+  }>;
+  consumoMateriasPrimas: Array<{
+    periodo: string; // "2024-01", "2024-02", etc.
+    materiaCodigo: string;
+    materiaNombre: string;
+    cantidadKg: number;
+  }>;
+  tendenciasPrecios: Array<{
+    fecha: Date;
+    materiaCodigo: string;
+    materiaNombre: string;
+    precio: number;
+  }>;
 }
 
 /**
@@ -114,6 +145,14 @@ export async function obtenerDatosReporteCompleto(idGranja: string): Promise<Dat
     inventarioRaw,
     // Fórmulas más caras
     formulasCarasRaw,
+    // Distribución de materias primas en fórmulas
+    distribucionMateriasRaw,
+    // Evolución de costos de fórmulas
+    evolucionCostosRaw,
+    // Consumo de materias primas
+    consumoMateriasRaw,
+    // Tendencias de precios
+    tendenciasPreciosRaw,
   ] = await Promise.all([
     // Proveedores con más compras (cantidad)
     prisma.$queryRaw<any[]>`
@@ -232,6 +271,68 @@ export async function obtenerDatosReporteCompleto(idGranja: string): Promise<Dat
       HAVING COUNT(f.id) > 0
       ORDER BY costo_total DESC
       LIMIT 10
+    `,
+    
+    // Distribución de materias primas en fórmulas
+    prisma.$queryRaw<any[]>`
+      SELECT
+        fc."codigoFormula" as formula_codigo,
+        fc."descripcionFormula" as formula_descripcion,
+        mp."codigoMateriaPrima" as materia_codigo,
+        mp."nombreMateriaPrima" as materia_nombre,
+        fd."cantidadKg" as cantidad_kg,
+        fd."porcentajeFormula" as porcentaje
+      FROM t_formula_cabecera fc
+      INNER JOIN t_formula_detalle fd ON fc.id = fd."idFormula"
+      INNER JOIN t_materia_prima mp ON fd."idMateriaPrima" = mp.id
+      WHERE fc."idGranja" = ${idGranja} AND fc.activa = true AND mp.activa = true
+      ORDER BY fc."codigoFormula", fd."porcentajeFormula" DESC
+    `,
+    
+    // Evolución de costos de fórmulas (por fecha de fabricación)
+    prisma.$queryRaw<any[]>`
+      SELECT
+        DATE_TRUNC('month', f."fechaFabricacion") as fecha,
+        fc."codigoFormula" as formula_codigo,
+        fc."descripcionFormula" as formula_descripcion,
+        AVG(f."costoTotalFabricacion") as costo_total,
+        AVG(f."costoPorKilo") as costo_por_kilo
+      FROM t_fabricacion f
+      INNER JOIN t_formula_cabecera fc ON f."idFormula" = fc.id
+      WHERE f."idGranja" = ${idGranja} AND f."activo" = true AND fc.activa = true
+      GROUP BY DATE_TRUNC('month', f."fechaFabricacion"), fc."codigoFormula", fc."descripcionFormula"
+      ORDER BY fecha DESC, formula_codigo
+      LIMIT 100
+    `,
+    
+    // Consumo de materias primas (por período mensual)
+    prisma.$queryRaw<any[]>`
+      SELECT
+        TO_CHAR(f."fechaFabricacion", 'YYYY-MM') as periodo,
+        mp."codigoMateriaPrima" as materia_codigo,
+        mp."nombreMateriaPrima" as materia_nombre,
+        SUM(df."cantidadUsada") as cantidad_kg
+      FROM t_detalle_fabricacion df
+      INNER JOIN t_fabricacion f ON df."idFabricacion" = f.id
+      INNER JOIN t_materia_prima mp ON df."idMateriaPrima" = mp.id
+      WHERE f."idGranja" = ${idGranja} AND f."activo" = true AND mp.activa = true
+      GROUP BY TO_CHAR(f."fechaFabricacion", 'YYYY-MM'), mp."codigoMateriaPrima", mp."nombreMateriaPrima"
+      ORDER BY periodo DESC, cantidad_kg DESC
+      LIMIT 200
+    `,
+    
+    // Tendencias de precios (histórico de precios por materia prima)
+    prisma.$queryRaw<any[]>`
+      SELECT
+        rp."fechaCambio" as fecha,
+        mp."codigoMateriaPrima" as materia_codigo,
+        mp."nombreMateriaPrima" as materia_nombre,
+        rp."precioNuevo" as precio
+      FROM t_registro_precio rp
+      INNER JOIN t_materia_prima mp ON rp."idMateriaPrima" = mp.id
+      WHERE mp."idGranja" = ${idGranja} AND mp.activa = true
+      ORDER BY rp."fechaCambio" DESC, mp."codigoMateriaPrima"
+      LIMIT 500
     `,
   ]);
 
@@ -364,7 +465,66 @@ export async function obtenerDatosReporteCompleto(idGranja: string): Promise<Dat
     valorStock,
     cantidadMateriasEnStock,
     
-    alertas: alertas.slice(0, 20) // Limitar a 20 alertas
+    alertas: alertas.slice(0, 20), // Limitar a 20 alertas
+    
+    // Procesar distribución de materias primas en fórmulas
+    distribucionMateriasEnFormulas: (() => {
+      const map = new Map<string, {
+        formulaCodigo: string;
+        formulaDescripcion: string;
+        materias: Array<{
+          materiaCodigo: string;
+          materiaNombre: string;
+          cantidadKg: number;
+          porcentaje: number;
+        }>;
+      }>();
+      
+      distribucionMateriasRaw.forEach((row: any) => {
+        const key = row.formula_codigo;
+        if (!map.has(key)) {
+          map.set(key, {
+            formulaCodigo: row.formula_codigo,
+            formulaDescripcion: row.formula_descripcion,
+            materias: []
+          });
+        }
+        const formula = map.get(key)!;
+        formula.materias.push({
+          materiaCodigo: row.materia_codigo,
+          materiaNombre: row.materia_nombre,
+          cantidadKg: Number(row.cantidad_kg || 0),
+          porcentaje: Number(row.porcentaje || 0)
+        });
+      });
+      
+      return Array.from(map.values()).slice(0, 10); // Top 10 fórmulas
+    })(),
+    
+    // Procesar evolución de costos de fórmulas
+    evolucionCostosFormulas: evolucionCostosRaw.map((row: any) => ({
+      fecha: new Date(row.fecha),
+      formulaCodigo: row.formula_codigo,
+      formulaDescripcion: row.formula_descripcion,
+      costoTotal: Number(row.costo_total || 0),
+      costoPorKilo: Number(row.costo_por_kilo || 0)
+    })),
+    
+    // Procesar consumo de materias primas
+    consumoMateriasPrimas: consumoMateriasRaw.map((row: any) => ({
+      periodo: row.periodo,
+      materiaCodigo: row.materia_codigo,
+      materiaNombre: row.materia_nombre,
+      cantidadKg: Number(row.cantidad_kg || 0)
+    })),
+    
+    // Procesar tendencias de precios
+    tendenciasPrecios: tendenciasPreciosRaw.map((row: any) => ({
+      fecha: new Date(row.fecha),
+      materiaCodigo: row.materia_codigo,
+      materiaNombre: row.materia_nombre,
+      precio: Number(row.precio || 0)
+    }))
   };
 }
 

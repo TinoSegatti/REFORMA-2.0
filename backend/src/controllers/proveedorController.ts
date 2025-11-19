@@ -8,8 +8,14 @@ import prisma from '../lib/prisma';
 import { validateGranja, sendValidationError } from '../utils/granjaValidation';
 import { parseCsvBuffer, buildCsv } from '../utils/csvUtils';
 
-interface ProveedorRequest extends Request {
+interface ProveedorRequest extends Omit<Request, 'file'> {
   userId?: string;
+  file?: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+    size: number;
+  };
 }
 
 /**
@@ -207,13 +213,8 @@ export async function importarProveedores(req: ProveedorRequest, res: Response) 
       return res.status(400).json({ error: 'No se recibió ningún archivo CSV' });
     }
 
-    const validation = await validateGranja(idGranja, userId);
-    if (sendValidationError(res, validation)) return;
-
-    const existentes = await prisma.proveedor.count({ where: { idGranja } });
-    if (existentes > 0) {
-      return res.status(400).json({ error: 'Ya existen proveedores registrados. La importación solo está disponible en instancias vacías.' });
-    }
+    // La validación de plan y datos previos se hace en el middleware validateImportacionCSV
+    // Solo validar acceso a granja (ya hecho por middleware)
 
     const { rows } = parseCsvBuffer(req.file.buffer, {
       requiredHeaders: ['codigoProveedor', 'nombreProveedor'],

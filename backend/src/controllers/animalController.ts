@@ -8,8 +8,14 @@ import prisma from '../lib/prisma';
 import { validateGranja, sendValidationError } from '../utils/granjaValidation';
 import { parseCsvBuffer, buildCsv } from '../utils/csvUtils';
 
-interface AnimalRequest extends Request {
+interface AnimalRequest extends Omit<Request, 'file'> {
   userId?: string;
+  file?: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+    size: number;
+  };
 }
 
 /**
@@ -203,13 +209,8 @@ export async function importarAnimales(req: AnimalRequest, res: Response) {
       return res.status(400).json({ error: 'No se recibió ningún archivo CSV' });
     }
 
-    const validation = await validateGranja(idGranja, userId);
-    if (sendValidationError(res, validation)) return;
-
-    const existentes = await prisma.animal.count({ where: { idGranja } });
-    if (existentes > 0) {
-      return res.status(400).json({ error: 'Ya existen piensos registrados. La importación solo está disponible en instancias vacías.' });
-    }
+    // La validación de plan y datos previos se hace en el middleware validateImportacionCSV
+    // Solo validar acceso a granja (ya hecho por middleware)
 
     const { rows } = parseCsvBuffer(req.file.buffer, {
       requiredHeaders: ['codigoAnimal', 'descripcionAnimal', 'categoriaAnimal'],
