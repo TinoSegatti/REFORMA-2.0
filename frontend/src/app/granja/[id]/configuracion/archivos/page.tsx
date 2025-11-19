@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
@@ -95,15 +96,42 @@ export default function ArchivosPage() {
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
   const [accionEnProgreso, setAccionEnProgreso] = useState(false);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [planActual, setPlanActual] = useState<string | null>(null);
+  const [limiteArchivos, setLimiteArchivos] = useState<number | null>(null);
+  const [archivosActuales, setArchivosActuales] = useState(0);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.push('/login');
       return;
     }
+    cargarPlan();
     cargarArchivos();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idGranja]);
+
+  const cargarPlan = async () => {
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+      
+      const response = await apiClient.obtenerMiPlan(token);
+      setPlanActual(response.suscripcion?.plan || null);
+      
+      // Calcular límite según plan
+      if (response.suscripcion?.plan === 'STARTER') {
+        setLimiteArchivos(null); // No disponible
+      } else if (response.suscripcion?.plan === 'DEMO') {
+        setLimiteArchivos(3);
+      } else if (response.suscripcion?.plan === 'BUSINESS') {
+        setLimiteArchivos(180);
+      } else if (response.suscripcion?.plan === 'ENTERPRISE') {
+        setLimiteArchivos(null); // Ilimitado
+      }
+    } catch (error) {
+      console.error('Error cargando plan:', error);
+    }
+  };
 
   const cargarArchivos = async () => {
     try {
@@ -117,6 +145,10 @@ export default function ArchivosPage() {
         fabricaciones: data.fabricaciones || [],
         inventario: data.inventario || [],
       });
+      
+      // Calcular total de archivos
+      const total = (data.compras?.length || 0) + (data.fabricaciones?.length || 0) + (data.inventario?.length || 0);
+      setArchivosActuales(total);
     } catch (error) {
       console.error('Error cargando archivos:', error);
       alert(error instanceof Error ? error.message : 'Error al cargar archivos');
@@ -277,14 +309,50 @@ export default function ArchivosPage() {
                  <Download className="h-4 w-4" />
                  {isExportingCsv ? 'Exportando...' : 'Exportar CSV'}
                </button>
-               <button
-                onClick={() => abrirModalCrear(secciones[0])}
-                className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
-               >
-                 <PlusCircle className="h-5 w-5" />
-                 Nuevo archivo
-               </button>
+               {planActual !== 'STARTER' && (
+                 <button
+                  onClick={() => abrirModalCrear(secciones[0])}
+                  className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                 >
+                   <PlusCircle className="h-5 w-5" />
+                   Nuevo archivo
+                 </button>
+               )}
+               {planActual === 'STARTER' && (
+                 <button
+                  onClick={() => router.push('/planes')}
+                  className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                 >
+                   Upgrade para Archivos Históricos
+                 </button>
+               )}
             </div>
+            {planActual && (
+              <div className="glass-card px-5 py-4 border border-white/10 rounded-2xl backdrop-blur-xl">
+                {planActual === 'STARTER' ? (
+                  <>
+                    <p className="text-sm text-foreground/60">Plan STARTER</p>
+                    <p className="text-sm text-foreground/80 mt-1">
+                      Los archivos históricos no están disponibles en tu plan actual. Upgrade a BUSINESS o ENTERPRISE para acceder a esta funcionalidad.
+                    </p>
+                  </>
+                ) : limiteArchivos !== null ? (
+                  <>
+                    <p className="text-sm text-foreground/60">Límite de archivos</p>
+                    <p className="text-sm text-foreground/80 mt-1">
+                      {archivosActuales} / {limiteArchivos} archivos históricos utilizados
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-foreground/60">Plan ENTERPRISE</p>
+                    <p className="text-sm text-foreground/80 mt-1">
+                      Archivos históricos ilimitados
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
             <div className="glass-card px-5 py-4 border border-white/10 rounded-2xl backdrop-blur-xl">
               <p className="text-sm text-foreground/60">Consejo</p>
               <p className="text-sm text-foreground/80 mt-1">
@@ -310,13 +378,26 @@ export default function ArchivosPage() {
                         <p className="text-sm text-foreground/70">{seccion.descripcion}</p>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => abrirModalCrear(seccion)}
-                      className="flex items-center gap-2 px-5 py-3"
-                    >
-                      <PlusCircle className="h-5 w-5" />
-                      Nuevo archivo
-                    </Button>
+                    {planActual !== 'STARTER' && (
+                      <Button
+                        onClick={() => abrirModalCrear(seccion)}
+                        className="flex items-center gap-2 px-5 py-3"
+                        disabled={limiteArchivos !== null && archivosActuales >= limiteArchivos}
+                      >
+                        <PlusCircle className="h-5 w-5" />
+                        {limiteArchivos !== null && archivosActuales >= limiteArchivos 
+                          ? `Límite alcanzado (${limiteArchivos})`
+                          : 'Nuevo archivo'}
+                      </Button>
+                    )}
+                    {planActual === 'STARTER' && (
+                      <Button
+                        onClick={() => router.push('/planes')}
+                        className="flex items-center gap-2 px-5 py-3"
+                      >
+                        Upgrade para crear archivos
+                      </Button>
+                    )}
                   </div>
 
                   {datos.length === 0 ? (

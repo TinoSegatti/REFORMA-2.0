@@ -6,7 +6,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { Input, Button, Modal } from '@/components/ui';
 import { apiClient } from '@/lib/api';
 import { authService } from '@/lib/auth';
-import { BarChart3, Package, ShoppingCart, Factory, CheckCircle, Mail, AlertCircle } from 'lucide-react';
+import { BarChart3, Package, ShoppingCart, Factory, CheckCircle, Mail, AlertCircle, Users } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +15,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [apellidoUsuario, setApellidoUsuario] = useState('');
+  const [codigoReferencia, setCodigoReferencia] = useState('');
+  const [mostrarCodigoReferencia, setMostrarCodigoReferencia] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,6 +24,7 @@ export default function LoginPage() {
   const [showModalRegistro, setShowModalRegistro] = useState(false);
   const [mensajeRegistro, setMensajeRegistro] = useState('');
   const [emailEnviado, setEmailEnviado] = useState(false);
+  const [esEmpleado, setEsEmpleado] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,12 +46,25 @@ export default function LoginPage() {
         router.push('/mis-plantas');
       } else {
         // Registro
-        const response = await apiClient.register({
+        const datosRegistro: {
+          email: string;
+          password: string;
+          nombreUsuario: string;
+          apellidoUsuario: string;
+          codigoReferencia?: string;
+        } = {
           email,
           password,
           nombreUsuario,
           apellidoUsuario,
-        });
+        };
+
+        // Agregar código de referencia si se proporcionó
+        if (codigoReferencia && codigoReferencia.trim()) {
+          datosRegistro.codigoReferencia = codigoReferencia.trim();
+        }
+
+        const response = await apiClient.register(datosRegistro);
         
         // Si el registro requiere verificación, mostrar modal
         if (response.requiereVerificacion || !response.token) {
@@ -57,6 +73,7 @@ export default function LoginPage() {
           const mensajeExito = response.mensaje || 'Usuario registrado exitosamente. Por favor verifica tu email para activar tu cuenta.';
           setMensajeRegistro(mensajeExito);
           setEmailEnviado(response.emailEnviado || false);
+          setEsEmpleado(response.esEmpleado || false);
           setShowModalRegistro(true);
           
           // Limpiar formulario
@@ -64,6 +81,8 @@ export default function LoginPage() {
           setPassword('');
           setNombreUsuario('');
           setApellidoUsuario('');
+          setCodigoReferencia('');
+          setMostrarCodigoReferencia(false);
           setIsLogin(true); // Cambiar a login
           return;
         }
@@ -273,6 +292,35 @@ export default function LoginPage() {
                 onChange={(e) => setApellidoUsuario(e.target.value)}
                 required
               />
+              
+              {/* Campo de código de referencia (opcional) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-foreground/80">
+                    Código de Referencia (Opcional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setMostrarCodigoReferencia(!mostrarCodigoReferencia)}
+                    className="text-xs text-purple-400 hover:text-purple-300 font-semibold transition"
+                  >
+                    {mostrarCodigoReferencia ? 'Ocultar' : '¿Tienes un código?'}
+                  </button>
+                </div>
+                {mostrarCodigoReferencia && (
+                  <Input
+                    placeholder="REF-STARTER-XXXXXXXX"
+                    value={codigoReferencia}
+                    onChange={(e) => setCodigoReferencia(e.target.value)}
+                    className="text-sm"
+                  />
+                )}
+                {mostrarCodigoReferencia && (
+                  <p className="text-xs text-foreground/60">
+                    Si tienes un código de referencia de tu empleador, ingrésalo aquí para vincular tu cuenta.
+                  </p>
+                )}
+              </div>
             </>
           )}
 
@@ -411,10 +459,25 @@ export default function LoginPage() {
               </div>
               
               <h3 className="text-2xl font-bold text-foreground mb-4">
-                ¡Registro Exitoso!
+                {esEmpleado ? '¡Registro como Empleado Exitoso!' : '¡Registro Exitoso!'}
               </h3>
               
               <div className="glass-card p-6 mb-6 text-left">
+                {esEmpleado && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <Users className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm text-blue-300 font-semibold mb-1">
+                          Cuenta de Empleado Vinculada
+                        </p>
+                        <p className="text-sm text-foreground/80">
+                          Tu cuenta ha sido vinculada como empleado. Una vez verifiques tu email, tendrás acceso a las plantas de tu empleador.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <p className="text-foreground/90 mb-4 leading-relaxed">
                   {mensajeRegistro}
                 </p>

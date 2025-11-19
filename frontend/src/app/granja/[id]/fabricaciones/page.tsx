@@ -6,7 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { Modal } from '@/components/ui';
-import { Download, Plus, Factory, Calendar, AlertCircle, Archive, RotateCcw } from 'lucide-react';
+import { Download, Plus, Factory, Calendar, AlertCircle } from 'lucide-react';
 import FabricacionesMateriasChart from '@/components/charts/FabricacionesMateriasChart';
 import FabricacionesFormulasChart from '@/components/charts/FabricacionesFormulasChart';
 
@@ -38,13 +38,7 @@ interface Fabricacion {
   detallesFabricacion?: DetalleFabricacion[];
 }
 
-interface FabricacionEliminada extends Omit<Fabricacion, 'detallesFabricacion'> {
-  usuario?: {
-    nombreUsuario: string;
-    apellidoUsuario: string;
-  };
-  fechaEliminacion: string | null;
-}
+// Interfaz eliminada: Las fabricaciones ahora se eliminan permanentemente
 
 interface Estadisticas {
   totalFabricaciones: number;
@@ -90,11 +84,8 @@ export default function FabricacionesPage() {
   const [fabricacionAEditar, setFabricacionAEditar] = useState<Fabricacion | null>(null);
   const [showModalEliminarTodas, setShowModalEliminarTodas] = useState(false);
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
-  const [showEliminadas, setShowEliminadas] = useState(false);
-  const [fabricacionesEliminadas, setFabricacionesEliminadas] = useState<FabricacionEliminada[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
-  const [restaurandoId, setRestaurandoId] = useState<string | null>(null);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   useEffect(() => {
@@ -389,96 +380,6 @@ export default function FabricacionesPage() {
 
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
-              {showEliminadas ? (
-                <div>
-                  <h3 className="text-lg font-bold text-foreground mb-4 px-6 pt-6">Fabricaciones Eliminadas</h3>
-                  <table className="w-full">
-                    <thead className="bg-white/5">
-                      <tr>
-                        <th className="px-6 py-4 text-left font-semibold text-foreground/80">Fecha</th>
-                        <th className="px-6 py-4 text-left font-semibold text-foreground/80">Desc. Fórmula</th>
-                        <th className="px-6 py-4 text-left font-semibold text-foreground/80">Desc. Fabricación</th>
-                        <th className="px-6 py-4 text-left font-semibold text-foreground/80">Cant. Fabricada (T)</th>
-                        <th className="px-6 py-4 text-left font-semibold text-foreground/80">Eliminada por</th>
-                        <th className="px-6 py-4 text-left font-semibold text-foreground/80">Fecha Eliminación</th>
-                        <th className="px-6 py-4 text-left font-semibold text-foreground/80">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {fabricacionesEliminadas.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-12 text-center text-foreground/60">
-                            No hay fabricaciones eliminadas
-                          </td>
-                        </tr>
-                      ) : (
-                        fabricacionesEliminadas.map((fabricacion) => (
-                          <tr key={fabricacion.id} className="hover:bg-white/5">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                              {formatDate(fabricacion.fechaFabricacion)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                              {fabricacion.formula?.descripcionFormula || '-'}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-foreground">
-                              {fabricacion.descripcionFabricacion}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                              {formatNumber(fabricacion.cantidadFabricacion / 1000)}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-foreground">
-                              {fabricacion.usuario ? `${fabricacion.usuario.nombreUsuario} ${fabricacion.usuario.apellidoUsuario}` : '-'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                              {fabricacion.fechaEliminacion ? formatDate(fabricacion.fechaEliminacion) : '-'}
-                            </td>
-                            <td className="px-6 py-4">
-                              <button
-                                onClick={async () => {
-                                  if (restaurandoId === fabricacion.id) return; // Prevenir múltiples clicks
-                                  setRestaurandoId(fabricacion.id);
-                                  try {
-                                    const token = authService.getToken();
-                                    if (!token) {
-                                      alert('No autenticado');
-                                      setRestaurandoId(null);
-                                      return;
-                                    }
-                                    await apiClient.restaurarFabricacion(token, fabricacion.id);
-                                    await cargarDatos();
-                                    const eliminadas = await apiClient.obtenerFabricacionesEliminadas(token, idGranja);
-                                    setFabricacionesEliminadas(eliminadas);
-                                    alert('Fabricación restaurada exitosamente');
-                                  } catch (error: unknown) {
-                                    console.error('Error restaurando fabricación:', error);
-                                    alert(error instanceof Error ? error.message : 'Error al restaurar fabricación');
-                                  } finally {
-                                    setRestaurandoId(null);
-                                  }
-                                }}
-                                disabled={restaurandoId === fabricacion.id}
-                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-green-500/30 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {restaurandoId === fabricacion.id ? (
-                                  <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    Restaurando...
-                                  </>
-                                ) : (
-                                  <>
-                                    <RotateCcw className="h-4 w-4" />
-                                    Restaurar
-                                  </>
-                                )}
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
                 <table className="w-full">
                   <thead className="bg-white/5">
                     <tr>
@@ -556,7 +457,6 @@ export default function FabricacionesPage() {
                     )}
                   </tbody>
                 </table>
-              )}
             </div>
           </div>
         </div>
@@ -704,10 +604,10 @@ export default function FabricacionesPage() {
         >
           <div className="space-y-6">
             <p className="text-foreground/90">
-              ¿Estás seguro de que deseas eliminar esta fabricación?
+              ¿Estás seguro de que deseas eliminar permanentemente esta fabricación?
             </p>
             <p className="text-sm text-foreground/70">
-              Esta acción afectará el inventario y no se puede deshacer.
+              Esta acción afectará el inventario restaurando las cantidades de materias primas. La eliminación es permanente y no se puede deshacer.
             </p>
             <div className="flex justify-end gap-4">
               <button

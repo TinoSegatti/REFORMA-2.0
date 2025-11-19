@@ -161,6 +161,31 @@ export default function ConfiguracionPage() {
             </div>
           </Card>
 
+          {/* Card de Gestión de Empleados */}
+          <Card>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-400 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/30">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">Gestión de Empleados</h2>
+                  <p className="text-sm text-foreground/70">Gestiona usuarios empleados y comparte acceso a tus plantas</p>
+                </div>
+              </div>
+              <p className="text-sm text-foreground/80">
+                Genera códigos de referencia para invitar empleados, gestiona sus permisos y controla quién tiene acceso a tus plantas.
+              </p>
+              <Button
+                onClick={() => router.push(`/granja/${id}/configuracion/empleados`)}
+                className="w-full flex items-center justify-center gap-2"
+              >
+                <Users className="h-4 w-4" />
+                Gestionar Empleados
+              </Button>
+            </div>
+          </Card>
+
           {/* Card de Usuarios de Testing (Solo Superusuario) */}
           {!verificandoSuperusuario && esSuperusuario && (
             <Card>

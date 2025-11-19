@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
@@ -61,6 +62,7 @@ export default function PanelPrincipalPage() {
   const [inventarioStats, setInventarioStats] = useState<InventarioStats | null>(null);
   const [fabricacionesStats, setFabricacionesStats] = useState<FabricacionesStats | null>(null);
   const [proveedoresStats, setProveedoresStats] = useState<ProveedoresStats | null>(null);
+  const [planActual, setPlanActual] = useState<string | null>(null);
 
   const MENSAJES_CARGA_REPORTE = [
     'Preparando reporte completo...',
@@ -90,12 +92,23 @@ export default function PanelPrincipalPage() {
           setIsRefreshing(true);
         }
 
+        // Cargar plan del usuario en paralelo
+        const cargarPlan = async () => {
+          try {
+            const response = await apiClient.obtenerMiPlan(token);
+            setPlanActual(response.suscripcion?.plan || null);
+          } catch (err) {
+            console.log('No se pudo cargar plan actual:', err);
+          }
+        };
+
         const [materias, inventarioEstadisticas, fabricacionesEstadisticas, proveedoresEstadisticas] =
           await Promise.all([
             apiClient.getMateriasPrimas(token, idGranja),
             apiClient.getEstadisticasInventario(token, idGranja),
             apiClient.getEstadisticasFabricaciones(token, idGranja),
             apiClient.getEstadisticasProveedores(token, idGranja),
+            cargarPlan(), // Cargar plan en paralelo
           ]);
 
         setMateriasPrimas(materias || []);
@@ -208,41 +221,52 @@ export default function PanelPrincipalPage() {
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={() => {
-                if (isGeneratingReporte) return;
-                
-                setIsGeneratingReporte(true);
-                setMensajeCargaReporte(MENSAJES_CARGA_REPORTE[0]);
-                
-                // Cambiar mensajes de carga
-                let indiceMensaje = 0;
-                const intervaloMensajes = setInterval(() => {
-                  indiceMensaje = (indiceMensaje + 1) % MENSAJES_CARGA_REPORTE.length;
-                  setMensajeCargaReporte(MENSAJES_CARGA_REPORTE[indiceMensaje]);
-                }, 800);
+            {planActual === 'ENTERPRISE' && (
+              <button
+                onClick={() => {
+                  if (isGeneratingReporte) return;
+                  
+                  setIsGeneratingReporte(true);
+                  setMensajeCargaReporte(MENSAJES_CARGA_REPORTE[0]);
+                  
+                  // Cambiar mensajes de carga
+                  let indiceMensaje = 0;
+                  const intervaloMensajes = setInterval(() => {
+                    indiceMensaje = (indiceMensaje + 1) % MENSAJES_CARGA_REPORTE.length;
+                    setMensajeCargaReporte(MENSAJES_CARGA_REPORTE[indiceMensaje]);
+                  }, 800);
 
-                // Navegar después de un breve delay para mostrar la animación
-                setTimeout(() => {
-                  clearInterval(intervaloMensajes);
-                  router.push(`/granja/${idGranja}/reporte-completo`);
-                }, 2000);
-              }}
-              disabled={isGeneratingReporte}
-              className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all flex items-center gap-2 shadow-lg shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGeneratingReporte ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Generando...
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="h-5 w-5" />
-                  Generar Reporte Completo
-                </>
-              )}
-            </button>
+                  // Navegar después de un breve delay para mostrar la animación
+                  setTimeout(() => {
+                    clearInterval(intervaloMensajes);
+                    router.push(`/granja/${idGranja}/reporte-completo`);
+                  }, 2000);
+                }}
+                disabled={isGeneratingReporte}
+                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all flex items-center gap-2 shadow-lg shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGeneratingReporte ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="h-5 w-5" />
+                    Generar Reporte Completo
+                  </>
+                )}
+              </button>
+            )}
+            {planActual !== 'ENTERPRISE' && planActual !== null && (
+              <Link
+                href="/planes"
+                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-purple-700 transition-all flex items-center gap-2 shadow-lg shadow-purple-500/30"
+              >
+                <BarChart3 className="h-5 w-5" />
+                Upgrade a ENTERPRISE para Reporte Completo
+              </Link>
+            )}
             <button
               onClick={() => cargarDatos(false)}
               disabled={isRefreshing}

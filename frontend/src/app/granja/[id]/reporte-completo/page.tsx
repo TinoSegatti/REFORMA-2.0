@@ -22,6 +22,10 @@ import InventarioExistenciasChart from '@/components/charts/InventarioExistencia
 import FabricacionesFormulasChart from '@/components/charts/FabricacionesFormulasChart';
 import ProveedoresComprasChart from '@/components/charts/ProveedoresComprasChart';
 import ProveedoresGastoChart from '@/components/charts/ProveedoresGastoChart';
+import DistribucionMateriasFormulasChart from '@/components/charts/DistribucionMateriasFormulasChart';
+import EvolucionCostosFormulasChart from '@/components/charts/EvolucionCostosFormulasChart';
+import ConsumoMateriasPrimasChart from '@/components/charts/ConsumoMateriasPrimasChart';
+import TendenciasPreciosChart from '@/components/charts/TendenciasPreciosChart';
 
 interface DatosReporte {
   proveedoresMasCantidades: Array<{
@@ -90,6 +94,35 @@ interface DatosReporte {
     tipo: string;
     mensaje: string;
     severidad: 'baja' | 'media' | 'alta';
+  }>;
+  distribucionMateriasEnFormulas: Array<{
+    formulaCodigo: string;
+    formulaDescripcion: string;
+    materias: Array<{
+      materiaCodigo: string;
+      materiaNombre: string;
+      cantidadKg: number;
+      porcentaje: number;
+    }>;
+  }>;
+  evolucionCostosFormulas: Array<{
+    fecha: string | Date;
+    formulaCodigo: string;
+    formulaDescripcion: string;
+    costoTotal: number;
+    costoPorKilo: number;
+  }>;
+  consumoMateriasPrimas: Array<{
+    periodo: string;
+    materiaCodigo: string;
+    materiaNombre: string;
+    cantidadKg: number;
+  }>;
+  tendenciasPrecios: Array<{
+    fecha: string | Date;
+    materiaCodigo: string;
+    materiaNombre: string;
+    precio: number;
   }>;
 }
 
@@ -527,6 +560,36 @@ export default function ReporteCompletoPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Sección de Gráficos Avanzados (ENTERPRISE) */}
+      <section className="py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-background to-background/50">
+        <div className="container mx-auto max-w-7xl">
+          <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+            <TrendingUp className="h-8 w-8 text-primary" />
+            Gráficos Avanzados de Análisis
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="glass-card p-6 rounded-xl border border-border/50">
+              <h3 className="text-xl font-semibold text-foreground mb-4">Distribución de Materias Primas en Fórmulas</h3>
+              <DistribucionMateriasFormulasChart data={datos.distribucionMateriasEnFormulas} />
+            </div>
+            <div className="glass-card p-6 rounded-xl border border-border/50">
+              <h3 className="text-xl font-semibold text-foreground mb-4">Evolución de Costos de Fórmulas</h3>
+              <EvolucionCostosFormulasChart data={datos.evolucionCostosFormulas} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card p-6 rounded-xl border border-border/50">
+              <h3 className="text-xl font-semibold text-foreground mb-4">Consumo de Materias Primas por Período</h3>
+              <ConsumoMateriasPrimasChart data={datos.consumoMateriasPrimas} />
+            </div>
+            <div className="glass-card p-6 rounded-xl border border-border/50">
+              <h3 className="text-xl font-semibold text-foreground mb-4">Tendencias de Precios</h3>
+              <TendenciasPreciosChart data={datos.tendenciasPrecios} />
             </div>
           </div>
         </div>

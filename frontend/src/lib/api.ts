@@ -34,6 +34,7 @@ export const apiClient = {
     password: string;
     nombreUsuario: string;
     apellidoUsuario: string;
+    codigoReferencia?: string;
   }) {
     const response = await fetch(`${API_URL}/api/usuarios/registro`, {
       method: 'POST',
@@ -45,7 +46,10 @@ export const apiClient = {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Error al registrar');
+      const errorMessage = error.detalles 
+        ? `${error.error}: ${error.detalles}`
+        : error.error || 'Error al registrar';
+      throw new Error(errorMessage);
     }
 
     return await response.json();
@@ -752,6 +756,22 @@ export const apiClient = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al obtener fórmula');
+    }
+
+    return await response.json();
+  },
+
+  async getHistorialFormula(token: string, idGranja: string, id: string) {
+    const response = await fetch(`${API_URL}/api/formulas/granja/${idGranja}/formulas/${id}/historial`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener historial de fórmula');
     }
 
     return await response.json();
@@ -1466,37 +1486,8 @@ export const apiClient = {
     return await response.json();
   },
 
-  async obtenerFabricacionesEliminadas(token: string, idGranja: string) {
-    const response = await fetch(`${API_URL}/api/fabricaciones/${idGranja}/eliminadas`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al obtener fabricaciones eliminadas');
-    }
-
-    return await response.json();
-  },
-
-  async restaurarFabricacion(token: string, idFabricacion: string) {
-    const response = await fetch(`${API_URL}/api/fabricaciones/${idFabricacion}/restaurar`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al restaurar fabricación');
-    }
-
-    return await response.json();
-  },
+  // Funciones eliminadas: Las fabricaciones ahora se eliminan permanentemente
+  // No hay funcionalidad de restaurar fabricaciones
 
   // ============================================
   // AUDITORÍA
@@ -1861,6 +1852,109 @@ export const apiClient = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al eliminar usuario');
+    }
+    return await response.json();
+  },
+
+  // Gestión de usuarios empleados
+  async generarCodigoReferencia(token: string) {
+    const response = await fetch(`${API_URL}/api/usuarios/empleados/codigo-referencia`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al generar código de referencia');
+    }
+    return await response.json();
+  },
+
+  async regenerarCodigoReferencia(token: string) {
+    const response = await fetch(`${API_URL}/api/usuarios/empleados/codigo-referencia/regenerar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al regenerar código de referencia');
+    }
+    return await response.json();
+  },
+
+  async obtenerUsuariosEmpleados(token: string) {
+    const response = await fetch(`${API_URL}/api/usuarios/empleados`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener usuarios empleados');
+    }
+    return await response.json();
+  },
+
+  async obtenerLimiteUsuariosEmpleados(token: string) {
+    const response = await fetch(`${API_URL}/api/usuarios/empleados/limite`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al obtener límite de usuarios');
+    }
+    return await response.json();
+  },
+
+  async vincularEmpleado(token: string, codigoReferencia: string) {
+    const response = await fetch(`${API_URL}/api/usuarios/empleados/vincular`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ codigoReferencia }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || error.detalles || 'Error al vincular empleado');
+    }
+    return await response.json();
+  },
+
+  async eliminarEmpleado(token: string, empleadoId: string) {
+    const response = await fetch(`${API_URL}/api/usuarios/empleados/${empleadoId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || error.detalles || 'Error al eliminar empleado');
+    }
+    return await response.json();
+  },
+
+  async cambiarRolEmpleado(token: string, empleadoId: string, nuevoRol: 'ADMIN' | 'EDITOR' | 'LECTOR') {
+    const response = await fetch(`${API_URL}/api/usuarios/empleados/${empleadoId}/rol`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ nuevoRol }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || error.detalles || 'Error al cambiar rol de empleado');
     }
     return await response.json();
   },

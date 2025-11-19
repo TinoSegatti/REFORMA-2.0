@@ -7,7 +7,7 @@ import { apiClient } from '@/lib/api';
 import Sidebar from '@/components/layout/Sidebar';
 import { Modal } from '@/components/ui';
 import MateriaPrimaChart from '@/components/charts/MateriaPrimaChart';
-import { ArrowLeft, Plus, Printer, Pencil, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Printer, Pencil, FileText, History } from 'lucide-react';
 import { useNotification } from '@/contexts/NotificationContext';
 
 interface MateriaPrima {
@@ -64,6 +64,9 @@ export default function FormulaDetallePage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showModalEditarCabecera, setShowModalEditarCabecera] = useState(false);
   const [isEditingCabecera, setIsEditingCabecera] = useState(false);
+  const [showModalHistorial, setShowModalHistorial] = useState(false);
+  const [historial, setHistorial] = useState<any>(null);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [animales, setAnimales] = useState<Array<{ id: string; codigoAnimal: string; descripcionAnimal: string; categoriaAnimal: string }>>([]);
   const [cabeceraData, setCabeceraData] = useState({
     codigoFormula: '',
@@ -507,6 +510,33 @@ export default function FormulaDetallePage() {
     alert('Función de imprimir próximamente');
   };
 
+  const cargarHistorial = async () => {
+    if (loadingHistorial || historial) return; // Evitar cargar múltiples veces
+    
+    try {
+      setLoadingHistorial(true);
+      const token = authService.getToken();
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+      const datos = await apiClient.getHistorialFormula(token, idGranja, idFormula);
+      setHistorial(datos);
+    } catch (error) {
+      console.error('Error cargando historial:', error);
+      showNotification('Error al cargar el historial', 'error');
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  const abrirHistorial = () => {
+    setShowModalHistorial(true);
+    if (!historial) {
+      cargarHistorial();
+    }
+  };
+
   const formatCurrency = (n: number) =>
     Number(n).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
 
@@ -613,6 +643,13 @@ export default function FormulaDetallePage() {
               >
                 <Printer className="h-5 w-5" />
                 Imprimir
+              </button>
+              <button
+                onClick={abrirHistorial}
+                className="px-6 py-3 glass-surface text-foreground rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              >
+                <History className="h-5 w-5" />
+                Historial
               </button>
               <button
                 onClick={() => {
@@ -1305,6 +1342,141 @@ export default function FormulaDetallePage() {
         <div className="p-4">
           <p className="text-foreground/90 whitespace-pre-line">{mensajeConfirmacion}</p>
         </div>
+      </Modal>
+
+      {/* Modal Historial */}
+      <Modal
+        isOpen={showModalHistorial}
+        onClose={() => setShowModalHistorial(false)}
+        title="Historial de Fórmula"
+        size="lg"
+      >
+        {loadingHistorial ? (
+          <div className="py-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-teal-500/20 border border-teal-400/40 flex items-center justify-center mx-auto mb-4">
+              <History className="h-6 w-6 text-teal-300 animate-pulse" />
+            </div>
+            <p className="text-foreground/70">Cargando historial...</p>
+          </div>
+        ) : historial ? (
+          <div className="space-y-6">
+            {/* Información de la Fórmula */}
+            <div className="glass-surface p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-foreground mb-3">Información Actual</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-foreground/70">Código:</span>
+                  <span className="text-foreground font-medium">{historial.formula.codigoFormula}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-foreground/70">Descripción:</span>
+                  <span className="text-foreground font-medium">{historial.formula.descripcionFormula}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-foreground/70">Peso Total:</span>
+                  <span className="text-foreground font-medium">{historial.formula.pesoTotalFormula} kg</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-foreground/70">Costo Total:</span>
+                  <span className="text-foreground font-medium">{formatCurrency(historial.formula.costoTotalFormula)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-foreground/70">Fecha Creación:</span>
+                  <span className="text-foreground font-medium">
+                    {new Date(historial.formula.fechaCreacion).toLocaleDateString('es-AR', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-foreground/70">Última Modificación:</span>
+                  <span className="text-foreground font-medium">
+                    {new Date(historial.formula.fechaUltimaModificacion).toLocaleDateString('es-AR', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Historial de Cambios */}
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-3">Historial de Cambios</h3>
+              <div className="space-y-3">
+                {historial.historial.map((item: any, index: number) => (
+                  <div key={index} className="glass-surface p-4 rounded-lg border-l-4 border-teal-500">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-foreground">{item.descripcion}</p>
+                        <p className="text-xs text-foreground/60 mt-1">
+                          {new Date(item.fecha).toLocaleDateString('es-AR', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        item.accion === 'CREACION' 
+                          ? 'bg-green-500/20 text-green-400' 
+                          : 'bg-blue-500/20 text-blue-400'
+                      }`}>
+                        {item.accion}
+                      </span>
+                    </div>
+                    {item.cambios && (
+                      <div className="mt-2 text-sm text-foreground/70">
+                        {item.cambios.descripcion && <p>{item.cambios.descripcion}</p>}
+                        {item.cambios.detalles && <p>Detalles: {item.cambios.detalles}</p>}
+                        {item.cambios.costoTotal && <p>Costo Total: {formatCurrency(item.cambios.costoTotal)}</p>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Detalles Actuales */}
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-3">Detalles Actuales</h3>
+              <div className="space-y-2">
+                {historial.formula.detalles.map((detalle: any, index: number) => (
+                  <div key={index} className="glass-surface p-3 rounded-lg flex justify-between items-center">
+                    <div>
+                      <p className="font-medium text-foreground">{detalle.materiaPrima.nombre}</p>
+                      <p className="text-xs text-foreground/60">{detalle.materiaPrima.codigo}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-foreground">{detalle.cantidadKg} kg</p>
+                      <p className="text-xs text-foreground/60">{detalle.porcentajeFormula.toFixed(2)}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Nota */}
+            {historial.nota && (
+              <div className="glass-surface p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
+                <p className="text-sm text-foreground/80">{historial.nota}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-8 text-center">
+            <p className="text-foreground/70">No se pudo cargar el historial</p>
+          </div>
+        )}
       </Modal>
     </div>
   );
