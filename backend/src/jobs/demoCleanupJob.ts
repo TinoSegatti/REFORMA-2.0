@@ -39,7 +39,6 @@ export function iniciarJobLimpiezaDemo() {
 
     console.log('─────────────────────────────────────────────────\n');
   }, {
-    scheduled: true,
     timezone: 'America/Argentina/Buenos_Aires'
   });
 }
@@ -58,4 +57,3 @@ export async function ejecutarJobLimpiezaDemoManual() {
     throw error;
   }
 }
-

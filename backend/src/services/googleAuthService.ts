@@ -3,7 +3,7 @@
  * Maneja la lógica de autenticación OAuth con Google
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, PlanSuscripcion } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
@@ -78,7 +78,7 @@ export async function findOrCreateGoogleUser(googleInfo: GoogleUserInfo) {
           apellidoUsuario: googleInfo.family_name || 'Google',
           passwordHash: null, // No tiene contraseña, solo Google
           tipoUsuario: 'CLIENTE',
-          planSuscripcion: 'PLAN_0',
+          planSuscripcion: PlanSuscripcion.DEMO,
           emailVerificado: true, // Google ya verifica el email
           activo: true,
           ultimoAcceso: new Date()

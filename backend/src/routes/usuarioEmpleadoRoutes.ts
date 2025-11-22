@@ -42,3 +42,4 @@ router.put('/:empleadoId/rol', cambiarRolEmpleadoCtrl);
 
 export default router;
 
+
