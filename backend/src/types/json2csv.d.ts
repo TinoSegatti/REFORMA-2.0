@@ -1,0 +1,37 @@
+/**
+ * Declaración de tipos para json2csv
+ * Compatible con json2csv v6.0.0-alpha.2
+ */
+
+declare module 'json2csv' {
+  export interface ParserOptions {
+    fields?: string[] | FieldInfo[];
+    header?: boolean;
+    withBOM?: boolean;
+    delimiter?: string;
+    quote?: string;
+    escapedQuote?: string;
+    eol?: string;
+    excelStrings?: boolean;
+    includeEmptyRows?: boolean;
+    withTitle?: boolean;
+    title?: string;
+    transforms?: Array<(item: any) => any>;
+  }
+
+  export interface FieldInfo {
+    label?: string;
+    value: string | ((row: any) => any);
+    default?: string;
+  }
+
+  export class Parser<T = any> {
+    constructor(opts?: ParserOptions);
+    parse(data: T[]): string;
+  }
+
+  export function parse<T = any>(data: T[], opts?: ParserOptions): string;
+}
+
+export {};
+
