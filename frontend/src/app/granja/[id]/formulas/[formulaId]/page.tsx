@@ -41,9 +41,46 @@ interface Formula {
   formulasDetalle: DetalleFormula[];
 }
 
+interface HistorialCambio {
+  descripcion: string;
+  fecha: string;
+  accion: string;
+  cambios?: {
+    descripcion?: string;
+    detalles?: string;
+    costoTotal?: number;
+  };
+}
+
+interface DetalleHistorial {
+  materiaPrima: {
+    nombre: string;
+    codigo: string;
+  };
+  cantidadKg: number;
+  porcentajeFormula: number;
+}
+
+interface FormulaHistorial {
+  codigoFormula: string;
+  descripcionFormula: string;
+  pesoTotalFormula: number;
+  costoTotalFormula: number;
+  fechaCreacion: string;
+  fechaUltimaModificacion: string;
+  detalles: DetalleHistorial[];
+}
+
+interface HistorialFormula {
+  formula: FormulaHistorial;
+  historial: HistorialCambio[];
+  nota?: string;
+}
+
 export default function FormulaDetallePage() {
   const router = useRouter();
   const params = useParams();
+  const { showNotification } = useNotification();
   const idGranja = params.id as string;
   const idFormula = params.formulaId as string;
 
@@ -65,7 +102,7 @@ export default function FormulaDetallePage() {
   const [showModalEditarCabecera, setShowModalEditarCabecera] = useState(false);
   const [isEditingCabecera, setIsEditingCabecera] = useState(false);
   const [showModalHistorial, setShowModalHistorial] = useState(false);
-  const [historial, setHistorial] = useState<any>(null);
+  const [historial, setHistorial] = useState<HistorialFormula | null>(null);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [animales, setAnimales] = useState<Array<{ id: string; codigoAnimal: string; descripcionAnimal: string; categoriaAnimal: string }>>([]);
   const [cabeceraData, setCabeceraData] = useState({
@@ -1411,7 +1448,7 @@ export default function FormulaDetallePage() {
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-3">Historial de Cambios</h3>
               <div className="space-y-3">
-                {historial.historial.map((item: any, index: number) => (
+                {historial.historial.map((item, index) => (
                   <div key={index} className="glass-surface p-4 rounded-lg border-l-4 border-teal-500">
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -1450,7 +1487,7 @@ export default function FormulaDetallePage() {
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-3">Detalles Actuales</h3>
               <div className="space-y-2">
-                {historial.formula.detalles.map((detalle: any, index: number) => (
+                {historial.formula.detalles.map((detalle, index) => (
                   <div key={index} className="glass-surface p-3 rounded-lg flex justify-between items-center">
                     <div>
                       <p className="font-medium text-foreground">{detalle.materiaPrima.nombre}</p>

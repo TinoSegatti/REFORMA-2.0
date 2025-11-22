@@ -42,8 +42,13 @@ export default function TendenciasPreciosChart({ data }: TendenciasPreciosChartP
     return fecha.toISOString().split('T')[0]; // Formato YYYY-MM-DD
   }))).sort();
 
-  const chartData = fechasUnicas.map(fecha => {
-    const dataPoint: any = { fecha: new Date(fecha).toLocaleDateString('es-AR', { month: 'short', day: 'numeric' }) };
+  interface ChartDataPoint {
+    fecha: string;
+    [materiaCodigo: string]: string | number | null;
+  }
+
+  const chartData: ChartDataPoint[] = fechasUnicas.map(fecha => {
+    const dataPoint: ChartDataPoint = { fecha: new Date(fecha).toLocaleDateString('es-AR', { month: 'short', day: 'numeric' }) };
     materiasUnicas.forEach((materiaCodigo) => {
       const datosMateria = data.find(d => {
         const dFecha = new Date(d.fecha);
@@ -81,16 +86,16 @@ export default function TendenciasPreciosChart({ data }: TendenciasPreciosChartP
               backdropFilter: 'blur(6px)',
               padding: '12px 16px',
             }}
-            formatter={(value: number, name: string, props: any) => {
-              const materiaNombre = props.payload[`${name}_nombre`] || name;
+            formatter={(value: number, name: string, props: { payload?: ChartDataPoint }) => {
+              const materiaNombre = props.payload?.[`${name}_nombre`] || name;
               return [`$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg`, materiaNombre];
             }}
           />
           <Legend
             wrapperStyle={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}
-            formatter={(value, entry: any) => {
+            formatter={(value: string) => {
               const nombre = chartData[0]?.[`${value}_nombre`] || value;
-              return nombre.length > 20 ? `${nombre.substring(0, 20)}...` : nombre;
+              return typeof nombre === 'string' && nombre.length > 20 ? `${nombre.substring(0, 20)}...` : String(nombre);
             }}
           />
           {materiasUnicas.map((materiaCodigo, index) => (
@@ -109,4 +114,5 @@ export default function TendenciasPreciosChart({ data }: TendenciasPreciosChartP
     </div>
   );
 }
+
 

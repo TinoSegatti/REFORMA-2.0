@@ -33,7 +33,14 @@ export default function DistribucionMateriasFormulasChart({ data }: Distribucion
     );
   }
 
-  const chartData = primeraFormula.materias.map((materia) => ({
+  interface ChartDataPoint {
+    name: string;
+    value: number;
+    cantidadKg: number;
+    [key: string]: string | number;
+  }
+
+  const chartData: ChartDataPoint[] = primeraFormula.materias.map((materia) => ({
     name: `${materia.materiaCodigo} - ${materia.materiaNombre}`,
     value: Number(materia.porcentaje || 0),
     cantidadKg: Number(materia.cantidadKg || 0),
@@ -52,7 +59,10 @@ export default function DistribucionMateriasFormulasChart({ data }: Distribucion
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ name, value }) => `${value.toFixed(1)}%`}
+            label={(entry: Record<string, unknown>) => {
+              const value = (entry.value as number) ?? (entry.percent as number) ?? 0;
+              return `${value.toFixed(1)}%`;
+            }}
             outerRadius={100}
             fill="#8884d8"
             dataKey="value"
@@ -70,8 +80,8 @@ export default function DistribucionMateriasFormulasChart({ data }: Distribucion
               backdropFilter: 'blur(6px)',
               padding: '12px 16px',
             }}
-            formatter={(value: number, name: string, props: any) => [
-              `${Number(value).toFixed(2)}% (${Number(props.payload.cantidadKg).toFixed(2)} kg)`,
+            formatter={(value: number, name: string, props: { payload?: ChartDataPoint }) => [
+              `${Number(value).toFixed(2)}% (${Number(props.payload?.cantidadKg || 0).toFixed(2)} kg)`,
               'Porcentaje'
             ]}
           />
@@ -84,4 +94,5 @@ export default function DistribucionMateriasFormulasChart({ data }: Distribucion
     </div>
   );
 }
+
 

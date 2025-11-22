@@ -34,9 +34,14 @@ export default function EvolucionCostosFormulasChart({ data }: EvolucionCostosFo
     return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
   }))).sort();
 
-  const chartData = fechasUnicas.map(fecha => {
-    const dataPoint: any = { fecha };
-    formulasUnicas.forEach((formulaCodigo, index) => {
+  interface ChartDataPoint {
+    fecha: string;
+    [formulaCodigo: string]: string | number | null;
+  }
+
+  const chartData: ChartDataPoint[] = fechasUnicas.map(fecha => {
+    const dataPoint: ChartDataPoint = { fecha };
+    formulasUnicas.forEach((formulaCodigo) => {
       const datosFormula = data.find(d => {
         const dFecha = new Date(d.fecha);
         const fechaStr = `${dFecha.getFullYear()}-${String(dFecha.getMonth() + 1).padStart(2, '0')}`;
@@ -94,4 +99,5 @@ export default function EvolucionCostosFormulasChart({ data }: EvolucionCostosFo
     </div>
   );
 }
+
 

@@ -11,6 +11,11 @@ interface ConsumoMateriasPrimasChartProps {
   }>;
 }
 
+interface ChartDataPoint {
+  periodo: string;
+  [materiaCodigo: string]: string | number;
+}
+
 const COLORS = ['#a855f7', '#ec4899', '#14b8a6', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#22c55e', '#f97316', '#6366f1'];
 
 export default function ConsumoMateriasPrimasChart({ data }: ConsumoMateriasPrimasChartProps) {
@@ -41,7 +46,7 @@ export default function ConsumoMateriasPrimasChart({ data }: ConsumoMateriasPrim
   const periodosUnicos = Array.from(new Set(data.map(d => d.periodo))).sort();
 
   const chartData = periodosUnicos.map(periodo => {
-    const dataPoint: any = { periodo };
+    const dataPoint: ChartDataPoint = { periodo };
     materiasUnicas.forEach((materiaCodigo) => {
       const datosMateria = data.find(d => d.periodo === periodo && d.materiaCodigo === materiaCodigo);
       const materia = datosMateria ? datosMateria.materiaNombre : '';
@@ -76,16 +81,16 @@ export default function ConsumoMateriasPrimasChart({ data }: ConsumoMateriasPrim
               backdropFilter: 'blur(6px)',
               padding: '12px 16px',
             }}
-            formatter={(value: number, name: string, props: any) => {
-              const materiaNombre = props.payload[`${name}_nombre`] || name;
+            formatter={(value: number, name: string, props: { payload?: ChartDataPoint }) => {
+              const materiaNombre = props.payload?.[`${name}_nombre`] || name;
               return [`${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`, materiaNombre];
             }}
           />
           <Legend
             wrapperStyle={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}
-            formatter={(value, entry: any) => {
+            formatter={(value: string) => {
               const nombre = chartData[0]?.[`${value}_nombre`] || value;
-              return nombre.length > 20 ? `${nombre.substring(0, 20)}...` : nombre;
+              return typeof nombre === 'string' && nombre.length > 20 ? `${nombre.substring(0, 20)}...` : String(nombre);
             }}
           />
           {materiasUnicas.map((materiaCodigo, index) => (
@@ -106,4 +111,5 @@ export default function ConsumoMateriasPrimasChart({ data }: ConsumoMateriasPrim
     </div>
   );
 }
+
 

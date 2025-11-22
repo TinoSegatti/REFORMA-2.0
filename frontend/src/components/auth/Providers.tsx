@@ -2,6 +2,7 @@
 
 import BackgroundProvider from "@/components/theme/BackgroundProvider";
 import GoogleOAuthProviderWrapper from "@/components/auth/GoogleOAuthProvider";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -10,8 +11,10 @@ interface ProvidersProps {
 export default function Providers({ children }: ProvidersProps) {
   return (
     <GoogleOAuthProviderWrapper>
-      <BackgroundProvider />
-      {children}
+      <NotificationProvider>
+        <BackgroundProvider />
+        {children}
+      </NotificationProvider>
     </GoogleOAuthProviderWrapper>
   );
 }
