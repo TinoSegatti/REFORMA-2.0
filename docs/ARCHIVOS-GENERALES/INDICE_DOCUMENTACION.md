@@ -94,3 +94,4 @@ Ver estructura completa en [`../backend/docs/README.md`](../../backend/docs/READ
 
 **Última actualización:** 2025-01-XX
 
+

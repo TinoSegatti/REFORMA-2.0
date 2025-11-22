@@ -392,3 +392,4 @@ backend/docs/
 **Autor:** Sistema de commits automatizado  
 **Versión:** 1.0.0
 
+
