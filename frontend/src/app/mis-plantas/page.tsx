@@ -225,8 +225,12 @@ export default function MisPlantasPage() {
       <nav className="bg-black/40 backdrop-blur-xl text-white px-8 py-4 border-b border-white/10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <span className="text-white font-bold">R</span>
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30 p-1.5">
+              <img 
+                src="/logo.png?v=2" 
+                alt="REFORMA Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <h1 className="text-xl font-bold">REFORMA</h1>
           </div>

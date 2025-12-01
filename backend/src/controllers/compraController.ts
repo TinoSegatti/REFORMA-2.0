@@ -19,7 +19,8 @@ import {
   eliminarCompra,
   eliminarTodasLasCompras,
   restaurarCompra,
-  obtenerComprasEliminadas
+  obtenerComprasEliminadas,
+  obtenerComprasConTotalesInconsistentes
 } from '../services/compraService';
 import { buildCsv } from '../utils/csvUtils';
 
@@ -870,6 +871,39 @@ export async function restaurarCompraCtrl(req: CompraRequest, res: Response) {
 /**
  * Obtener compras eliminadas de una granja
  */
+/**
+ * Obtener compras con totales inconsistentes
+ */
+export async function obtenerComprasConTotalesInconsistentesCtrl(req: CompraRequest, res: Response) {
+  try {
+    const userId = req.userId;
+    const idGranjaParam = (req.params as any)?.idGranja;
+    const idGranja = idGranjaParam || req.body.idGranja;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!idGranja) {
+      return res.status(400).json({ error: 'idGranja es requerido' });
+    }
+
+    const granja = await prisma.granja.findFirst({
+      where: { id: idGranja, idUsuario: userId }
+    });
+
+    if (!granja) {
+      return res.status(404).json({ error: 'Granja no encontrada' });
+    }
+
+    const comprasInconsistentes = await obtenerComprasConTotalesInconsistentes(idGranja);
+    res.json(comprasInconsistentes);
+  } catch (error: any) {
+    console.error('Error obteniendo compras con totales inconsistentes:', error);
+    res.status(500).json({ error: 'Error al obtener compras con totales inconsistentes' });
+  }
+}
+
 export async function obtenerComprasEliminadasCtrl(req: CompraRequest, res: Response) {
   try {
     const userId = req.userId;

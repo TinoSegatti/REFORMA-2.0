@@ -54,17 +54,40 @@ f59961b12a17a27d78a6d7a5e6628393c56e30ce69e2543d2ab0eb4bca285551
 
 ## 🌐 Configuración de ngrok
 
-Tu configuración actual de ngrok:
+### Variable de Entorno NGROK_URL (Recomendado)
+
+**⚠️ IMPORTANTE:** La URL de ngrok cambia cada vez que reinicias ngrok (versión gratuita).
+
+**Para evitar modificar código cada vez, configura `NGROK_URL` en `backend/.env`:**
+
+```env
+# ============================================
+# NGROK - URL PÚBLICA (Desarrollo Local)
+# ============================================
+# ⚠️ Esta URL cambia cada vez que reinicias ngrok
+# Actualiza esta variable cuando obtengas una nueva URL
+NGROK_URL=https://unmerciful-ossie-fluent.ngrok-free.dev
+```
+
+**Tu configuración actual de ngrok:**
 - **URL pública**: `https://unmerciful-ossie-fluent.ngrok-free.dev`
 - **Redirige a**: `http://localhost:3000`
 - **Webhook configurado**: `https://unmerciful-ossie-fluent.ngrok-free.dev/api/suscripcion/webhook/mercadopago`
+
+**¿Cómo funciona?**
+- El código usa `process.env.NGROK_URL` si existe
+- Si no existe, usa la URL por defecto como fallback
+- **Recomendado:** Configurar `NGROK_URL` para no modificar código
+
+**Ver:** `docs/06-GUIAS/CONFIGURACION/GUIA_URL_NGROK.md` para instrucciones detalladas.
 
 ## ⚠️ Importante
 
 1. **No compartas estas credenciales** públicamente
 2. **Reinicia el servidor backend** después de agregar las variables
 3. **Verifica que ngrok esté corriendo** cuando pruebes los webhooks
-4. **Para producción**, cambia `FRONTEND_URL` a tu dominio real
+4. **Actualiza `NGROK_URL`** cada vez que reinicies ngrok y obtengas una nueva URL
+5. **Para producción**, cambia `FRONTEND_URL` a tu dominio real y no necesitarás ngrok
 
 ## 🧪 Probar Configuración
 

@@ -107,7 +107,10 @@ export default function PanelPrincipalPage() {
             apiClient.getMateriasPrimas(token, idGranja),
             apiClient.getEstadisticasInventario(token, idGranja),
             apiClient.getEstadisticasFabricaciones(token, idGranja),
-            apiClient.getEstadisticasProveedores(token, idGranja),
+            apiClient.getEstadisticasProveedores(token, idGranja).catch((error) => {
+              console.error('Error obteniendo estadísticas de proveedores:', error);
+              return null; // Retornar null en caso de error para no bloquear el resto
+            }),
             cargarPlan(), // Cargar plan en paralelo
           ]);
 

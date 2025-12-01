@@ -21,10 +21,16 @@ const PORT = process.env.PORT || 3000;
 // Middlewares
 app.use(cors());
 
-// IMPORTANTE: Webhook de Mercado Pago usa JSON
-// Por eso lo configuramos antes de express.json() general
+// IMPORTANTE: Webhooks deben estar ANTES de los middlewares globales
+// Webhook de Mercado Pago usa JSON
 app.use('/api/suscripcion/webhook/mercadopago', express.json());
 
+// Webhook de Twilio (CORINA) - debe estar ANTES de express.urlencoded()
+// Importar y registrar ANTES de los middlewares globales
+import corinaRoutes from './routes/corinaRoutes';
+app.use('/api/corina', corinaRoutes);
+
+// Middlewares globales (después de webhooks específicos)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -53,6 +59,7 @@ import reporteCompletoRoutes from './routes/reporteCompletoRoutes';
 import suscripcionRoutes from './routes/suscripcionRoutes';
 import adminRoutes from './routes/adminRoutes';
 import usuarioEmpleadoRoutes from './routes/usuarioEmpleadoRoutes';
+// corinaRoutes ya se importó arriba para registrar antes de middlewares globales
 
 // Rutas
 app.use('/api/usuarios', usuarioRoutes);
@@ -70,6 +77,7 @@ app.use('/api/reporte', reporteCompletoRoutes);
 app.use('/api/suscripcion', suscripcionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/usuarios/empleados', usuarioEmpleadoRoutes);
+// app.use('/api/corina', corinaRoutes); // Ya se registró arriba antes de middlewares globales
 
 // Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

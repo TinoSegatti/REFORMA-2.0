@@ -827,6 +827,71 @@ export async function obtenerComprasEliminadas(idGranja: string) {
 /**
  * Eliminar todos los items de una compra
  */
+/**
+ * Obtiene compras con totales inconsistentes (suma de subtotales no coincide con totalFactura)
+ */
+export async function obtenerComprasConTotalesInconsistentes(idGranja: string) {
+  // Obtener todas las compras activas con sus detalles
+  const compras = await prisma.compraCabecera.findMany({
+    where: {
+      idGranja,
+      activo: true
+    },
+    include: {
+      proveedor: {
+        select: {
+          codigoProveedor: true,
+          nombreProveedor: true
+        }
+      },
+      comprasDetalle: {
+        select: {
+          id: true,
+          subtotal: true
+        }
+      }
+    },
+    orderBy: {
+      fechaCompra: 'desc'
+    }
+  });
+
+  // Filtrar compras donde la suma de subtotales no coincide con totalFactura
+  const comprasInconsistentes = compras.filter((compra) => {
+    // Si no tiene detalles, no puede tener inconsistencia (o tiene total provisorio)
+    if (!compra.comprasDetalle || compra.comprasDetalle.length === 0) {
+      return false;
+    }
+
+    // Calcular suma de subtotales
+    const sumaSubtotales = compra.comprasDetalle.reduce(
+      (sum, detalle) => sum + Number(detalle.subtotal || 0),
+      0
+    );
+
+    // Comparar con totalFactura (con tolerancia de 0.01 para redondeos)
+    const diferencia = Math.abs(Number(compra.totalFactura || 0) - sumaSubtotales);
+    return diferencia > 0.01; // Si la diferencia es mayor a 1 centavo, es inconsistente
+  });
+
+  // Retornar solo los campos necesarios para la card
+  return comprasInconsistentes.map((compra) => ({
+    id: compra.id,
+    numeroFactura: compra.numeroFactura,
+    fechaCompra: compra.fechaCompra,
+    totalFactura: compra.totalFactura,
+    sumaSubtotales: compra.comprasDetalle.reduce(
+      (sum, detalle) => sum + Number(detalle.subtotal || 0),
+      0
+    ),
+    diferencia: Math.abs(Number(compra.totalFactura || 0) - compra.comprasDetalle.reduce(
+      (sum, detalle) => sum + Number(detalle.subtotal || 0),
+      0
+    )),
+    proveedor: compra.proveedor
+  }));
+}
+
 export async function eliminarTodosLosItemsCompra(idCompra: string) {
   // Obtener la compra con todos sus detalles
   const compra = await prisma.compraCabecera.findUnique({

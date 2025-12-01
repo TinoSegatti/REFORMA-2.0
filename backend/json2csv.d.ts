@@ -33,3 +33,4 @@ declare module 'json2csv' {
   export function parse(data: any[] | any, opts?: ParserOptions): string;
 }
 
+

@@ -21,7 +21,8 @@ import {
   eliminarTodasLasComprasCtrl,
   restaurarCompraCtrl,
   obtenerComprasEliminadasCtrl,
-  exportarComprasCtrl
+  exportarComprasCtrl,
+  obtenerComprasConTotalesInconsistentesCtrl
 } from '../controllers/compraController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { validarAccesoGranja } from '../middleware/validarAccesoGranja';
@@ -38,6 +39,7 @@ router.post('/granja/:idGranja/compras', validarAccesoGranja, validateComprasLim
 router.get('/granja/:idGranja/compras/export', validarAccesoGranja, exportarComprasCtrl);
 router.get('/granja/:idGranja/compras/estadisticas', validarAccesoGranja, obtenerEstadisticas);
 router.get('/granja/:idGranja/compras/eliminadas', validarAccesoGranja, obtenerComprasEliminadasCtrl);
+router.get('/granja/:idGranja/compras/totales-inconsistentes', validarAccesoGranja, obtenerComprasConTotalesInconsistentesCtrl);
 router.delete('/granja/:idGranja/compras', validarAccesoGranja, eliminarTodasLasComprasCtrl);
 router.get('/granja/:idGranja/compras', validarAccesoGranja, obtenerCompras);
 router.post('/granja/:idGranja/compras/:id/restaurar', validarAccesoGranja, restaurarCompraCtrl);

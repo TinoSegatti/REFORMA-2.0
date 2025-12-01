@@ -63,6 +63,15 @@ export default function ComprasPage() {
   const [comprasEliminadas, setComprasEliminadas] = useState<CompraEliminada[]>([]);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [comprasConTotalesInconsistentes, setComprasConTotalesInconsistentes] = useState<Array<{
+    id: string;
+    numeroFactura: string | null;
+    fechaCompra: string;
+    totalFactura: number;
+    sumaSubtotales: number;
+    diferencia: number;
+    proveedor?: { codigoProveedor?: string; nombreProveedor: string };
+  }>>([]);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -86,19 +95,22 @@ export default function ComprasPage() {
       const token = authService.getToken();
       if (!token) return;
       
-      const [comprasData, stats] = await Promise.all([
+      const [comprasData, stats, comprasInconsistentes] = await Promise.all([
         apiClient.getCompras(token, idGranja, { desde, hasta, materiaPrima: mpFiltro, proveedor: provFiltro, numeroFactura: factFiltro, ordenar: orden }),
         apiClient.getEstadisticasCompras(token, idGranja),
+        apiClient.obtenerComprasConTotalesInconsistentes(token, idGranja).catch(() => []), // Si falla, retornar array vacío
       ]);
       setCompras(comprasData);
       setEstadisticas({
         frecuenciaPorMateria: stats.frecuenciaPorMateria || [],
         totalCompras: stats.totalCompras || comprasData.length,
       });
+      setComprasConTotalesInconsistentes(comprasInconsistentes || []);
     } catch (e) {
       // Silenciar errores cuando no hay datos o el backend aún no implementa endpoints.
       setCompras([]);
       setEstadisticas({ frecuenciaPorMateria: [], totalCompras: 0 });
+      setComprasConTotalesInconsistentes([]);
     } finally {
       setLoading(false);
     }
@@ -616,6 +628,47 @@ export default function ComprasPage() {
             </div>
 
             <div className="space-y-6">
+              <div className="glass-card p-6 rounded-2xl space-y-4 border border-red-500/30 bg-red-500/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-red-400" />
+                    <h3 className="text-lg font-semibold text-foreground">Compras con totales inconsistentes</h3>
+                  </div>
+                  {comprasConTotalesInconsistentes.length > 0 && (
+                    <span className="text-xs px-3 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
+                      {comprasConTotalesInconsistentes.length} alerta(s)
+                    </span>
+                  )}
+                </div>
+                {comprasConTotalesInconsistentes.length === 0 ? (
+                  <p className="text-sm text-foreground/60">Todas las compras tienen totales consistentes. La suma de subtotales coincide con el total de la cabecera.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {comprasConTotalesInconsistentes.slice(0, 4).map((compra) => (
+                      <div key={compra.id} className="glass-surface px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/5 flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-foreground">
+                            {compra.numeroFactura || 'Sin número'}
+                          </p>
+                          <p className="text-xs text-foreground/50">
+                            {formatDate(compra.fechaCompra)} · {compra.proveedor?.nombreProveedor || 'Proveedor N/D'}
+                          </p>
+                          <p className="text-xs text-red-400 mt-1">
+                            Total factura: {formatCurrency(compra.totalFactura)} · Suma subtotales: {formatCurrency(compra.sumaSubtotales)} · Diferencia: {formatCurrency(compra.diferencia)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => router.push(`/granja/${idGranja}/compras/${compra.id}`)}
+                          className="text-xs font-semibold text-red-300 hover:text-red-200 transition-colors ml-4"
+                        >
+                          Revisar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="glass-card p-6 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-foreground">Compras sin observaciones</h3>

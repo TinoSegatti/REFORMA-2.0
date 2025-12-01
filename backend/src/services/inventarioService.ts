@@ -182,6 +182,21 @@ export async function recalcularInventario(params: CalcularInventarioParams) {
     }
   });
 
+  // Detectar alertas de inventario (solo si CORINA está habilitado)
+  if (process.env.CORINA_ENABLED === 'true') {
+    try {
+      const { CorinaNotificacionService } = await import('./corinaNotificacionService');
+      await CorinaNotificacionService.detectarNuevaAlerta(
+        idGranja,
+        idMateriaPrima,
+        cantidad_real
+      );
+    } catch (error: any) {
+      // No interrumpir el flujo principal si hay error en CORINA
+      console.error('Error detectando alerta CORINA:', error);
+    }
+  }
+
   return {
     cantidad_acumulada,
     cantidad_sistema,
@@ -263,6 +278,21 @@ export async function actualizarCantidadReal(
   // updated es el número de filas afectadas en PG
   if ((updated as unknown as number) === 0) {
     throw new Error('Conflicto de actualización: el inventario fue modificado por otro usuario. Recargue y reintente.');
+  }
+
+  // Detectar alertas de inventario (solo si CORINA está habilitado)
+  if (process.env.CORINA_ENABLED === 'true') {
+    try {
+      const { CorinaNotificacionService } = await import('./corinaNotificacionService');
+      await CorinaNotificacionService.detectarNuevaAlerta(
+        idGranja,
+        idMateriaPrima,
+        cantidadReal
+      );
+    } catch (error: any) {
+      // No interrumpir el flujo principal si hay error en CORINA
+      console.error('Error detectando alerta CORINA:', error);
+    }
   }
 }
 

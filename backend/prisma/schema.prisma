@@ -115,6 +115,17 @@ model Usuario {
   usuariosEmpleados Usuario[] @relation("UsuarioEmpleados")
   usuarioDueño     Usuario?  @relation("UsuarioEmpleados", fields: [idUsuarioDueño], references: [id], onDelete: SetNull)
 
+  // CORINA - WhatsApp
+  telefono                    String?   // Número de teléfono para WhatsApp (formato: +5493515930163)
+  telefonoVerificado         Boolean   @default(false)
+  notificacionesWhatsAppActivas Boolean @default(false)
+  codigoVerificacionTelefono String?   @unique // Código para verificar teléfono
+  fechaVerificacionTelefono  DateTime? // Fecha de verificación del teléfono
+
+  // Relaciones CORINA
+  corinaInteracciones CorinaInteraccion[]
+  corinaNotificaciones CorinaNotificacion[]
+
   @@map("t_usuarios")
 }
 
@@ -140,6 +151,8 @@ model Granja {
   compras           CompraCabecera[]
   archivos          ArchivoCabecera[]
   auditorias        Auditoria[]
+  corinaInteracciones CorinaInteraccion[]
+  corinaNotificaciones CorinaNotificacion[]
 
   @@index([idUsuario])
   @@map("t_granja")
@@ -537,4 +550,120 @@ model Pago {
   @@index([estadoPago])
   @@index([metodoPago])
   @@map("t_pagos")
+}
+
+// ============================================
+// CORINA - SISTEMA DE IA
+// ============================================
+
+enum TipoInteraccionCorina {
+  MENSAJE_TEXTO
+  MENSAJE_AUDIO
+  CREACION_REGISTRO
+  CONSULTA_ALERTAS
+  CONSULTA_INVENTARIO
+  CONSULTA_MATERIAS_PRIMAS
+  CONSULTA_COMPRAS
+  CONSULTA_FORMULAS
+  CONSULTA_FABRICACIONES
+  CONSULTA_PROVEEDORES
+  CONSULTA_ANIMALES
+}
+
+enum EstadoInteraccionCorina {
+  PENDIENTE
+  PROCESANDO
+  ESPERANDO_CONFIRMACION
+  COMPLETADA
+  CANCELADA
+  ERROR
+}
+
+enum TipoNotificacionCorina {
+  ALERTA_INVENTARIO
+  CONFIRMACION_CREACION
+  ERROR_VALIDACION
+}
+
+enum EstadoNotificacionCorina {
+  ENVIADA
+  ENTREGADA
+  FALLIDA
+  PENDIENTE
+}
+
+model CorinaInteraccion {
+  id                    String                  @id @default(cuid())
+  idUsuario             String
+  idGranja              String? // Opcional, puede ser consulta general
+  tipoInteraccion       TipoInteraccionCorina
+  estadoInteraccion     EstadoInteraccionCorina  @default(PENDIENTE)
+  
+  // Datos del mensaje recibido
+  mensajeRecibido       String?                 @db.Text // Texto del mensaje o transcripción del audio
+  urlAudioOriginal      String? // URL del audio recibido desde Twilio
+  duracionAudioSegundos Float? // Duración del audio en segundos
+  
+  // Datos extraídos por NLP
+  datosExtraidos        Json? // JSON con los datos extraídos del mensaje
+  tablaDestino          String? // Tabla donde se creará el registro (materiaPrima, proveedor, etc.)
+  
+  // Resultado de la interacción
+  respuestaCorina       String?                 @db.Text // Respuesta de CORINA al usuario
+  registroCreadoId      String? // ID del registro creado (si aplica)
+  tablaRegistroCreado   String? // Tabla donde se creó el registro
+  
+  // Metadatos
+  fechaInteraccion      DateTime                @default(now())
+  fechaProcesamiento    DateTime?
+  fechaCompletada       DateTime?
+  errorMensaje          String?                 @db.Text // Mensaje de error si falló
+  
+  // Relaciones
+  usuario Usuario @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  granja  Granja? @relation(fields: [idGranja], references: [id], onDelete: SetNull)
+
+  @@index([idUsuario])
+  @@index([idGranja])
+  @@index([tipoInteraccion])
+  @@index([estadoInteraccion])
+  @@index([fechaInteraccion])
+  @@map("t_corina_interaccion")
+}
+
+model CorinaNotificacion {
+  id                    String                    @id @default(cuid())
+  idUsuario             String
+  idGranja              String?
+  tipoNotificacion      TipoNotificacionCorina
+  estadoNotificacion    EstadoNotificacionCorina  @default(PENDIENTE)
+  
+  // Contenido de la notificación
+  titulo                String
+  mensaje               String                    @db.Text
+  datosAdicionales      Json? // Datos adicionales en formato JSON
+  
+  // Para alertas de inventario
+  idInventario          String? // ID del inventario que generó la alerta
+  cantidadAlerta        Float? // Cantidad que generó la alerta
+  
+  // Metadatos de envío
+  fechaCreacion         DateTime                  @default(now())
+  fechaEnvio            DateTime?
+  fechaEntrega          DateTime?
+  fechaError            DateTime?
+  errorMensaje          String?                   @db.Text
+  intentosEnvio         Int                       @default(0)
+  twilioMessageSid      String?                   @unique // Message SID de Twilio
+  
+  // Relaciones
+  usuario Usuario @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  granja  Granja? @relation(fields: [idGranja], references: [id], onDelete: SetNull)
+
+  @@index([idUsuario])
+  @@index([idGranja])
+  @@index([tipoNotificacion])
+  @@index([estadoNotificacion])
+  @@index([fechaCreacion])
+  @@map("t_corina_notificacion")
 }

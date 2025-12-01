@@ -159,8 +159,28 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
+      {/* Video Background */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+        style={{ objectFit: 'cover' }}
+        onError={(e) => {
+          const video = e.currentTarget;
+          video.style.display = 'none';
+        }}
+      >
+        <source src="/landing/hero-background.mp4" type="video/mp4" />
+        Tu navegador no soporta videos HTML5.
+      </video>
+      
+      {/* Background gradient overlay for better text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background/80 pointer-events-none z-0" />
+      
       {/* Animated Background Bubbles */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         {/* Bubble 1 - Purple */}
         <div className="bubble-1 absolute w-96 h-96 bg-gradient-to-br from-purple-500/20 to-purple-400/10 rounded-full blur-3xl -top-40 left-10" />
         {/* Bubble 2 - Pink */}
@@ -232,8 +252,12 @@ export default function LoginPage() {
           <div className="w-full max-w-md glass-card p-8 shadow-2xl">
         {/* Header Moderno */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-2xl shadow-lg shadow-purple-500/30 mb-4">
-            <span className="text-white text-3xl font-bold">R</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-2xl shadow-lg shadow-purple-500/30 mb-4 p-2">
+            <img 
+              src="/logo.png?v=2" 
+              alt="REFORMA Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             REFORMA

@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { useState, useEffect } from 'react';
 import {
-  Box,
   Package,
   ShoppingCart,
   FileText,
@@ -26,71 +25,57 @@ import {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  // Inicializar darkMode desde localStorage usando función lazy para evitar renders en cascada
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window === 'undefined') return true;
+  // Estado para controlar si el componente está montado (solo cliente)
+  const [mounted, setMounted] = useState(false);
+  
+  // Inicializar darkMode siempre con valor por defecto para evitar hidratación
+  const [darkMode, setDarkMode] = useState(true); // Por defecto dark mode
+
+  // Marcar como montado y cargar tema desde localStorage solo después de la hidratación
+  useEffect(() => {
+    setMounted(true);
+    
+    // Cargar tema desde localStorage solo en el cliente
     const savedTheme = localStorage.getItem('theme');
     const isDark = savedTheme !== 'light';
+    setDarkMode(isDark);
+    
     // Aplicar tema inicial al DOM
     document.documentElement.className = isDark ? 'dark' : 'light';
     document.body.style.backgroundColor = isDark ? '#0a0a0f' : '#ffffff';
-    return isDark;
-  });
+  }, []);
+  
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hasManualToggle, setHasManualToggle] = useState(false);
   
   // Obtener ID de granja desde pathname
   const idGranja = pathname.match(/\/granja\/([^/]+)/)?.[1];
   
-  // Estado para la granja activa - inicializado con valor por defecto para evitar hidratación
-  // Usamos función lazy para inicializar solo en el cliente
-  const [granjaActiva, setGranjaActiva] = useState<{ id: string; nombre: string } | null>(() => {
-    if (typeof window === 'undefined') {
-      // En el servidor, siempre retornar valor por defecto
-      return idGranja ? { id: idGranja, nombre: 'Mi Planta' } : null;
-    }
-    
-    // En el cliente, intentar cargar desde localStorage
-    if (idGranja) {
-      const granja = localStorage.getItem('granjaInfo');
-      if (granja) {
-        try {
-          const granjaData = JSON.parse(granja);
-          if (granjaData.id === idGranja) {
-            return granjaData;
-          }
-        } catch {
-          // Si hay error, usar valor por defecto
-        }
-      }
-      return { id: idGranja, nombre: 'Mi Planta' };
-    }
-    return null;
-  });
+  // Estado para la granja activa - siempre inicializar con valor por defecto para evitar hidratación
+  const [granjaActiva, setGranjaActiva] = useState<{ id: string; nombre: string } | null>(
+    idGranja ? { id: idGranja, nombre: 'Mi Planta' } : null
+  );
 
-  // Actualizar información de la granja cuando cambia idGranja o localStorage
+  // Actualizar información de la granja cuando el componente está montado y cambia idGranja
   useEffect(() => {
-    if (typeof window === 'undefined' || !idGranja) return;
+    if (!mounted || !idGranja) return;
     
-    // Usar setTimeout para diferir la actualización y evitar cascading renders
-    const timeoutId = setTimeout(() => {
-      const granja = localStorage.getItem('granjaInfo');
-      if (granja) {
-        try {
-          const granjaData = JSON.parse(granja);
-          if (granjaData.id === idGranja) {
-            setGranjaActiva(granjaData);
-            return;
-          }
-        } catch {
-          // Si hay error, usar valor por defecto
+    // Cargar desde localStorage solo después de la hidratación
+    const granja = localStorage.getItem('granjaInfo');
+    if (granja) {
+      try {
+        const granjaData = JSON.parse(granja);
+        if (granjaData.id === idGranja) {
+          setGranjaActiva(granjaData);
+          return;
         }
+      } catch {
+        // Si hay error, mantener valor por defecto
       }
-      setGranjaActiva({ id: idGranja, nombre: 'Mi Planta' });
-    }, 0);
-    
-    return () => clearTimeout(timeoutId);
-  }, [idGranja]);
+    }
+    // Si no hay datos en localStorage, mantener valor por defecto
+    setGranjaActiva({ id: idGranja, nombre: 'Mi Planta' });
+  }, [mounted, idGranja]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -217,8 +202,12 @@ export default function Sidebar() {
         </button>
 
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-          <div className="w-9 h-9 bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30">
-            <Box className="text-white h-5 w-5" />
+          <div className="w-9 h-9 bg-gradient-to-br from-purple-600 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30 p-1.5">
+            <img 
+              src="/logo.png?v=2" 
+              alt="REFORMA Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           {!isCollapsed && <h1 className="text-lg font-semibold tracking-wide">REFORMA</h1>}
         </div>
@@ -228,8 +217,8 @@ export default function Sidebar() {
           className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} gap-2 px-3 py-2 glass-surface rounded-lg font-medium hover:bg-white/10 transition-all text-xs text-foreground`}
         >
           <span className="flex items-center gap-2">
-            {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {!isCollapsed && <span>{darkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>}
+            {mounted ? (darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />) : <Moon className="h-4 w-4" />}
+            {!isCollapsed && <span>{mounted ? (darkMode ? 'Modo Claro' : 'Modo Oscuro') : 'Modo Oscuro'}</span>}
           </span>
         </button>
 
@@ -243,7 +232,7 @@ export default function Sidebar() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Granja Activa</p>
                   <p className="text-sm font-semibold text-white truncate">
-                    {granjaActiva?.nombre || 'Mi Planta'}
+                    {mounted && granjaActiva?.nombre ? granjaActiva.nombre : 'Mi Planta'}
                   </p>
                 </div>
               </div>

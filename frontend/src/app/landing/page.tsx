@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui';
 import { 
-  Sprout, 
   Users, 
   ShoppingCart, 
   Package, 
@@ -19,12 +18,18 @@ import {
   Download,
   Upload,
   FileCheck,
-  Clock,
-  BookOpen,
   Mail,
   Phone
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import VideoModal from '@/components/landing/VideoModal';
+import {
+  ScrollReveal,
+  AnimatedCounter,
+  StatsSection,
+  AnimatedParticles,
+  AnimatedBackground,
+} from '@/components/landing';
 
 export default function LandingPage() {
   const [isAnnual, setIsAnnual] = useState(false);
@@ -101,6 +106,7 @@ export default function LandingPage() {
       description: 'Historial completo de todas las operaciones con trazabilidad total.',
     },
   ];
+
 
   const plans = [
     {
@@ -209,10 +215,14 @@ export default function LandingPage() {
       <nav className="fixed top-0 w-full z-50 glass-surface border-b border-border/50 backdrop-blur-xl">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <Sprout className="h-8 w-8 text-primary" />
+            <Link href="/" className="flex items-center gap-2">
+              <img 
+                src="/logo.png?v=2" 
+                alt="REFORMA Logo" 
+                className="h-8 w-8 object-contain"
+              />
               <span className="text-xl font-bold text-foreground">REFORMA</span>
-            </div>
+            </Link>
             <div className="hidden md:flex items-center gap-6">
               <a 
                 href="#features" 
@@ -262,83 +272,149 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center space-y-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 glass-surface rounded-full border border-border/50">
-              <Zap className="h-4 w-4 text-primary" />
-              <span className="text-sm text-foreground/80">Sistema de Gestión de Granjas</span>
-            </div>
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-foreground leading-tight">
-              Gestiona tu Granja de Forma
-              <span className="block bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                Inteligente y Eficiente
-              </span>
-            </h1>
-            <p className="text-xl text-foreground/70 max-w-3xl mx-auto">
-              Controla inventario, fórmulas, fabricaciones y compras con cálculos automáticos, 
-              gráficos en tiempo real y reportes profesionales.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/login">
-                <Button variant="primary" className="w-full sm:w-auto px-8 py-4 text-lg flex items-center justify-center gap-2">
-                  Comenzar Gratis
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </Link>
-              <Button 
-                variant="secondary" 
-                className="w-full sm:w-auto px-8 py-4 text-lg"
-                onClick={() => setShowVideoModal(true)}
-              >
-                Ver Demo
-              </Button>
-            </div>
-            <div className="flex items-center justify-center gap-8 pt-8">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-foreground">0</div>
-                <div className="text-sm text-foreground/60">Costo inicial</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-foreground">30 días</div>
-                <div className="text-sm text-foreground/60">Prueba gratis</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-foreground">100%</div>
-                <div className="text-sm text-foreground/60">Funcionalidades</div>
-              </div>
+      <section className="min-h-screen flex items-center justify-center pt-16 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Video Background */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover z-0"
+          style={{ objectFit: 'cover' }}
+          onError={(e) => {
+            // Fallback si el video no carga
+            const video = e.currentTarget;
+            video.style.display = 'none';
+          }}
+        >
+          <source src="/landing/hero-background.mp4" type="video/mp4" />
+          Tu navegador no soporta videos HTML5.
+        </video>
+        
+        {/* Animated Background with framer-motion */}
+        <AnimatedBackground />
+        
+        {/* Animated Particles */}
+        <AnimatedParticles />
+        
+        {/* Background gradient overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background/80 pointer-events-none z-0" />
+        
+        <div className="container mx-auto max-w-6xl relative z-10">
+            <div className="text-center space-y-8">
+              <ScrollReveal direction="fade" delay={0.1} duration={0.4}>
+                <div className="inline-flex items-center gap-2 px-4 py-2 glass-surface rounded-full border border-border/50">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-foreground/80">Sistema de Gestión de Granjas</span>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal direction="fade" delay={0.2} duration={0.5}>
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-foreground leading-tight">
+                  Gestiona tu Granja de Forma
+                  <span className="block bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent mt-2">
+                    Inteligente y Eficiente
+                  </span>
+                </h1>
+              </ScrollReveal>
+
+              <ScrollReveal direction="fade" delay={0.3} duration={0.5}>
+                <p className="text-xl text-foreground/70 max-w-3xl mx-auto">
+                  Controla inventario, fórmulas, fabricaciones y compras con cálculos automáticos, 
+                  gráficos en tiempo real y reportes profesionales.
+                </p>
+              </ScrollReveal>
+
+              <ScrollReveal direction="up" delay={0.4} duration={0.5}>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Link href="/login">
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Button variant="primary" className="w-full sm:w-auto px-8 py-4 text-lg flex items-center justify-center gap-2">
+                        Comenzar Gratis
+                        <ArrowRight className="h-5 w-5" />
+                      </Button>
+                    </motion.div>
+                  </Link>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      variant="secondary" 
+                      className="w-full sm:w-auto px-8 py-4 text-lg"
+                      onClick={() => setShowVideoModal(true)}
+                    >
+                      Ver Demo
+                    </Button>
+                  </motion.div>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal direction="up" delay={0.5} duration={0.5}>
+                <div className="flex items-center justify-center gap-8 pt-8">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-foreground">
+                      <AnimatedCounter end={0} suffix="" />
+                    </div>
+                    <div className="text-sm text-foreground/60">Costo inicial</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-foreground">
+                      <AnimatedCounter end={30} suffix=" días" />
+                    </div>
+                    <div className="text-sm text-foreground/60">Prueba gratis</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-foreground">
+                      <AnimatedCounter end={100} suffix="%" />
+                    </div>
+                    <div className="text-sm text-foreground/60">Funcionalidades</div>
+                  </div>
+                </div>
+              </ScrollReveal>
             </div>
           </div>
-        </div>
       </section>
 
       {/* Features Section */}
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
+          <ScrollReveal direction="fade" className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
               Funcionalidades Completas
             </h2>
             <p className="text-xl text-foreground/70 max-w-2xl mx-auto">
               Todas las herramientas que necesitas para gestionar tu granja de forma profesional
             </p>
-          </div>
+          </ScrollReveal>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <div
+              <ScrollReveal
                 key={index}
-                className="glass-card p-6 rounded-xl border border-border/50 hover:border-primary/50 transition-all group"
+                direction="up"
+                delay={0.1 + index * 0.1}
+                duration={0.5}
+                className="h-full"
               >
-                <div className={`inline-flex p-3 rounded-lg bg-gradient-to-br ${feature.color} mb-4 group-hover:scale-110 transition-transform`}>
-                  <feature.icon className="h-6 w-6 text-white" />
+                <div className="glass-card p-6 rounded-xl border border-border/50 hover:border-primary/50 transition-all group h-full">
+                  <motion.div
+                    className={`inline-flex p-3 rounded-lg bg-gradient-to-br ${feature.color} mb-4 group-hover:scale-110 transition-transform`}
+                    whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <feature.icon className="h-6 w-6 text-white" />
+                  </motion.div>
+                  <h3 className="text-xl font-semibold text-foreground mb-2">
+                    {feature.title}
+                  </h3>
+                  <p className="text-foreground/70">
+                    {feature.description}
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-foreground/70">
-                  {feature.description}
-                </p>
-              </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -347,46 +423,64 @@ export default function LandingPage() {
       {/* Benefits Section */}
       <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-background to-background/50">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
+          <ScrollReveal direction="fade" className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
               ¿Por Qué Elegir REFORMA?
             </h2>
             <p className="text-xl text-foreground/70 max-w-2xl mx-auto">
               Ventajas que hacen la diferencia en la gestión de tu granja
             </p>
-          </div>
+          </ScrollReveal>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {benefits.map((benefit, index) => (
-              <div
+              <ScrollReveal
                 key={index}
-                className="glass-card p-6 rounded-xl border border-border/50"
+                direction="up"
+                delay={0.1 + index * 0.1}
+                duration={0.5}
+                className="h-full"
               >
-                <div className="inline-flex p-3 rounded-lg bg-primary/20 mb-4">
-                  <benefit.icon className="h-6 w-6 text-primary" />
+                <div className="glass-card p-6 rounded-xl border border-border/50 h-full">
+                  <motion.div
+                    className="inline-flex p-3 rounded-lg bg-primary/20 mb-4"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ type: 'spring', stiffness: 300 }}
+                  >
+                    <benefit.icon className="h-6 w-6 text-primary" />
+                  </motion.div>
+                  <h3 className="text-xl font-semibold text-foreground mb-2">
+                    {benefit.title}
+                  </h3>
+                  <p className="text-foreground/70">
+                    {benefit.description}
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  {benefit.title}
-                </h3>
-                <p className="text-foreground/70">
-                  {benefit.description}
-                </p>
-              </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Stats Section */}
+      <StatsSection />
+
       {/* Pricing Section */}
       <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto max-w-7xl">
-          <div className="text-center mb-16">
+          <ScrollReveal direction="fade" className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
               Planes de Suscripción
             </h2>
             <p className="text-xl text-foreground/70 max-w-2xl mx-auto mb-8">
               Elige el plan que mejor se adapte a tu operación
             </p>
-            <div className="inline-flex items-center gap-4 glass-surface p-2 rounded-xl border border-border/50">
+            <motion.div
+              className="inline-flex items-center gap-4 glass-surface p-2 rounded-xl border border-border/50"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+            >
               <button
                 onClick={() => setIsAnnual(false)}
                 className={`px-4 py-2 rounded-lg transition-all ${
@@ -410,18 +504,22 @@ export default function LandingPage() {
                   Ahorra 2 meses
                 </span>
               </button>
-            </div>
-          </div>
+            </motion.div>
+          </ScrollReveal>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {plans.map((plan, index) => (
-              <div
+              <ScrollReveal
                 key={index}
-                className={`glass-card p-6 rounded-xl border-2 ${
+                direction="up"
+                delay={0.1 + index * 0.1}
+                duration={0.5}
+                className="h-full"
+              >
+                <div className={`glass-card p-6 rounded-xl border-2 ${
                   plan.popular
                     ? 'border-primary shadow-lg shadow-primary/20'
                     : 'border-border/50'
-                } relative`}
-              >
+                } relative h-full`}>
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                     <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold px-4 py-1 rounded-full">
@@ -452,21 +550,27 @@ export default function LandingPage() {
                 </div>
                 <ul className="space-y-3 mb-6">
                   {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-start gap-2">
+                    <li
+                      key={featureIndex}
+                      className="flex items-start gap-2"
+                    >
                       <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                       <span className="text-foreground/80 text-sm">{feature}</span>
                     </li>
                   ))}
                 </ul>
                 <Link href="/planes" className="block w-full">
-                  <Button
-                    variant={plan.popular ? 'primary' : 'neutral'}
-                    className={`w-full bg-gradient-to-r ${plan.color} hover:opacity-90 text-white border-0`}
-                  >
-                    {plan.cta}
-                  </Button>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      variant={plan.popular ? 'primary' : 'neutral'}
+                      className={`w-full bg-gradient-to-r ${plan.color} hover:opacity-90 text-white border-0`}
+                    >
+                      {plan.cta}
+                    </Button>
+                  </motion.div>
                 </Link>
               </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -475,25 +579,41 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto max-w-4xl">
-          <div className="glass-card p-12 rounded-xl border border-border/50 text-center">
-            <h2 className="text-4xl font-bold text-foreground mb-4">
-              ¿Listo para Comenzar?
-            </h2>
-            <p className="text-xl text-foreground/70 mb-8 max-w-2xl mx-auto">
-              Prueba REFORMA gratis durante 30 días. Sin tarjeta de crédito requerida.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/login">
-                <Button variant="primary" className="px-8 py-4 text-lg flex items-center justify-center gap-2">
-                  Comenzar Gratis
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </Link>
-              <Button variant="secondary" className="px-8 py-4 text-lg">
-                Contactar Ventas
-              </Button>
-            </div>
-          </div>
+          <ScrollReveal direction="fade" delay={0.2}>
+            <motion.div
+              className="glass-card p-12 rounded-xl border border-border/50 text-center"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 300 }}
+            >
+              <h2 className="text-4xl font-bold text-foreground mb-4">
+                ¿Listo para Comenzar?
+              </h2>
+              <p className="text-xl text-foreground/70 mb-8 max-w-2xl mx-auto">
+                Prueba REFORMA gratis durante 30 días. Sin tarjeta de crédito requerida.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Link href="/login">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button variant="primary" className="px-8 py-4 text-lg flex items-center justify-center gap-2">
+                      Comenzar Gratis
+                      <ArrowRight className="h-5 w-5" />
+                    </Button>
+                  </motion.div>
+                </Link>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button variant="secondary" className="px-8 py-4 text-lg">
+                    Contactar Ventas
+                  </Button>
+                </motion.div>
+              </div>
+            </motion.div>
+          </ScrollReveal>
         </div>
       </section>
 
@@ -503,7 +623,11 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Sprout className="h-6 w-6 text-primary" />
+                <img 
+                  src="/logo.png?v=2" 
+                  alt="REFORMA Logo" 
+                  className="h-6 w-6 object-contain"
+                />
                 <span className="text-lg font-bold text-foreground">REFORMA</span>
               </div>
               <p className="text-foreground/60 text-sm">
@@ -531,11 +655,11 @@ export default function LandingPage() {
               <ul className="space-y-2 text-sm text-foreground/60">
                 <li className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  <span>soporte@reforma.com</span>
+                  <span>reforma.soft.co@gmail.com</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  <span>+1 (555) 123-4567</span>
+                  <span>+54 9 (351) 593 0163</span>
                 </li>
               </ul>
             </div>

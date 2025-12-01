@@ -235,7 +235,13 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      throw new Error('Error al obtener estadísticas');
+      const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+      console.error('Error obteniendo estadísticas de proveedores:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
+      throw new Error(`Error al obtener estadísticas: ${errorData.error || response.statusText}`);
     }
 
     return await response.json();
@@ -1465,6 +1471,25 @@ export const apiClient = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al obtener compras eliminadas');
+    }
+
+    return await response.json();
+  },
+
+  async obtenerComprasConTotalesInconsistentes(token: string, idGranja: string) {
+    const response = await fetch(`${API_URL}/api/compras/granja/${idGranja}/compras/totales-inconsistentes`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      const error = await response.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(error.error || 'Error al obtener compras con totales inconsistentes');
     }
 
     return await response.json();
