@@ -50,12 +50,12 @@ Para Supabase con Prisma, necesitas configurar **DOS variables** con URLs del **
 
 **Transaction Pooler** es solo para aplicaciones serverless (Vercel Functions, Netlify Functions, etc.)
 
-**DATABASE_URL** (para la aplicación, usa Session Pooler - puerto 6543):
+**DATABASE_URL** (para la aplicación, usa Session Pooler - puerto 5432):
 ```
-postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true
+postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres
 ```
 
-**DIRECT_URL** (para migraciones, usa Session Pooler - puerto 5432):
+**DIRECT_URL** (para migraciones, usa el mismo Session Pooler - puerto 5432):
 ```
 postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres
 ```
@@ -64,8 +64,10 @@ postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase
 - **NO uses** la conexión directa `db.[PROJECT].supabase.co` para Prisma
 - **USA** el pooler `aws-1-us-east-2.pooler.supabase.com` (o el pooler de tu región)
 - **Selecciona SESSION POOLER** en Supabase Dashboard (no Transaction Pooler)
-- El formato del usuario es `postgres.[PROJECT]` (no `postgres@db.[PROJECT]`)
-- Para migraciones, usa el pooler en puerto 5432 (no 6543)
+- El formato del usuario es `postgres.[PROJECT]` (con punto, no con @)
+- **Session Pooler usa puerto 5432** (no 6543, ese es para Transaction Pooler)
+- **NO agregues** `?pgbouncer=true` para Session Pooler (solo para Transaction Pooler)
+- Ambas URLs (DATABASE_URL y DIRECT_URL) pueden usar el mismo puerto 5432 con Session Pooler
 
 **⚠️ IMPORTANTE sobre contraseñas con caracteres especiales:**
 
@@ -79,9 +81,11 @@ Si tu contraseña contiene caracteres especiales (como `+`, `@`, `#`, etc.), deb
 - `&` → `%26`
 - `=` → `%3D`
 
-**Ejemplo con tu proyecto:**
-- **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025%2B@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true`
+**Ejemplo con tu proyecto (Session Pooler):**
+- **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025%2B@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
 - **DIRECT_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025%2B@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
+
+**Nota:** Ambas URLs son idénticas cuando usas Session Pooler, ya que el mismo pooler maneja tanto las conexiones de la aplicación como las migraciones.
 
 **Nota:** Si tu proyecto está en otra región, el host del pooler será diferente (ej: `aws-0-[REGION].pooler.supabase.com`). Verifica en Supabase Dashboard → Settings → Database → Connection Pooling.
 
