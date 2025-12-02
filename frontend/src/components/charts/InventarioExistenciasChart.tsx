@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, PieLabelRenderProps } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, PieLabelRenderProps, TooltipProps as RechartsTooltipProps } from 'recharts';
 
 interface InventarioExistenciasChartProps {
   data: Array<{
@@ -18,31 +18,24 @@ const COLORS = [
   '#FAA381', '#D4A574'
 ];
 
-interface TooltipProps {
-  active?: boolean;
-  payload?: Array<{
-    payload: {
-      name: string;
-      value: number;
-      esOtras?: boolean;
-      detalleCompleto?: Array<{
-        codigo: string;
-        nombre: string;
-        cantidad: number;
-        porcentaje: number;
-      }>;
-    };
-  }>;
-}
-
-interface CustomTooltipProps extends TooltipProps {
+interface CustomTooltipProps extends RechartsTooltipProps<number, string> {
   total: number;
 }
 
 const CustomTooltip = ({ active, payload, total }: CustomTooltipProps) => {
   if (!active || !payload || !payload.length) return null;
 
-  const data = payload[0].payload;
+  const data = payload[0]?.payload as {
+    name: string;
+    value: number;
+    esOtras?: boolean;
+    detalleCompleto?: Array<{
+      codigo: string;
+      nombre: string;
+      cantidad: number;
+      porcentaje: number;
+    }>;
+  };
   const pct = total > 0 ? (data.value / total) * 100 : 0;
 
     if (data.esOtras && data.detalleCompleto && data.detalleCompleto.length > 0) {
@@ -100,7 +93,7 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
 
   // Crear función wrapper para pasar total al CustomTooltip (antes del early return)
   const TooltipWrapper = useMemo(() => {
-    function TooltipWrapperComponent(props: TooltipProps) {
+    function TooltipWrapperComponent(props: RechartsTooltipProps<number, string>) {
       return <CustomTooltip {...props} total={total} />;
     }
     return TooltipWrapperComponent;
