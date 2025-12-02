@@ -73,13 +73,13 @@ postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase
 - Ambas URLs usan el mismo formato: `postgres.[PROJECT]@pooler.supabase.com:5432`
 - Ambas URLs deben incluir `?sslmode=require`
 
-**⚠️ IMPORTANTE:**
-- **DATABASE_URL**: Pooler de Supabase (`aws-1-us-east-2.pooler.supabase.com`)
-- **DIRECT_URL**: Conexión directa (`db.[PROJECT].supabase.co`)
-- **Selecciona SESSION POOLER** en Supabase Dashboard para ver la URL del pooler
-- **Selecciona DIRECT CONNECTION** en Supabase Dashboard para ver la URL directa
+**⚠️ IMPORTANTE PARA RENDER (IPv4):**
+- **DATABASE_URL**: Session Pooler (`aws-1-us-east-2.pooler.supabase.com`)
+- **DIRECT_URL**: **TAMBIÉN Session Pooler** (`aws-1-us-east-2.pooler.supabase.com`) - NO uses conexión directa
+- **Selecciona SESSION POOLER** en Supabase Dashboard para obtener la URL correcta
 - **Session Pooler usa puerto 5432** (no 6543, ese es para Transaction Pooler)
 - **NO agregues** `?pgbouncer=true` para Session Pooler (solo para Transaction Pooler)
+- **Ambas URLs deben incluir** `?sslmode=require`
 
 **⚠️ IMPORTANTE sobre contraseñas con caracteres especiales:**
 
@@ -254,6 +254,30 @@ Una vez configurado, verifica en los logs que:
    - Render usa IPv4, pero la conexión directa de Supabase solo funciona con IPv6
    - Por eso debes usar el Session Pooler también para DIRECT_URL
    - El Session Pooler es compatible con IPv4 y maneja correctamente las migraciones de Prisma
+
+### Error: "No migration found" o "P3005: The database schema is not empty"
+
+**⚠️ ESTE ERROR OCURRE CUANDO LA BASE DE DATOS YA TIENE ESQUEMA PERO PRISMA NO TIENE REGISTRO DE MIGRACIONES**
+
+**Solución:**
+1. **Este error se resuelve automáticamente** con el script `deploy-migrations.js` que está configurado
+2. El script detecta este error y hace un "baseline" automático de las migraciones existentes
+3. Luego intenta aplicar las migraciones nuevamente
+
+**Si el error persiste manualmente:**
+```bash
+# Marcar las migraciones existentes como aplicadas (baseline)
+npx prisma migrate resolve --applied 20251027221350_init
+npx prisma migrate resolve --applied 20251027232428_actualizar_fabricacion
+
+# Luego intentar deploy nuevamente
+npx prisma migrate deploy
+```
+
+**¿Por qué ocurre?**
+- La base de datos ya tiene tablas/esquema creado
+- Pero Prisma no tiene registro de qué migraciones se aplicaron
+- Necesita hacer un "baseline" para sincronizar el estado
 
 ### Error: "Connection refused" o "Connection timeout"
 
