@@ -40,12 +40,22 @@ Tienes dos opciones:
 
 Para Supabase con Prisma, necesitas configurar **DOS variables** con URLs del **pooler** (NO la conexión directa):
 
-**DATABASE_URL** (para la aplicación, usa connection pooling):
+**🔑 IMPORTANTE: Selecciona SESSION POOLER (NO Transaction Pooler)**
+
+**¿Por qué Session Pooler?**
+- ✅ **Render** es un servicio con servidores persistentes (no serverless)
+- ✅ **Prisma** necesita mantener el estado de la sesión para prepared statements
+- ✅ **Migraciones** de Prisma requieren Session Pooler
+- ✅ Mejor rendimiento para aplicaciones backend tradicionales
+
+**Transaction Pooler** es solo para aplicaciones serverless (Vercel Functions, Netlify Functions, etc.)
+
+**DATABASE_URL** (para la aplicación, usa Session Pooler - puerto 6543):
 ```
 postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true
 ```
 
-**DIRECT_URL** (para migraciones, usa el pooler en puerto 5432):
+**DIRECT_URL** (para migraciones, usa Session Pooler - puerto 5432):
 ```
 postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres
 ```
@@ -53,6 +63,7 @@ postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase
 **⚠️ IMPORTANTE:**
 - **NO uses** la conexión directa `db.[PROJECT].supabase.co` para Prisma
 - **USA** el pooler `aws-1-us-east-2.pooler.supabase.com` (o el pooler de tu región)
+- **Selecciona SESSION POOLER** en Supabase Dashboard (no Transaction Pooler)
 - El formato del usuario es `postgres.[PROJECT]` (no `postgres@db.[PROJECT]`)
 - Para migraciones, usa el pooler en puerto 5432 (no 6543)
 
