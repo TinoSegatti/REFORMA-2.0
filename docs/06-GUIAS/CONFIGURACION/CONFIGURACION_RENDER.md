@@ -207,6 +207,40 @@ Una vez configurado, verifica en los logs que:
 4. **Reinicia el servicio** después de agregar/modificar variables de entorno
 5. **Verifica los logs** si el deploy falla para ver qué variable falta
 
+## ⚠️ Problema: Las Migraciones se Bloquean o Tardan Mucho
+
+**Si las migraciones se quedan cargando indefinidamente:**
+
+### Solución Rápida: Omitir Migraciones Temporalmente
+
+Si tu base de datos ya tiene el esquema correcto y solo necesitas hacer deploy de la aplicación:
+
+1. **En Render Dashboard → Tu servicio → Settings → Build Command**
+2. **Cambia el build command de:**
+   ```
+   npm install && npm run prisma:generate && npm run build && npm run migrate:deploy
+   ```
+3. **A:**
+   ```
+   npm install && npm run prisma:generate && npm run build && node scripts/deploy-migrations-skip-on-error.js
+   ```
+
+**O mejor aún, si ya aplicaste las migraciones manualmente, puedes omitirlas completamente:**
+```
+npm install && npm run prisma:generate && npm run build
+```
+
+**Nota:** El script `deploy-migrations-skip-on-error.js` intentará aplicar las migraciones, pero si falla (por timeout o conexión), continuará con el deploy sin bloquearse.
+
+### Solución Permanente: Arreglar la Conexión
+
+Si necesitas que las migraciones funcionen correctamente:
+
+1. **Verifica las URLs de conexión** (deben incluir `?sslmode=require`)
+2. **Prueba con Session Pooler** en lugar de Transaction Pooler
+3. **Verifica que el proyecto de Supabase esté activo**
+4. **El script ahora tiene un timeout de 30 segundos** - si tarda más, fallará rápido
+
 ## 🆘 Troubleshooting
 
 ### Error: "Environment variable not found: DATABASE_URL"
