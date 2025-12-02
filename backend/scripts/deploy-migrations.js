@@ -49,33 +49,53 @@ console.log('');
 try {
   // Intentar hacer deploy normal
   console.log('📦 Intentando aplicar migraciones...');
-  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-  console.log('\n✅ Migraciones aplicadas correctamente');
-} catch (error) {
-  const errorOutput = error.stdout?.toString() || error.stderr?.toString() || error.message;
+  let output = '';
   
-  // Si falla con error P3005 (base de datos no vacía sin migraciones registradas)
-  if (errorOutput.includes('P3005') || errorOutput.includes('not empty')) {
-    console.log('\n⚠️  La base de datos ya tiene esquema. Haciendo baseline de migraciones existentes...\n');
+  try {
+    output = execSync('npx prisma migrate deploy', { 
+      encoding: 'utf8',
+      stdio: 'pipe'
+    }).toString();
+    // Si llegamos aquí, fue exitoso
+    console.log(output);
+    console.log('\n✅ Migraciones aplicadas correctamente');
+    process.exit(0);
+  } catch (execError) {
+    // Capturar tanto stdout como stderr
+    const stdout = execError.stdout?.toString() || '';
+    const stderr = execError.stderr?.toString() || '';
+    const message = execError.message || '';
+    output = stdout + stderr + message;
     
-    try {
-      // Marcar las migraciones existentes como aplicadas (baseline)
-      console.log('📝 Marcando migración inicial como aplicada...');
-      execSync('npx prisma migrate resolve --applied 20251027221350_init', { stdio: 'inherit' });
+    // Mostrar el error en consola
+    if (stdout) console.log(stdout);
+    if (stderr) console.error(stderr);
+    if (message && !stdout && !stderr) console.error(message);
+    
+    // Si falla con error P3005 (base de datos no vacía sin migraciones registradas)
+    if (output.includes('P3005') || output.includes('not empty') || output.includes('No migration found') || output.includes('database schema is not empty')) {
+      console.log('\n⚠️  La base de datos ya tiene esquema. Haciendo baseline de migraciones existentes...\n');
       
-      console.log('📝 Marcando migración de actualización como aplicada...');
-      execSync('npx prisma migrate resolve --applied 20251027232428_actualizar_fabricacion', { stdio: 'inherit' });
-      
-      console.log('\n✅ Baseline completado. Intentando deploy nuevamente...\n');
-      
-      // Intentar deploy nuevamente
-      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-      console.log('\n✅ Migraciones aplicadas correctamente después del baseline');
-    } catch (baselineError) {
-      console.error('\n❌ Error durante el baseline:', baselineError.message);
-      process.exit(1);
-    }
-  } else if (errorOutput.includes('P1001') || errorOutput.includes("Can't reach database")) {
+      try {
+        // Marcar las migraciones existentes como aplicadas (baseline)
+        console.log('📝 Marcando migración inicial como aplicada...');
+        execSync('npx prisma migrate resolve --applied 20251027221350_init', { stdio: 'inherit' });
+        
+        console.log('📝 Marcando migración de actualización como aplicada...');
+        execSync('npx prisma migrate resolve --applied 20251027232428_actualizar_fabricacion', { stdio: 'inherit' });
+        
+        console.log('\n✅ Baseline completado. Intentando deploy nuevamente...\n');
+        
+        // Intentar deploy nuevamente
+        execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+        console.log('\n✅ Migraciones aplicadas correctamente después del baseline');
+        process.exit(0);
+      } catch (baselineError) {
+        const baselineOutput = baselineError.stdout?.toString() || baselineError.stderr?.toString() || baselineError.message || '';
+        console.error('\n❌ Error durante el baseline:', baselineOutput);
+        process.exit(1);
+      }
+    } else if (output.includes('P1001') || output.includes("Can't reach database")) {
     // Error de conexión
     console.error('\n❌ ERROR DE CONEXIÓN: No se puede alcanzar el servidor de base de datos');
     console.error('\n📋 URLs configuradas actualmente:');
@@ -99,10 +119,16 @@ try {
     console.error('   7. Agrega ?sslmode=require al final');
     console.error('   8. Usa esa URL para ambas variables en Render');
     process.exit(1);
-  } else {
-    // Otro tipo de error
-    console.error('\n❌ Error durante el deploy:', errorOutput);
-    process.exit(1);
+    } else {
+      // Otro tipo de error - mostrar la salida completa
+      console.error('\n❌ Error durante el deploy:');
+      console.error(output);
+      process.exit(1);
+    }
   }
+} catch (error) {
+  // Error inesperado
+  console.error('\n❌ Error inesperado:', error.message);
+  process.exit(1);
 }
 
