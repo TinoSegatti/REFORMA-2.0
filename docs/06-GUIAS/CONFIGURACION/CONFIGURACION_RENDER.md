@@ -226,26 +226,23 @@ Una vez configurado, verifica en los logs que:
 
 **⚠️ ESTE ES EL ERROR MÁS COMÚN - Sigue estos pasos en orden:**
 
-#### Paso 1: Verificar Restricciones de Red en Supabase (MÁS IMPORTANTE)
+#### Paso 1: Verificar Restricciones de Red en Supabase
 
 **Render tiene IPs dinámicas que cambian frecuentemente. Supabase puede estar bloqueando estas conexiones.**
 
 1. Ve a **Supabase Dashboard** → Tu proyecto
 2. Ve a **Settings** → **Database**
-3. Busca la sección **"Network Restrictions"** o **"Connection Pooling"**
-4. **Verifica si hay restricciones activas:**
-   - Si hay una lista de IPs permitidas, Render NO estará en esa lista
-   - Si hay restricciones de red activas, estas bloquean conexiones externas
+3. Busca la sección **"Network Restrictions"**
+4. **Verifica el estado:**
+   - ✅ **"Your database can be accessed by all IP addresses"** = No hay restricciones (correcto)
+   - ❌ Si hay una lista de IPs permitidas, Render NO estará en esa lista
 
-5. **Solución temporal para testing:**
+5. **Si hay restricciones activas:**
    - **Deshabilita temporalmente las restricciones de red** o
-   - **Permite todas las conexiones** (0.0.0.0/0) temporalmente
+   - **Permite todas las conexiones** haciendo clic en "Restrict all access" y luego eliminando las restricciones
    - **⚠️ ADVERTENCIA:** Esto reduce la seguridad, pero es necesario para que Render se conecte
 
-6. **Solución permanente (recomendada):**
-   - En Supabase, busca la opción **"Allow all IP addresses"** o **"Disable network restrictions"**
-   - O agrega el rango de IPs de Render (pero esto es complicado porque cambian frecuentemente)
-   - **Para producción**, considera usar una IP estática o un servicio de base de datos en Render
+**Si NO hay restricciones de red (como en tu caso), el problema es otra cosa. Continúa con los siguientes pasos.**
 
 #### Paso 2: Verificar que el Proyecto esté Activo
 
@@ -271,20 +268,54 @@ Si tu contraseña tiene caracteres especiales (como `+`), asegúrate de codifica
 - `#` → `%23`
 - etc.
 
-#### Paso 5: Probar Conexión desde tu Máquina Local
+#### Paso 5: Verificar SSL y Certificados
+
+Supabase requiere SSL para conexiones seguras:
+
+1. Ve a **Settings** → **Database** → **SSL Configuration**
+2. Verifica que **"Enforce SSL on incoming connections"** esté activado
+3. Si está activado, asegúrate de que tu URL incluya `?sslmode=require` (aunque con Session Pooler puede que no sea necesario)
+
+#### Paso 6: Verificar Pool Size y Límites
+
+1. Ve a **Settings** → **Database** → **Connection Pooling**
+2. Verifica:
+   - **Pool Size**: Debe ser al menos 15 (por defecto)
+   - **Max Client Connections**: 200 (fijo para plan Nano)
+3. Si el pool está lleno, puede rechazar nuevas conexiones
+
+#### Paso 7: Probar Conexión desde tu Máquina Local
 
 Para verificar que la URL funciona:
 
-1. Prueba conectarte desde tu máquina local usando la misma URL
-2. Si funciona localmente pero no en Render, el problema es definitivamente las **restricciones de red**
+1. Prueba conectarte desde tu máquina local usando la misma URL exacta que configuraste en Render
+2. Si funciona localmente pero no en Render:
+   - Verifica que la URL en Render sea **exactamente igual** (sin espacios, sin caracteres extra)
+   - Verifica que la contraseña esté codificada correctamente
+   - Verifica que no haya problemas de timeout en Render
 
-#### Resumen de Causas Comunes:
+#### Paso 8: Verificar Variables en Render
 
-1. ✅ **Restricciones de red en Supabase** (90% de los casos) - **DESHABILITA temporalmente**
-2. ✅ **Proyecto pausado** - Reactívalo
-3. ✅ **URL incorrecta** - Verifica en Supabase Dashboard
-4. ✅ **Contraseña mal codificada** - Codifica caracteres especiales
-5. ✅ **Región incorrecta** - Verifica que el pooler sea de tu región
+1. Ve a tu servicio en Render → **Environment**
+2. Verifica que `DATABASE_URL` y `DIRECT_URL` estén configuradas
+3. **IMPORTANTE:** Copia exactamente las URLs desde Supabase Dashboard (Session Pooler)
+4. Verifica que no haya espacios al inicio o final de las URLs
+5. Verifica que la contraseña esté codificada correctamente (`+` → `%2B`)
+
+#### Resumen de Causas Comunes (en orden de probabilidad):
+
+1. ✅ **URL incorrecta o formato incorrecto** - Verifica que uses Session Pooler con formato `postgres.[PROJECT]@pooler.supabase.com:5432`
+2. ✅ **Contraseña mal codificada** - Codifica caracteres especiales (`+` → `%2B`)
+3. ✅ **Variables mal configuradas en Render** - Verifica que no haya espacios, que estén exactamente como en Supabase
+4. ✅ **Proyecto pausado** - Reactívalo en Supabase Dashboard
+5. ✅ **Pool lleno o límites alcanzados** - Verifica Pool Size y Max Client Connections
+6. ✅ **Región incorrecta del pooler** - Verifica que el host del pooler coincida con tu región
+7. ✅ **Restricciones de red** - Si las hay, deshabilítalas temporalmente
+
+**Si NO hay restricciones de red y el proyecto está activo, el problema más probable es:**
+- URL mal formateada o copiada incorrectamente
+- Contraseña con caracteres especiales sin codificar
+- Variables de entorno en Render con espacios o caracteres extra
 
 ## 📚 Referencias
 
