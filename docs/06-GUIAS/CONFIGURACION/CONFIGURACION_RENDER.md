@@ -89,6 +89,34 @@ Si tu contraseña contiene caracteres especiales (como `+`, `@`, `#`, etc.), deb
 
 **Nota:** Si tu proyecto está en otra región, el host del pooler será diferente (ej: `aws-0-[REGION].pooler.supabase.com`). Verifica en Supabase Dashboard → Settings → Database → Connection Pooling.
 
+**🔍 IMPORTANTE: ¿Cómo funciona la selección en Supabase Dashboard?**
+
+**La selección de "Session Pooler" vs "Direct Connection" en Supabase Dashboard es SOLO para mostrar las URLs correctas. NO guarda ninguna configuración permanente.**
+
+**Lo que realmente importa:**
+- ✅ **Copiar las URLs correctas** del Session Pooler cuando las veas en Supabase Dashboard
+- ✅ **Usar esas URLs en Render** (variables de entorno `DATABASE_URL` y `DIRECT_URL`)
+- ✅ **Usar esas URLs en tu `.env` local** para desarrollo
+
+**NO es necesario:**
+- ❌ Que quede "marcada" la opción Session Pooler en Supabase Dashboard
+- ❌ Que la opción permanezca seleccionada cuando vuelvas a entrar
+- ❌ Configurar nada permanente en Supabase
+
+**Pasos prácticos:**
+1. Ve a Supabase Dashboard → Settings → Database → Connection Pooling
+2. Selecciona **"Session pooler"** (solo para ver las URLs correctas)
+3. Copia las URLs que aparecen (formato `postgres.[PROJECT]@aws-1-us-east-2.pooler.supabase.com:5432`)
+4. Pega esas URLs en Render (variables `DATABASE_URL` y `DIRECT_URL`)
+5. Pega esas URLs en tu `.env` local
+6. **Listo.** No necesitas volver a Supabase Dashboard, las URLs funcionarán independientemente de qué opción esté seleccionada cuando vuelvas a entrar.
+
+**¿Por qué vuelve a mostrar "Direct Connection"?**
+- Es el comportamiento normal de Supabase Dashboard
+- La interfaz siempre vuelve a mostrar "Direct Connection" por defecto
+- Esto NO afecta tu configuración en Render ni en `.env`
+- Las URLs que copiaste seguirán funcionando correctamente
+
 ### 3. Agregar Variable en Render
 
 1. En la sección **Environment** de tu servicio
