@@ -18,7 +18,21 @@ const COLORS = [
   '#FAA381', '#D4A574'
 ];
 
-interface CustomTooltipProps extends RechartsTooltipProps<number, string> {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      name: string;
+      value: number;
+      esOtras?: boolean;
+      detalleCompleto?: Array<{
+        codigo: string;
+        nombre: string;
+        cantidad: number;
+        porcentaje: number;
+      }>;
+    };
+  }>;
   total: number;
 }
 
@@ -93,7 +107,7 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
 
   // Crear función wrapper para pasar total al CustomTooltip (antes del early return)
   const TooltipWrapper = useMemo(() => {
-    function TooltipWrapperComponent(props: RechartsTooltipProps<number, string>) {
+    function TooltipWrapperComponent(props: any) {
       return <CustomTooltip {...props} total={total} />;
     }
     return TooltipWrapperComponent;
