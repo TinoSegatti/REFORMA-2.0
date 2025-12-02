@@ -154,6 +154,3 @@ export default function TestimonialsCarousel({
     </div>
   );
 }
-
-
-

@@ -177,7 +177,7 @@ export default function LoginPage() {
       </video>
       
       {/* Background gradient overlay for better text readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background/80 pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background/95 pointer-events-none z-0" />
       
       {/* Animated Background Bubbles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
@@ -249,7 +249,7 @@ export default function LoginPage() {
 
         {/* Right: Login Form */}
         <div className="flex items-center justify-center">
-          <div className="w-full max-w-md glass-card p-8 shadow-2xl">
+          <div className="w-full max-w-md glass-card p-8 shadow-2xl bg-background/95 backdrop-blur-xl">
         {/* Header Moderno */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-2xl shadow-lg shadow-purple-500/30 mb-4 p-2">
