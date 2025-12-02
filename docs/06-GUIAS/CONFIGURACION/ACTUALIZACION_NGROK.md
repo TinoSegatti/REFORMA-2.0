@@ -132,3 +132,5 @@ Ver: `docs/06-GUIAS/CONFIGURACION/GUIA_URL_NGROK.md` para instrucciones detallad
 - `docs/06-GUIAS/CONFIGURACION/IMPACTO_PAUSAR_NGROK.md` - Impacto de pausar ngrok
 - `docs/06-GUIAS/CONFIGURACION/CONFIGURACION_VARIABLES_ENTORNO.md` - Variables de entorno
 
+
+

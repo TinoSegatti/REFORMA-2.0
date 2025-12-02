@@ -153,3 +153,5 @@ Si necesitas una URL fija, considera:
 
 **Para evitar problemas, configura `NGROK_URL` en `backend/.env`.**
 
+
+

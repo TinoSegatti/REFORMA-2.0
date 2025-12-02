@@ -150,3 +150,5 @@ O directamente: https://console.twilio.com/us1/develop/sms/sandbox
 - `docs/09-SISTEMAS/PLAN_TRABAJO_CORINA.md` - Plan de trabajo del sistema Corina
 - `docs/06-GUIAS/CONFIGURACION/IMPACTO_PAUSAR_NGROK.md` - Impacto de pausar ngrok
 
+
+

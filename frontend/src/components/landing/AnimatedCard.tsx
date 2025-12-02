@@ -65,3 +65,5 @@ export default function AnimatedCard({
   return cardContent;
 }
 
+
+
