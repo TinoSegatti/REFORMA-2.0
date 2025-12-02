@@ -1,6 +1,6 @@
 'use client';
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, PieLabelRenderProps } from 'recharts';
 
 interface DistribucionMateriasFormulasChartProps {
   data: Array<{
@@ -59,8 +59,8 @@ export default function DistribucionMateriasFormulasChart({ data }: Distribucion
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={(entry: Record<string, unknown>) => {
-              const value = (entry.value as number) ?? (entry.percent as number) ?? 0;
+            label={(props: PieLabelRenderProps) => {
+              const value = (props.value as number) ?? (props.percent as number) ?? 0;
               return `${value.toFixed(1)}%`;
             }}
             outerRadius={100}
