@@ -34,11 +34,45 @@ Tienes dos opciones:
 2. Crea una cuenta gratuita (si no la tienes)
 3. Crea un nuevo proyecto
 4. Ve a **Settings** → **Database**
-5. Copia la **Connection String** (URI)
-6. Agrégala como variable de entorno en Render:
-   ```
-   DATABASE_URL=postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres
-   ```
+5. Selecciona la pestaña **"ORMs"** → **"Prisma"**
+
+**⚠️ CRÍTICO: Configuración Correcta para Supabase con Prisma**
+
+Para Supabase con Prisma, necesitas configurar **DOS variables** con URLs del **pooler** (NO la conexión directa):
+
+**DATABASE_URL** (para la aplicación, usa connection pooling):
+```
+postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true
+```
+
+**DIRECT_URL** (para migraciones, usa el pooler en puerto 5432):
+```
+postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+```
+
+**⚠️ IMPORTANTE:**
+- **NO uses** la conexión directa `db.[PROJECT].supabase.co` para Prisma
+- **USA** el pooler `aws-1-us-east-2.pooler.supabase.com` (o el pooler de tu región)
+- El formato del usuario es `postgres.[PROJECT]` (no `postgres@db.[PROJECT]`)
+- Para migraciones, usa el pooler en puerto 5432 (no 6543)
+
+**⚠️ IMPORTANTE sobre contraseñas con caracteres especiales:**
+
+Si tu contraseña contiene caracteres especiales (como `+`, `@`, `#`, etc.), debes codificarlos usando URL encoding:
+- `+` → `%2B`
+- `@` → `%40`
+- `#` → `%23`
+- `/` → `%2F`
+- `:` → `%3A`
+- `?` → `%3F`
+- `&` → `%26`
+- `=` → `%3D`
+
+**Ejemplo con tu proyecto:**
+- **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025%2B@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true`
+- **DIRECT_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025%2B@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
+
+**Nota:** Si tu proyecto está en otra región, el host del pooler será diferente (ej: `aws-0-[REGION].pooler.supabase.com`). Verifica en Supabase Dashboard → Settings → Database → Connection Pooling.
 
 ### 3. Agregar Variable en Render
 
@@ -121,12 +155,58 @@ Una vez configurado, verifica en los logs que:
 - Si usas Supabase, asegúrate de usar la URL correcta
 - Si usas Render PostgreSQL, verifica que esté en la misma cuenta
 
-### Error: "SSL required"
+### Error: "SSL required" o "Can't reach database server"
 
-**Solución:** Agrega `?sslmode=require` al final de tu `DATABASE_URL`:
-```
-DATABASE_URL=postgresql://...?sslmode=require
-```
+**Solución:** 
+1. **Agrega `?sslmode=require`** al final de tu `DATABASE_URL` y `DIRECT_URL`:
+   ```
+   DATABASE_URL=postgresql://...?sslmode=require
+   DIRECT_URL=postgresql://...?sslmode=require
+   ```
+
+2. **Si tu contraseña tiene caracteres especiales**, codifícalos:
+   - `+` → `%2B`
+   - `@` → `%40`
+   - `#` → `%23`
+   - etc.
+
+3. **Verifica que ambas variables estén configuradas** en Render:
+   - `DATABASE_URL` (con `?sslmode=require`)
+   - `DIRECT_URL` (con `?sslmode=require`)
+
+4. **Verifica restricciones de IP en Supabase:**
+   - Ve a Supabase Dashboard → Settings → Database
+   - En "Connection Pooling" o "Network Restrictions", verifica si hay IPs bloqueadas
+   - Render tiene IPs dinámicas, así que puede que necesites permitir todas las conexiones
+
+### Error: "Can't reach database server" con Supabase
+
+**Posibles causas y soluciones:**
+
+1. **URL incorrecta para Prisma**: 
+   - ❌ **NO uses** la conexión directa: `db.[PROJECT].supabase.co:5432`
+   - ✅ **USA** el pooler de Supabase: `aws-1-us-east-2.pooler.supabase.com`
+   - Para Prisma, siempre usa el pooler, no la conexión directa
+
+2. **Formato incorrecto del usuario**:
+   - ❌ **NO uses**: `postgres@db.[PROJECT].supabase.co`
+   - ✅ **USA**: `postgres.[PROJECT]@aws-1-us-east-2.pooler.supabase.com`
+
+3. **Puertos incorrectos**:
+   - **DATABASE_URL**: Puerto `6543` con `?pgbouncer=true`
+   - **DIRECT_URL**: Puerto `5432` (sin pgbouncer)
+
+4. **Contraseña con caracteres especiales**: Codifica los caracteres especiales en la URL (`+` → `%2B`)
+
+5. **Restricciones de red en Supabase**: 
+   - Ve a Settings → Database → Network Restrictions
+   - Asegúrate de que no haya restricciones que bloqueen a Render
+
+6. **Proyecto pausado**: Verifica que el proyecto esté activo (no en pausa)
+
+7. **Región incorrecta del pooler**: 
+   - Verifica en Supabase Dashboard → Settings → Database → Connection Pooling
+   - El host puede ser `aws-0-[REGION]` o `aws-1-[REGION]` dependiendo de tu región
 
 ## 📚 Referencias
 
