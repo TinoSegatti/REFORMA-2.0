@@ -62,9 +62,12 @@ async function runDeploy() {
     let output = '';
     
     try {
+      // Timeout de 30 segundos para evitar bloqueos
       output = execSync('npx prisma migrate deploy', { 
         encoding: 'utf8',
-        stdio: 'pipe'
+        stdio: 'pipe',
+        timeout: 30000, // 30 segundos
+        killSignal: 'SIGTERM'
       }).toString();
       // Si llegamos aquí, fue exitoso
       console.log(output);
@@ -76,6 +79,18 @@ async function runDeploy() {
     const stderr = execError.stderr?.toString() || '';
     const message = execError.message || '';
     output = stdout + stderr + message;
+    
+    // Si es un timeout, mostrar mensaje específico
+    if (execError.signal === 'SIGTERM' || message.includes('timeout') || message.includes('ETIMEDOUT')) {
+      console.error('\n⏱️  TIMEOUT: Las migraciones tardaron más de 30 segundos');
+      console.error('   Esto puede indicar un problema de conexión a la base de datos.');
+      console.error('\n💡 Soluciones:');
+      console.error('   1. Verifica que las URLs de conexión sean correctas');
+      console.error('   2. Verifica que el proyecto de Supabase esté activo');
+      console.error('   3. Intenta usar Session Pooler en lugar de Transaction Pooler');
+      console.error('   4. Si la base de datos ya tiene el esquema, puedes omitir las migraciones temporalmente');
+      process.exit(1);
+    }
     
     // Mostrar el error en consola
     if (stdout) console.log(stdout);
@@ -125,8 +140,12 @@ async function runDeploy() {
         
         console.log('\n✅ Baseline completado. Intentando deploy nuevamente...\n');
         
-        // Intentar deploy nuevamente
-        execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+        // Intentar deploy nuevamente con timeout
+        execSync('npx prisma migrate deploy', { 
+          stdio: 'inherit',
+          timeout: 30000, // 30 segundos
+          killSignal: 'SIGTERM'
+        });
         console.log('\n✅ Migraciones aplicadas correctamente después del baseline');
         process.exit(0);
       } catch (baselineError) {
