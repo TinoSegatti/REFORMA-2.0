@@ -57,8 +57,10 @@ postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase
 
 **DIRECT_URL** (para migraciones, **DEBE usar conexión directa**, NO el pooler):
 ```
-postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres
+postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres?sslmode=require
 ```
+
+**⚠️ IMPORTANTE:** La conexión directa **SIEMPRE requiere** `?sslmode=require` para funcionar desde Render.
 
 **⚠️ CRÍTICO - Diferencia entre DATABASE_URL y DIRECT_URL:**
 
@@ -89,8 +91,10 @@ Si tu contraseña contiene caracteres especiales (como `+`, `@`, `#`, etc.), deb
 - `=` → `%3D`
 
 **Ejemplo con tu proyecto:**
-- **DATABASE_URL** (pooler): `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
-- **DIRECT_URL** (conexión directa): `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres`
+- **DATABASE_URL** (pooler): `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
+- **DIRECT_URL** (conexión directa): `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres?sslmode=require`
+
+**⚠️ CRÍTICO:** Ambas URLs deben incluir `?sslmode=require` para funcionar correctamente desde Render.
 
 **Nota:** 
 - **DATABASE_URL** usa el pooler para mejor rendimiento en la aplicación
@@ -213,20 +217,43 @@ Una vez configurado, verifica en los logs que:
 
 2. **Formato correcto de DIRECT_URL:**
    ```
-   postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres
+   postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres?sslmode=require
    ```
    - Usuario: `postgres` (sin punto ni proyecto)
    - Host: `db.[PROJECT].supabase.co` (NO el pooler)
    - Puerto: `5432`
+   - **DEBE incluir**: `?sslmode=require` (obligatorio para conexión directa)
 
 3. **Ejemplo con tu proyecto:**
-   - **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
-   - **DIRECT_URL**: `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres`
+   - **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
+   - **DIRECT_URL**: `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres?sslmode=require`
 
 4. **Por qué ocurre:**
    - Prisma requiere una conexión directa a PostgreSQL para ejecutar migraciones
    - El pooler intercepta los mensajes y Prisma no puede comunicarse correctamente
    - Las migraciones necesitan acceso directo a la base de datos sin intermediarios
+
+### Error: "Can't reach database server" con DIRECT_URL
+
+**⚠️ ESTE ERROR OCURRE CUANDO DIRECT_URL NO TIENE SSL O ESTÁ MAL CONFIGURADA**
+
+**Solución:**
+1. **DIRECT_URL DEBE incluir `?sslmode=require`**:
+   - ❌ **INCORRECTO**: `postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres`
+   - ✅ **CORRECTO**: `postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres?sslmode=require`
+
+2. **Verifica que ambas URLs tengan SSL:**
+   - **DATABASE_URL**: Debe incluir `?sslmode=require`
+   - **DIRECT_URL**: Debe incluir `?sslmode=require`
+
+3. **Ejemplo correcto:**
+   - **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
+   - **DIRECT_URL**: `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres?sslmode=require`
+
+4. **Si aún no funciona después de agregar SSL:**
+   - Verifica que no haya restricciones de red en Supabase
+   - Verifica que el proyecto esté activo (no pausado)
+   - Prueba la conexión directa desde tu máquina local para verificar que funciona
 
 ### Error: "Connection refused" o "Connection timeout"
 
