@@ -224,32 +224,67 @@ Una vez configurado, verifica en los logs que:
 
 ### Error: "Can't reach database server" con Supabase
 
-**Posibles causas y soluciones:**
+**⚠️ ESTE ES EL ERROR MÁS COMÚN - Sigue estos pasos en orden:**
 
-1. **URL incorrecta para Prisma**: 
-   - ❌ **NO uses** la conexión directa: `db.[PROJECT].supabase.co:5432`
-   - ✅ **USA** el pooler de Supabase: `aws-1-us-east-2.pooler.supabase.com`
-   - Para Prisma, siempre usa el pooler, no la conexión directa
+#### Paso 1: Verificar Restricciones de Red en Supabase (MÁS IMPORTANTE)
 
-2. **Formato incorrecto del usuario**:
-   - ❌ **NO uses**: `postgres@db.[PROJECT].supabase.co`
-   - ✅ **USA**: `postgres.[PROJECT]@aws-1-us-east-2.pooler.supabase.com`
+**Render tiene IPs dinámicas que cambian frecuentemente. Supabase puede estar bloqueando estas conexiones.**
 
-3. **Puertos incorrectos**:
-   - **DATABASE_URL**: Puerto `6543` con `?pgbouncer=true`
-   - **DIRECT_URL**: Puerto `5432` (sin pgbouncer)
+1. Ve a **Supabase Dashboard** → Tu proyecto
+2. Ve a **Settings** → **Database**
+3. Busca la sección **"Network Restrictions"** o **"Connection Pooling"**
+4. **Verifica si hay restricciones activas:**
+   - Si hay una lista de IPs permitidas, Render NO estará en esa lista
+   - Si hay restricciones de red activas, estas bloquean conexiones externas
 
-4. **Contraseña con caracteres especiales**: Codifica los caracteres especiales en la URL (`+` → `%2B`)
+5. **Solución temporal para testing:**
+   - **Deshabilita temporalmente las restricciones de red** o
+   - **Permite todas las conexiones** (0.0.0.0/0) temporalmente
+   - **⚠️ ADVERTENCIA:** Esto reduce la seguridad, pero es necesario para que Render se conecte
 
-5. **Restricciones de red en Supabase**: 
-   - Ve a Settings → Database → Network Restrictions
-   - Asegúrate de que no haya restricciones que bloqueen a Render
+6. **Solución permanente (recomendada):**
+   - En Supabase, busca la opción **"Allow all IP addresses"** o **"Disable network restrictions"**
+   - O agrega el rango de IPs de Render (pero esto es complicado porque cambian frecuentemente)
+   - **Para producción**, considera usar una IP estática o un servicio de base de datos en Render
 
-6. **Proyecto pausado**: Verifica que el proyecto esté activo (no en pausa)
+#### Paso 2: Verificar que el Proyecto esté Activo
 
-7. **Región incorrecta del pooler**: 
-   - Verifica en Supabase Dashboard → Settings → Database → Connection Pooling
-   - El host puede ser `aws-0-[REGION]` o `aws-1-[REGION]` dependiendo de tu región
+1. Ve a **Supabase Dashboard** → Tu proyecto
+2. Verifica que el estado del proyecto sea **"Active"** (verde)
+3. Si está **"Paused"**, haz clic en **"Resume"** para reactivarlo
+
+#### Paso 3: Verificar la URL del Pooler
+
+1. Ve a **Settings** → **Database** → **Connection Pooling**
+2. Selecciona **"Session Pooler"**
+3. Verifica que la URL que copiaste coincida exactamente con la que muestra Supabase
+4. **Asegúrate de que el formato sea:**
+   ```
+   postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+   ```
+
+#### Paso 4: Verificar Contraseña Codificada
+
+Si tu contraseña tiene caracteres especiales (como `+`), asegúrate de codificarlos:
+- `+` → `%2B`
+- `@` → `%40`
+- `#` → `%23`
+- etc.
+
+#### Paso 5: Probar Conexión desde tu Máquina Local
+
+Para verificar que la URL funciona:
+
+1. Prueba conectarte desde tu máquina local usando la misma URL
+2. Si funciona localmente pero no en Render, el problema es definitivamente las **restricciones de red**
+
+#### Resumen de Causas Comunes:
+
+1. ✅ **Restricciones de red en Supabase** (90% de los casos) - **DESHABILITA temporalmente**
+2. ✅ **Proyecto pausado** - Reactívalo
+3. ✅ **URL incorrecta** - Verifica en Supabase Dashboard
+4. ✅ **Contraseña mal codificada** - Codifica caracteres especiales
+5. ✅ **Región incorrecta** - Verifica que el pooler sea de tu región
 
 ## 📚 Referencias
 
