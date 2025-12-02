@@ -5,6 +5,14 @@
 
 const { execSync } = require('child_process');
 
+// Intentar importar pg para pruebas de conexión
+let pg = null;
+try {
+  pg = require('pg');
+} catch (e) {
+  console.log('⚠️  pg no está disponible para pruebas de conexión\n');
+}
+
 console.log('🚀 Iniciando deploy de migraciones...\n');
 
 // Verificar que las variables de entorno estén configuradas
@@ -46,21 +54,23 @@ if (dbUrl === directUrl) {
 }
 console.log('');
 
-try {
-  // Intentar hacer deploy normal
-  console.log('📦 Intentando aplicar migraciones...');
-  let output = '';
-  
+// Función principal asíncrona
+async function runDeploy() {
   try {
-    output = execSync('npx prisma migrate deploy', { 
-      encoding: 'utf8',
-      stdio: 'pipe'
-    }).toString();
-    // Si llegamos aquí, fue exitoso
-    console.log(output);
-    console.log('\n✅ Migraciones aplicadas correctamente');
-    process.exit(0);
-  } catch (execError) {
+    // Intentar hacer deploy normal
+    console.log('📦 Intentando aplicar migraciones...');
+    let output = '';
+    
+    try {
+      output = execSync('npx prisma migrate deploy', { 
+        encoding: 'utf8',
+        stdio: 'pipe'
+      }).toString();
+      // Si llegamos aquí, fue exitoso
+      console.log(output);
+      console.log('\n✅ Migraciones aplicadas correctamente');
+      process.exit(0);
+    } catch (execError) {
     // Capturar tanto stdout como stderr
     const stdout = execError.stdout?.toString() || '';
     const stderr = execError.stderr?.toString() || '';
@@ -125,39 +135,74 @@ try {
         process.exit(1);
       }
     } else if (output.includes('P1001') || output.includes("Can't reach database")) {
-    // Error de conexión
-    console.error('\n❌ ERROR DE CONEXIÓN: No se puede alcanzar el servidor de base de datos');
-    console.error('\n📋 URLs configuradas actualmente:');
-    console.error(`   DATABASE_URL: ${process.env.DATABASE_URL}`);
-    console.error(`   DIRECT_URL: ${process.env.DIRECT_URL}`);
-    console.error('\n🔍 Verifica que:');
-    console.error('   1. El proyecto de Supabase esté ACTIVO (no pausado)');
-    console.error('   2. No haya restricciones de red en Supabase Dashboard');
-    console.error('   3. Las URLs sean exactamente iguales a las de Supabase Dashboard');
-    console.error('   4. Ambas URLs incluyan ?sslmode=require');
-    console.error('\n📝 URLs correctas esperadas:');
-    console.error('   DATABASE_URL: postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require');
-    console.error('   DIRECT_URL: postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require');
-    console.error('\n💡 Pasos para resolver:');
-    console.error('   1. Ve a Supabase Dashboard → Tu proyecto');
-    console.error('   2. Verifica que el estado sea "Active" (verde)');
-    console.error('   3. Ve a Settings → Database → Network Restrictions');
-    console.error('   4. Debe decir "Your database can be accessed by all IP addresses"');
-    console.error('   5. Ve a Settings → Database → Connection Pooling');
-    console.error('   6. Selecciona "Session Pooler" y copia la URL');
-    console.error('   7. Agrega ?sslmode=require al final');
-    console.error('   8. Usa esa URL para ambas variables en Render');
-    process.exit(1);
+      // Error de conexión - mostrar información y sugerencias
+      console.error('\n❌ ERROR DE CONEXIÓN: No se puede alcanzar el servidor de base de datos');
+      console.error('\n📋 URLs configuradas actualmente:');
+      console.error(`   DATABASE_URL: ${process.env.DATABASE_URL}`);
+      console.error(`   DIRECT_URL: ${process.env.DIRECT_URL}`);
+      
+      // Intentar prueba de conexión directa con pg si está disponible
+      if (pg) {
+        console.log('\n🔍 Realizando prueba de conexión directa con pg...');
+        try {
+          const client = new pg.Client({
+            connectionString: directUrl,
+            ssl: {
+              rejectUnauthorized: false
+            },
+            connectionTimeoutMillis: 10000
+          });
+          
+          await client.connect();
+          const result = await client.query('SELECT version()');
+          console.log('✅ Conexión exitosa con pg.Client');
+          console.log(`   PostgreSQL version: ${result.rows[0].version.substring(0, 50)}...`);
+          await client.end();
+        } catch (pgError) {
+          console.error('❌ Error en prueba de conexión con pg.Client:');
+          console.error(`   Tipo: ${pgError.constructor.name}`);
+          console.error(`   Mensaje: ${pgError.message}`);
+          if (pgError.code) {
+            console.error(`   Código: ${pgError.code}`);
+          }
+          if (pgError.host) {
+            console.error(`   Host intentado: ${pgError.host}`);
+          }
+          if (pgError.port) {
+            console.error(`   Puerto intentado: ${pgError.port}`);
+          }
+        }
+      }
+      
+      console.error('\n💡 Posibles soluciones:');
+      console.error('   1. Verifica que el proyecto de Supabase esté ACTIVO (verde)');
+      console.error('   2. Verifica Network Restrictions en Supabase Dashboard');
+      console.error('   3. ⚠️  INTENTA USAR TRANSACTION POOLER en lugar de Session Pooler');
+      console.error('   4. Verifica que la región del pooler coincida con tu proyecto');
+      console.error('   5. Espera unos minutos y vuelve a intentar (puede ser un problema temporal)');
+      console.error('\n📝 Para usar Transaction Pooler:');
+      console.error('   1. Ve a Supabase Dashboard → Settings → Database → Connection Pooling');
+      console.error('   2. Selecciona "Transaction Pooler" (NO Session Pooler)');
+      console.error('   3. Copia la URL y agrega ?sslmode=require al final');
+      console.error('   4. Usa esa URL para ambas variables (DATABASE_URL y DIRECT_URL) en Render');
+      process.exit(1);
     } else {
       // Otro tipo de error - mostrar la salida completa
       console.error('\n❌ Error durante el deploy:');
       console.error(output);
       process.exit(1);
     }
+    }
+  } catch (error) {
+    // Error inesperado
+    console.error('\n❌ Error inesperado:', error.message);
+    process.exit(1);
   }
-} catch (error) {
-  // Error inesperado
-  console.error('\n❌ Error inesperado:', error.message);
-  process.exit(1);
 }
+
+// Ejecutar función principal
+runDeploy().catch((error) => {
+  console.error('\n❌ Error fatal:', error.message);
+  process.exit(1);
+});
 
