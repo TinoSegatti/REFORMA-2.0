@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui';
 import { apiClient } from '@/lib/api';
 import { authService } from '@/lib/auth';
 import { CheckCircle, XCircle, Mail, Loader2 } from 'lucide-react';
 
-export default function VerificarEmailPage() {
+function VerificarEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -192,3 +192,21 @@ export default function VerificarEmailPage() {
   );
 }
 
+export default function VerificarEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="w-full max-w-md glass-card p-8 rounded-xl border border-border/50">
+            <div className="text-center space-y-4">
+              <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto" />
+              <p className="text-foreground/70">Cargando...</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <VerificarEmailContent />
+    </Suspense>
+  );
+}
