@@ -55,19 +55,26 @@ Para Supabase con Prisma, necesitas configurar **DOS variables** con URLs del **
 postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres
 ```
 
-**DIRECT_URL** (para migraciones, usa el mismo Session Pooler - puerto 5432):
+**DIRECT_URL** (para migraciones, **DEBE usar conexión directa**, NO el pooler):
 ```
-postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres
 ```
 
+**⚠️ CRÍTICO - Diferencia entre DATABASE_URL y DIRECT_URL:**
+
+- **DATABASE_URL**: Usa el **pooler** (`aws-1-us-east-2.pooler.supabase.com`) para la aplicación
+- **DIRECT_URL**: Usa la **conexión directa** (`db.[PROJECT].supabase.co`) para migraciones
+- **Prisma requiere conexión directa para migraciones** - NO puede usar el pooler
+- El formato del usuario en DIRECT_URL es `postgres` (sin el punto y proyecto)
+- El formato del usuario en DATABASE_URL es `postgres.[PROJECT]` (con punto)
+
 **⚠️ IMPORTANTE:**
-- **NO uses** la conexión directa `db.[PROJECT].supabase.co` para Prisma
-- **USA** el pooler `aws-1-us-east-2.pooler.supabase.com` (o el pooler de tu región)
-- **Selecciona SESSION POOLER** en Supabase Dashboard (no Transaction Pooler)
-- El formato del usuario es `postgres.[PROJECT]` (con punto, no con @)
+- **DATABASE_URL**: Pooler de Supabase (`aws-1-us-east-2.pooler.supabase.com`)
+- **DIRECT_URL**: Conexión directa (`db.[PROJECT].supabase.co`)
+- **Selecciona SESSION POOLER** en Supabase Dashboard para ver la URL del pooler
+- **Selecciona DIRECT CONNECTION** en Supabase Dashboard para ver la URL directa
 - **Session Pooler usa puerto 5432** (no 6543, ese es para Transaction Pooler)
 - **NO agregues** `?pgbouncer=true` para Session Pooler (solo para Transaction Pooler)
-- Ambas URLs (DATABASE_URL y DIRECT_URL) pueden usar el mismo puerto 5432 con Session Pooler
 
 **⚠️ IMPORTANTE sobre contraseñas con caracteres especiales:**
 
@@ -81,11 +88,14 @@ Si tu contraseña contiene caracteres especiales (como `+`, `@`, `#`, etc.), deb
 - `&` → `%26`
 - `=` → `%3D`
 
-**Ejemplo con tu proyecto (Session Pooler):**
-- **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025%2B@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
-- **DIRECT_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025%2B@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
+**Ejemplo con tu proyecto:**
+- **DATABASE_URL** (pooler): `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
+- **DIRECT_URL** (conexión directa): `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres`
 
-**Nota:** Ambas URLs son idénticas cuando usas Session Pooler, ya que el mismo pooler maneja tanto las conexiones de la aplicación como las migraciones.
+**Nota:** 
+- **DATABASE_URL** usa el pooler para mejor rendimiento en la aplicación
+- **DIRECT_URL** usa conexión directa porque Prisma requiere esto para migraciones
+- Si tu contraseña tiene caracteres especiales, codifícalos en ambas URLs
 
 **Nota:** Si tu proyecto está en otra región, el host del pooler será diferente (ej: `aws-0-[REGION].pooler.supabase.com`). Verifica en Supabase Dashboard → Settings → Database → Connection Pooling.
 
@@ -105,11 +115,12 @@ Si tu contraseña contiene caracteres especiales (como `+`, `@`, `#`, etc.), deb
 
 **Pasos prácticos:**
 1. Ve a Supabase Dashboard → Settings → Database → Connection Pooling
-2. Selecciona **"Session pooler"** (solo para ver las URLs correctas)
-3. Copia las URLs que aparecen (formato `postgres.[PROJECT]@aws-1-us-east-2.pooler.supabase.com:5432`)
-4. Pega esas URLs en Render (variables `DATABASE_URL` y `DIRECT_URL`)
-5. Pega esas URLs en tu `.env` local
-6. **Listo.** No necesitas volver a Supabase Dashboard, las URLs funcionarán independientemente de qué opción esté seleccionada cuando vuelvas a entrar.
+2. Para **DATABASE_URL**: Selecciona **"Session pooler"** y copia la URL (formato `postgres.[PROJECT]@aws-1-us-east-2.pooler.supabase.com:5432`)
+3. Para **DIRECT_URL**: Selecciona **"Direct connection"** y copia la URL (formato `postgres@db.[PROJECT].supabase.co:5432`)
+4. Pega la URL del pooler en Render como `DATABASE_URL`
+5. Pega la URL directa en Render como `DIRECT_URL`
+6. Pega ambas URLs en tu `.env` local
+7. **Listo.** No necesitas volver a Supabase Dashboard, las URLs funcionarán independientemente de qué opción esté seleccionada cuando vuelvas a entrar.
 
 **¿Por qué vuelve a mostrar "Direct Connection"?**
 - Es el comportamiento normal de Supabase Dashboard
@@ -190,6 +201,32 @@ Una vez configurado, verifica en los logs que:
 ### Error: "Environment variable not found: DATABASE_URL"
 
 **Solución:** Agrega `DATABASE_URL` en la sección Environment de Render
+
+### Error: "Schema engine error: unexpected message from server"
+
+**⚠️ ESTE ERROR OCURRE CUANDO DIRECT_URL USA EL POOLER EN LUGAR DE LA CONEXIÓN DIRECTA**
+
+**Solución:**
+1. **DIRECT_URL DEBE usar conexión directa**, NO el pooler:
+   - ❌ **INCORRECTO**: `postgresql://postgres.[PROJECT]:[PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
+   - ✅ **CORRECTO**: `postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres`
+
+2. **Formato correcto de DIRECT_URL:**
+   ```
+   postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres
+   ```
+   - Usuario: `postgres` (sin punto ni proyecto)
+   - Host: `db.[PROJECT].supabase.co` (NO el pooler)
+   - Puerto: `5432`
+
+3. **Ejemplo con tu proyecto:**
+   - **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
+   - **DIRECT_URL**: `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres`
+
+4. **Por qué ocurre:**
+   - Prisma requiere una conexión directa a PostgreSQL para ejecutar migraciones
+   - El pooler intercepta los mensajes y Prisma no puede comunicarse correctamente
+   - Las migraciones necesitan acceso directo a la base de datos sin intermediarios
 
 ### Error: "Connection refused" o "Connection timeout"
 
