@@ -465,9 +465,86 @@ Para verificar que la URL funciona:
 - Contraseña con caracteres especiales sin codificar
 - Variables de entorno en Render con espacios o caracteres extra
 
+## ⚠️ Error: "prepared statement \"s3\" does not exist"
+
+### Descripción del Error
+
+Este error ocurre cuando se usa **Transaction Pooler** de Supabase con Prisma:
+
+```
+Error occurred during query execution:
+ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { 
+  code: "26000", 
+  message: "prepared statement \"s3\" does not exist", 
+  severity: "ERROR"
+})
+```
+
+### Causa del Problema
+
+**Transaction Pooler** (puerto 6543) no mantiene el estado de las sesiones entre transacciones. Prisma usa **prepared statements** que requieren mantener el estado de la sesión, lo que causa este error.
+
+### Soluciones
+
+#### ✅ Solución 1: Usar Session Pooler (Recomendado)
+
+**Esta es la solución recomendada** para aplicaciones backend tradicionales como la tuya:
+
+1. Ve a Supabase Dashboard → **Settings** → **Database** → **Connection Pooling**
+2. Selecciona **"Session Pooler"** (puerto 5432)
+3. Copia la URL del Session Pooler
+4. Actualiza `DATABASE_URL` y `DIRECT_URL` en Render con esta URL
+5. Formato esperado:
+   ```
+   postgresql://postgres.[PROJECT]:[PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require
+   ```
+
+**Ventajas de Session Pooler:**
+- ✅ Mantiene el estado de las sesiones
+- ✅ Compatible con prepared statements de Prisma
+- ✅ Mejor para aplicaciones backend tradicionales
+- ✅ Soporta migraciones de Prisma sin problemas
+
+#### ✅ Solución 2: Configurar Prisma para Transaction Pooler (Ya implementado)
+
+Si necesitas usar Transaction Pooler por alguna razón específica, el código ya está configurado para detectarlo automáticamente y agregar `?pgbouncer=true` a la URL, lo que deshabilita prepared statements.
+
+**El código en `backend/src/lib/prisma.ts` y `backend/src/config/database.ts` ya maneja esto automáticamente:**
+
+```typescript
+// Detecta automáticamente si estás usando Transaction Pooler
+const isTransactionPooler = databaseUrl.includes(':6543') || databaseUrl.includes('transaction');
+
+// Agrega ?pgbouncer=true para deshabilitar prepared statements
+...(isTransactionPooler && {
+  datasources: {
+    db: {
+      url: databaseUrl.includes('?') 
+        ? `${databaseUrl}&pgbouncer=true` 
+        : `${databaseUrl}?pgbouncer=true`
+    }
+  }
+})
+```
+
+**Nota:** Esta solución funciona pero es menos eficiente que usar Session Pooler.
+
+### Verificación
+
+Para verificar qué pooler estás usando:
+
+1. Revisa tu `DATABASE_URL` en Render
+2. Si contiene `:6543` → Estás usando Transaction Pooler
+3. Si contiene `:5432` → Estás usando Session Pooler
+
+### Recomendación Final
+
+**Para aplicaciones backend en Render, siempre usa Session Pooler** (puerto 5432). Es más compatible con Prisma y evita estos problemas.
+
 ## 📚 Referencias
 
 - [Render Environment Variables](https://render.com/docs/environment-variables)
 - [Render PostgreSQL](https://render.com/docs/databases)
 - [Supabase Connection Strings](https://supabase.com/docs/guides/database/connecting-to-postgres)
+- [Prisma Connection Pooling](https://www.prisma.io/docs/guides/performance-and-optimization/connection-management)
 
