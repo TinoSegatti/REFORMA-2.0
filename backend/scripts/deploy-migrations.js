@@ -76,13 +76,42 @@ try {
     if (output.includes('P3005') || output.includes('not empty') || output.includes('No migration found') || output.includes('database schema is not empty')) {
       console.log('\n⚠️  La base de datos ya tiene esquema. Haciendo baseline de migraciones existentes...\n');
       
+      // Verificar que las migraciones existan antes de intentar el baseline
+      const fs = require('fs');
+      const path = require('path');
+      const migrationsPath = path.join(__dirname, '..', 'prisma', 'migrations');
+      
+      if (!fs.existsSync(migrationsPath)) {
+        console.error(`❌ ERROR: No se encuentra el directorio de migraciones en: ${migrationsPath}`);
+        console.error('   Asegúrate de que las migraciones estén en el repositorio.');
+        process.exit(1);
+      }
+      
+      const migrations = fs.readdirSync(migrationsPath).filter(dir => {
+        const dirPath = path.join(migrationsPath, dir);
+        return fs.statSync(dirPath).isDirectory() && /^\d+_/.test(dir);
+      });
+      
+      if (migrations.length === 0) {
+        console.error('❌ ERROR: No se encontraron migraciones en el directorio.');
+        console.error(`   Directorio verificado: ${migrationsPath}`);
+        process.exit(1);
+      }
+      
+      console.log(`✅ Se encontraron ${migrations.length} migraciones: ${migrations.join(', ')}\n`);
+      
       try {
         // Marcar las migraciones existentes como aplicadas (baseline)
-        console.log('📝 Marcando migración inicial como aplicada...');
-        execSync('npx prisma migrate resolve --applied 20251027221350_init', { stdio: 'inherit' });
+        const migrationsToBaseline = ['20251027221350_init', '20251027232428_actualizar_fabricacion'];
         
-        console.log('📝 Marcando migración de actualización como aplicada...');
-        execSync('npx prisma migrate resolve --applied 20251027232428_actualizar_fabricacion', { stdio: 'inherit' });
+        for (const migration of migrationsToBaseline) {
+          if (migrations.includes(migration)) {
+            console.log(`📝 Marcando migración ${migration} como aplicada...`);
+            execSync(`npx prisma migrate resolve --applied ${migration}`, { stdio: 'inherit' });
+          } else {
+            console.warn(`⚠️  Migración ${migration} no encontrada, omitiendo...`);
+          }
+        }
         
         console.log('\n✅ Baseline completado. Intentando deploy nuevamente...\n');
         
