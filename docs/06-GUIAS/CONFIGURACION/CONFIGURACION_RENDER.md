@@ -55,20 +55,23 @@ Para Supabase con Prisma, necesitas configurar **DOS variables** con URLs del **
 postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres
 ```
 
-**DIRECT_URL** (para migraciones, **DEBE usar conexión directa**, NO el pooler):
+**DIRECT_URL** (para migraciones, **USA Session Pooler también** porque Render usa IPv4):
 ```
-postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres?sslmode=require
+postgresql://postgres.[TU_PROJECT]:[TU_PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require
 ```
 
-**⚠️ IMPORTANTE:** La conexión directa **SIEMPRE requiere** `?sslmode=require` para funcionar desde Render.
+**⚠️ CRÍTICO - Problema de IPv4/IPv6:**
 
-**⚠️ CRÍTICO - Diferencia entre DATABASE_URL y DIRECT_URL:**
+- **Render usa IPv4**, pero la conexión directa de Supabase (`db.[PROJECT].supabase.co`) **solo funciona con IPv6**
+- Por eso debes usar el **Session Pooler también para DIRECT_URL** (es compatible con IPv4)
+- El Session Pooler de Supabase está configurado para funcionar con IPv4
 
-- **DATABASE_URL**: Usa el **pooler** (`aws-1-us-east-2.pooler.supabase.com`) para la aplicación
-- **DIRECT_URL**: Usa la **conexión directa** (`db.[PROJECT].supabase.co`) para migraciones
-- **Prisma requiere conexión directa para migraciones** - NO puede usar el pooler
-- El formato del usuario en DIRECT_URL es `postgres` (sin el punto y proyecto)
-- El formato del usuario en DATABASE_URL es `postgres.[PROJECT]` (con punto)
+**⚠️ CRÍTICO - Configuración para Render (IPv4):**
+
+- **DATABASE_URL**: Usa el **Session Pooler** (`aws-1-us-east-2.pooler.supabase.com`) para la aplicación
+- **DIRECT_URL**: **TAMBIÉN usa el Session Pooler** (`aws-1-us-east-2.pooler.supabase.com`) porque Render usa IPv4
+- Ambas URLs usan el mismo formato: `postgres.[PROJECT]@pooler.supabase.com:5432`
+- Ambas URLs deben incluir `?sslmode=require`
 
 **⚠️ IMPORTANTE:**
 - **DATABASE_URL**: Pooler de Supabase (`aws-1-us-east-2.pooler.supabase.com`)
@@ -90,16 +93,19 @@ Si tu contraseña contiene caracteres especiales (como `+`, `@`, `#`, etc.), deb
 - `&` → `%26`
 - `=` → `%3D`
 
-**Ejemplo con tu proyecto:**
-- **DATABASE_URL** (pooler): `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
-- **DIRECT_URL** (conexión directa): `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres?sslmode=require`
+**Ejemplo con tu proyecto (Render con IPv4):**
+- **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
+- **DIRECT_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
 
-**⚠️ CRÍTICO:** Ambas URLs deben incluir `?sslmode=require` para funcionar correctamente desde Render.
+**⚠️ CRÍTICO:** 
+- Ambas URLs son **idénticas** cuando usas Render (IPv4)
+- Ambas deben incluir `?sslmode=require`
+- Ambas usan el Session Pooler porque la conexión directa no es compatible con IPv4
 
 **Nota:** 
-- **DATABASE_URL** usa el pooler para mejor rendimiento en la aplicación
-- **DIRECT_URL** usa conexión directa porque Prisma requiere esto para migraciones
-- Si tu contraseña tiene caracteres especiales, codifícalos en ambas URLs
+- Normalmente Prisma requiere conexión directa para migraciones
+- Pero como Render usa IPv4 y Supabase solo ofrece IPv6 en conexión directa, debes usar el Session Pooler también para DIRECT_URL
+- El Session Pooler de Supabase maneja correctamente las migraciones de Prisma
 
 **Nota:** Si tu proyecto está en otra región, el host del pooler será diferente (ej: `aws-0-[REGION].pooler.supabase.com`). Verifica en Supabase Dashboard → Settings → Database → Connection Pooling.
 
@@ -117,14 +123,15 @@ Si tu contraseña contiene caracteres especiales (como `+`, `@`, `#`, etc.), deb
 - ❌ Que la opción permanezca seleccionada cuando vuelvas a entrar
 - ❌ Configurar nada permanente en Supabase
 
-**Pasos prácticos:**
+**Pasos prácticos para Render (IPv4):**
 1. Ve a Supabase Dashboard → Settings → Database → Connection Pooling
-2. Para **DATABASE_URL**: Selecciona **"Session pooler"** y copia la URL (formato `postgres.[PROJECT]@aws-1-us-east-2.pooler.supabase.com:5432`)
-3. Para **DIRECT_URL**: Selecciona **"Direct connection"** y copia la URL (formato `postgres@db.[PROJECT].supabase.co:5432`)
-4. Pega la URL del pooler en Render como `DATABASE_URL`
-5. Pega la URL directa en Render como `DIRECT_URL`
-6. Pega ambas URLs en tu `.env` local
-7. **Listo.** No necesitas volver a Supabase Dashboard, las URLs funcionarán independientemente de qué opción esté seleccionada cuando vuelvas a entrar.
+2. Selecciona **"Session pooler"** y copia la URL (formato `postgres.[PROJECT]@aws-1-us-east-2.pooler.supabase.com:5432`)
+3. **IMPORTANTE:** Agrega `?sslmode=require` al final de la URL
+4. Pega la misma URL en Render como `DATABASE_URL` (con `?sslmode=require`)
+5. Pega la misma URL en Render como `DIRECT_URL` (con `?sslmode=require`)
+6. **Ambas URLs son idénticas** porque Render usa IPv4 y necesita el Session Pooler
+7. Pega ambas URLs en tu `.env` local
+8. **Listo.** No necesitas volver a Supabase Dashboard, las URLs funcionarán independientemente de qué opción esté seleccionada cuando vuelvas a entrar.
 
 **¿Por qué vuelve a mostrar "Direct Connection"?**
 - Es el comportamiento normal de Supabase Dashboard
@@ -208,52 +215,45 @@ Una vez configurado, verifica en los logs que:
 
 ### Error: "Schema engine error: unexpected message from server"
 
-**⚠️ ESTE ERROR OCURRE CUANDO DIRECT_URL USA EL POOLER EN LUGAR DE LA CONEXIÓN DIRECTA**
+**⚠️ ESTE ERROR OCURRE CUANDO HAY PROBLEMAS CON LA CONFIGURACIÓN DEL POOLER**
 
-**Solución:**
-1. **DIRECT_URL DEBE usar conexión directa**, NO el pooler:
-   - ❌ **INCORRECTO**: `postgresql://postgres.[PROJECT]:[PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
-   - ✅ **CORRECTO**: `postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres`
+**Nota:** Este error es menos común cuando usas Session Pooler correctamente. Si lo experimentas:
 
-2. **Formato correcto de DIRECT_URL:**
-   ```
-   postgresql://postgres:[TU_PASSWORD]@db.[TU_PROJECT].supabase.co:5432/postgres?sslmode=require
-   ```
-   - Usuario: `postgres` (sin punto ni proyecto)
-   - Host: `db.[PROJECT].supabase.co` (NO el pooler)
-   - Puerto: `5432`
-   - **DEBE incluir**: `?sslmode=require` (obligatorio para conexión directa)
+1. **Verifica que ambas URLs usen Session Pooler:**
+   - **DATABASE_URL**: `postgresql://postgres.[PROJECT]:[PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
+   - **DIRECT_URL**: `postgresql://postgres.[PROJECT]:[PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
 
-3. **Ejemplo con tu proyecto:**
-   - **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
-   - **DIRECT_URL**: `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres?sslmode=require`
+2. **Asegúrate de usar Session Pooler (no Transaction Pooler):**
+   - Session Pooler: Puerto `5432`
+   - Transaction Pooler: Puerto `6543` (NO usar para Prisma)
 
-4. **Por qué ocurre:**
-   - Prisma requiere una conexión directa a PostgreSQL para ejecutar migraciones
-   - El pooler intercepta los mensajes y Prisma no puede comunicarse correctamente
-   - Las migraciones necesitan acceso directo a la base de datos sin intermediarios
+3. **Si el error persiste:**
+   - Verifica que el proyecto esté activo en Supabase
+   - Verifica que no haya restricciones de red
+   - Intenta hacer un redeploy en Render
 
 ### Error: "Can't reach database server" con DIRECT_URL
 
-**⚠️ ESTE ERROR OCURRE CUANDO DIRECT_URL NO TIENE SSL O ESTÁ MAL CONFIGURADA**
+**⚠️ ESTE ERROR OCURRE PORQUE LA CONEXIÓN DIRECTA DE SUPABASE NO ES COMPATIBLE CON IPv4 (Render usa IPv4)**
 
-**Solución:**
-1. **DIRECT_URL DEBE incluir `?sslmode=require`**:
-   - ❌ **INCORRECTO**: `postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres`
-   - ✅ **CORRECTO**: `postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres?sslmode=require`
+**Solución para Render (IPv4):**
+1. **DIRECT_URL DEBE usar Session Pooler también**, NO la conexión directa:
+   - ❌ **INCORRECTO**: `postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres?sslmode=require`
+   - ✅ **CORRECTO**: `postgresql://postgres.[PROJECT]:[PASSWORD]@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
 
-2. **Verifica que ambas URLs tengan SSL:**
-   - **DATABASE_URL**: Debe incluir `?sslmode=require`
-   - **DIRECT_URL**: Debe incluir `?sslmode=require`
+2. **Verifica que ambas URLs usen el Session Pooler:**
+   - **DATABASE_URL**: Debe usar Session Pooler (`aws-1-us-east-2.pooler.supabase.com`)
+   - **DIRECT_URL**: **TAMBIÉN debe usar Session Pooler** (`aws-1-us-east-2.pooler.supabase.com`)
+   - Ambas deben incluir `?sslmode=require`
 
-3. **Ejemplo correcto:**
+3. **Ejemplo correcto para Render:**
    - **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
-   - **DIRECT_URL**: `postgresql://postgres:DataBase2025.@db.tguajsxchwtnliueokwy.supabase.co:5432/postgres?sslmode=require`
+   - **DIRECT_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
 
-4. **Si aún no funciona después de agregar SSL:**
-   - Verifica que no haya restricciones de red en Supabase
-   - Verifica que el proyecto esté activo (no pausado)
-   - Prueba la conexión directa desde tu máquina local para verificar que funciona
+4. **Por qué ambas URLs son idénticas:**
+   - Render usa IPv4, pero la conexión directa de Supabase solo funciona con IPv6
+   - Por eso debes usar el Session Pooler también para DIRECT_URL
+   - El Session Pooler es compatible con IPv4 y maneja correctamente las migraciones de Prisma
 
 ### Error: "Connection refused" o "Connection timeout"
 
