@@ -232,6 +232,32 @@ Una vez configurado, verifica en los logs que:
    - Verifica que no haya restricciones de red
    - Intenta hacer un redeploy en Render
 
+### Error: P1001 "Can't reach database server" con Session Pooler
+
+**⚠️ ESTE ERROR PUEDE OCURRIR AUNQUE USES SESSION POOLER CORRECTAMENTE**
+
+**Si ya verificaste que:**
+- ✅ El proyecto de Supabase está ACTIVO (verde)
+- ✅ No hay restricciones de red
+- ✅ Ambas URLs usan Session Pooler con `?sslmode=require`
+- ✅ Las URLs son idénticas
+
+**Y el error persiste, intenta usar Transaction Pooler:**
+
+1. **Ve a Supabase Dashboard → Settings → Database → Connection Pooling**
+2. **Selecciona "Transaction Pooler"** (NO Session Pooler)
+3. **Copia la URL** que aparece (debería tener el formato `postgresql://postgres.[PROJECT]:[PASSWORD]@aws-1-us-east-2.pooler.supabase.com:6543/postgres`)
+4. **Agrega `?sslmode=require` al final** de la URL
+5. **Usa esa URL para ambas variables** (`DATABASE_URL` y `DIRECT_URL`) en Render
+
+**Ejemplo con Transaction Pooler:**
+```
+DATABASE_URL: postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require
+DIRECT_URL: postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require
+```
+
+**Nota:** Transaction Pooler usa el puerto `6543` en lugar de `5432`. Aunque normalmente se recomienda Session Pooler para Prisma, Transaction Pooler puede funcionar mejor en algunos entornos de Render.
+
 ### Error: "Can't reach database server" con DIRECT_URL
 
 **⚠️ ESTE ERROR OCURRE PORQUE LA CONEXIÓN DIRECTA DE SUPABASE NO ES COMPATIBLE CON IPv4 (Render usa IPv4)**
@@ -246,7 +272,7 @@ Una vez configurado, verifica en los logs que:
    - **DIRECT_URL**: **TAMBIÉN debe usar Session Pooler** (`aws-1-us-east-2.pooler.supabase.com`)
    - Ambas deben incluir `?sslmode=require`
 
-3. **Ejemplo correcto para Render:**
+3. **Ejemplo correcto para Render (Session Pooler):**
    - **DATABASE_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
    - **DIRECT_URL**: `postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require`
 
