@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
-export default function ExitoPage() {
+function ExitoContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [verificando, setVerificando] = useState(true);
@@ -105,3 +105,19 @@ export default function ExitoPage() {
   );
 }
 
+export default function ExitoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0a0f] via-[#1a1a2e] to-[#16213e]">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-cyan-400 mx-auto mb-4" />
+            <p className="text-white/70">Cargando...</p>
+          </div>
+        </div>
+      }
+    >
+      <ExitoContent />
+    </Suspense>
+  );
+}
