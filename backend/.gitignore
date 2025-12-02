@@ -19,7 +19,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Prisma
-prisma/migrations/
+# Las migraciones deben estar en el repositorio para el deploy
 
 # IDE
 .vscode/

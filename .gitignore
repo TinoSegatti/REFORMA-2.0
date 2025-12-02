@@ -13,7 +13,6 @@ backend/.env
 backend/.env.local
 backend/dist/
 backend/build/
-backend/prisma/migrations/
 
 # ============================================
 # Frontend
