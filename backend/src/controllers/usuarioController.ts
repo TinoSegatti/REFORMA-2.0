@@ -125,16 +125,19 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
       }
     }
 
-    // Enviar email de verificación
-    try {
-      if (verificarConfiguracionEmail()) {
-        await enviarEmailVerificacion(email, nombreUsuario, tokenVerificacion);
-      } else {
-        console.warn('⚠️  Email no configurado. No se envió email de verificación.');
-      }
-    } catch (error: any) {
-      console.error('Error enviando email de verificación:', error);
-      // No fallar el registro si falla el email, pero informar al usuario
+    // Enviar email de verificación en segundo plano (no bloquea el registro)
+    const emailConfigurado = verificarConfiguracionEmail();
+    if (emailConfigurado) {
+      // Enviar email sin esperar (fire and forget)
+      enviarEmailVerificacion(email, nombreUsuario, tokenVerificacion)
+        .then(() => {
+          console.log(`✅ Email de verificación enviado a ${email}`);
+        })
+        .catch((error: any) => {
+          console.error('Error enviando email de verificación (no crítico):', error);
+        });
+    } else {
+      console.warn('⚠️  Email no configurado. No se envió email de verificación.');
     }
 
     // NO generar token JWT todavía - el usuario debe verificar su email primero
@@ -146,6 +149,7 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
         ...usuario,
         requiereVerificacion: true
       },
+      requiereVerificacion: true,
       emailEnviado: verificarConfiguracionEmail(),
       esEmpleado: !!codigoReferencia
     });

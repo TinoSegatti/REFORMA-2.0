@@ -37,6 +37,9 @@ function initializeTransporter() {
       user: smtpUser,
       pass: smtpPassword,
     },
+    connectionTimeout: 10000, // 10 segundos para establecer conexión
+    greetingTimeout: 10000, // 10 segundos para saludo SMTP
+    socketTimeout: 10000, // 10 segundos para operaciones de socket
   });
 
   return transporter;
