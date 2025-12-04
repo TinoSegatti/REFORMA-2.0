@@ -20,7 +20,7 @@ function initializeTransporter() {
   const smtpHost = process.env.SMTP_HOST;
   const smtpPort = parseInt(process.env.SMTP_PORT || '587');
   const smtpUser = process.env.SMTP_USER;
-  const smtpPassword = process.env.SMTP_PASSWORD;
+  let smtpPassword = process.env.SMTP_PASSWORD;
   const smtpSecure = process.env.SMTP_SECURE === 'true';
 
   if (!smtpHost || !smtpUser || !smtpPassword) {
@@ -28,6 +28,16 @@ function initializeTransporter() {
     console.warn('   Variables requeridas: SMTP_HOST, SMTP_USER, SMTP_PASSWORD');
     return null;
   }
+
+  // Limpiar espacios del App Password (Gmail genera passwords con espacios que deben eliminarse)
+  smtpPassword = smtpPassword.replace(/\s+/g, '');
+
+  console.log('📧 Inicializando transporter SMTP:');
+  console.log(`   Host: ${smtpHost}`);
+  console.log(`   Port: ${smtpPort}`);
+  console.log(`   User: ${smtpUser}`);
+  console.log(`   Secure: ${smtpSecure}`);
+  console.log(`   Password length: ${smtpPassword.length} caracteres`);
 
   transporter = nodemailer.createTransport({
     host: smtpHost,
@@ -156,11 +166,45 @@ export async function enviarEmailVerificacion(
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email de verificación enviado a ${email}`);
+    console.log(`📧 Intentando enviar email de verificación a ${email}...`);
+    console.log(`   URL de verificación: ${urlVerificacion}`);
+    
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log(`✅ Email de verificación enviado exitosamente a ${email}`);
+    console.log(`   Message ID: ${info.messageId}`);
+    console.log(`   Response: ${info.response}`);
+    
+    return info;
   } catch (error: any) {
-    console.error('❌ Error enviando email de verificación:', error);
-    throw new Error('Error al enviar email de verificación');
+    console.error('❌ Error enviando email de verificación:');
+    console.error(`   Email destino: ${email}`);
+    console.error(`   Error code: ${error.code || 'N/A'}`);
+    console.error(`   Error command: ${error.command || 'N/A'}`);
+    console.error(`   Error message: ${error.message || 'N/A'}`);
+    
+    if (error.response) {
+      console.error(`   SMTP Response: ${error.response}`);
+    }
+    
+    if (error.responseCode) {
+      console.error(`   SMTP Response Code: ${error.responseCode}`);
+    }
+    
+    // Detectar errores comunes
+    if (error.code === 'EAUTH') {
+      console.error('   ⚠️  Error de autenticación. Verifica:');
+      console.error('      - Que el App Password sea correcto (sin espacios)');
+      console.error('      - Que la verificación en 2 pasos esté habilitada');
+      console.error('      - Que el email SMTP_USER sea correcto');
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
+      console.error('   ⚠️  Error de conexión. Verifica:');
+      console.error('      - Que SMTP_HOST sea correcto (smtp.gmail.com)');
+      console.error('      - Que SMTP_PORT sea correcto (587 o 465)');
+      console.error('      - Que el servidor tenga acceso a internet');
+    }
+    
+    throw new Error(`Error al enviar email de verificación: ${error.message}`);
   }
 }
 

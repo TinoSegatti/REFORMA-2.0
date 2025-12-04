@@ -128,16 +128,21 @@ export async function registrarUsuario(req: UsuarioRequest, res: Response) {
     // Enviar email de verificación en segundo plano (no bloquea el registro)
     const emailConfigurado = verificarConfiguracionEmail();
     if (emailConfigurado) {
+      console.log(`📧 Configuración de email detectada. Enviando email de verificación a ${email}...`);
       // Enviar email sin esperar (fire and forget)
       enviarEmailVerificacion(email, nombreUsuario, tokenVerificacion)
         .then(() => {
-          console.log(`✅ Email de verificación enviado a ${email}`);
+          console.log(`✅ Email de verificación enviado exitosamente a ${email}`);
         })
         .catch((error: any) => {
-          console.error('Error enviando email de verificación (no crítico):', error);
+          console.error('❌ Error enviando email de verificación (no crítico para el registro):');
+          console.error(`   Email: ${email}`);
+          console.error(`   Error: ${error.message || error}`);
+          console.error('   El usuario fue registrado correctamente, pero debe solicitar reenvío del email.');
         });
     } else {
       console.warn('⚠️  Email no configurado. No se envió email de verificación.');
+      console.warn('   Variables requeridas: SMTP_HOST, SMTP_USER, SMTP_PASSWORD');
     }
 
     // NO generar token JWT todavía - el usuario debe verificar su email primero
