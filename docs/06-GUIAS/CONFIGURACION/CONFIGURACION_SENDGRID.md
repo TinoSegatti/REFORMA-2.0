@@ -84,16 +84,28 @@ SendGrid es un servicio profesional de email que es más confiable que Gmail SMT
 En el dashboard de Render, configura estas variables de entorno:
 
 ```bash
-# SendGrid Configuration
-SMTP_HOST=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=apikey
+# SendGrid Configuration (API REST - Recomendado)
+SMTP_HOST=smtp.sendgrid.net  # Se usa para detectar SendGrid
+SMTP_USER=reforma.soft.co@gmail.com  # Email remitente verificado
 SMTP_PASSWORD=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # Tu API Key de SendGrid
+# O alternativamente:
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # Tu API Key de SendGrid
 
 # Frontend URL
 FRONTEND_URL=https://tu-frontend.vercel.app
 ```
+
+**⚠️ IMPORTANTE**: 
+- El sistema ahora usa **API REST de SendGrid** automáticamente (más confiable que SMTP)
+- No necesitas configurar `SMTP_PORT` ni `SMTP_SECURE` cuando usas API REST
+- El paquete `@sendgrid/mail` se instalará automáticamente en el deploy
+- Guarda el API Key en un lugar seguro. No se puede recuperar después.
+
+**Ventajas de API REST vs SMTP:**
+- ✅ No depende de conexiones SMTP salientes (evita bloqueos de Render)
+- ✅ Más rápido y confiable
+- ✅ Mejor manejo de errores
+- ✅ Estadísticas en tiempo real
 
 ### Paso 5: Verificar Configuración
 
