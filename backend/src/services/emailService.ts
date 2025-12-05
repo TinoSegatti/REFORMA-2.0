@@ -39,30 +39,47 @@ function initializeTransporter() {
   console.log(`   Secure: ${smtpSecure}`);
   console.log(`   Password length: ${smtpPassword.length} caracteres`);
 
-  transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure, // true para 465, false para otros puertos
-    auth: {
-      user: smtpUser,
-      pass: smtpPassword,
-    },
-    // Timeouts más largos para conexiones lentas o con problemas de red
-    connectionTimeout: 30000, // 30 segundos para establecer conexión
-    greetingTimeout: 30000, // 30 segundos para saludo SMTP
-    socketTimeout: 30000, // 30 segundos para operaciones de socket
-    // Opciones adicionales para mejorar la conexión
-    tls: {
-      // No rechazar conexiones no autorizadas (útil para desarrollo)
-      rejectUnauthorized: process.env.NODE_ENV === 'production',
-      // Ciphers permitidos
-      ciphers: 'SSLv3',
-    },
-    // Pool de conexiones
-    pool: true,
-    maxConnections: 1,
-    maxMessages: 3,
-  });
+  // Configuración específica para SendGrid
+  if (smtpHost === 'smtp.sendgrid.net') {
+    transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: {
+        user: smtpUser, // Para SendGrid siempre es 'apikey'
+        pass: smtpPassword, // API Key de SendGrid
+      },
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
+    });
+  } else {
+    // Configuración para Gmail y otros proveedores SMTP
+    transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure, // true para 465, false para otros puertos
+      auth: {
+        user: smtpUser,
+        pass: smtpPassword,
+      },
+      // Timeouts más largos para conexiones lentas o con problemas de red
+      connectionTimeout: 60000, // 60 segundos para establecer conexión
+      greetingTimeout: 30000, // 30 segundos para saludo SMTP
+      socketTimeout: 60000, // 60 segundos para operaciones de socket
+      // Opciones TLS mejoradas para Gmail
+      tls: {
+        rejectUnauthorized: true, // Verificar certificados SSL
+        minVersion: 'TLSv1.2', // Versión mínima de TLS
+      },
+      // Pool de conexiones
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 3,
+      // Opciones adicionales para mejorar la conexión
+      requireTLS: smtpPort === 587, // Requerir TLS para puerto 587
+    });
+  }
 
   return transporter;
 }
@@ -218,13 +235,24 @@ export async function enviarEmailVerificacion(
       console.error('      - Que el email SMTP_USER sea correcto');
     } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
       console.error('   ⚠️  Error de conexión. Verifica:');
-      console.error('      - Que SMTP_HOST sea correcto (smtp.gmail.com)');
+      console.error('      - Que SMTP_HOST sea correcto');
       console.error('      - Que SMTP_PORT sea correcto (587 o 465)');
       console.error('      - Que el servidor tenga acceso a internet');
-      console.error('      - Si estás en desarrollo local, puede haber restricciones de firewall');
-      console.error('      - Gmail puede bloquear conexiones desde ciertas IPs o redes');
-      console.error('      - Intenta usar el puerto 465 con SMTP_SECURE=true');
-      console.error('      - O considera usar un servicio de email profesional (SendGrid, Mailgun)');
+      
+      if (smtpHost === 'smtp.gmail.com') {
+        console.error('      - ⚠️  Gmail bloquea conexiones desde Render frecuentemente');
+        console.error('      - 💡 SOLUCIÓN RECOMENDADA: Usa SendGrid (100 emails gratis/día)');
+        console.error('      - 📖 Ver: docs/06-GUIAS/CONFIGURACION/CONFIGURACION_SENDGRID.md');
+        console.error('      - Configuración SendGrid:');
+        console.error('        SMTP_HOST=smtp.sendgrid.net');
+        console.error('        SMTP_PORT=587');
+        console.error('        SMTP_SECURE=false');
+        console.error('        SMTP_USER=apikey');
+        console.error('        SMTP_PASSWORD=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+      } else {
+        console.error('      - Intenta usar el puerto 465 con SMTP_SECURE=true');
+        console.error('      - O considera usar SendGrid (más confiable)');
+      }
     }
     
     throw new Error(`Error al enviar email de verificación: ${error.message}`);
