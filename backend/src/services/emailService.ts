@@ -208,7 +208,15 @@ async function enviarConSendGridAPI(
 
   sgMail.setApiKey(sendgridApiKey);
 
-  const fromEmail = process.env.SMTP_USER || 'reforma.soft.co@gmail.com';
+  // Para SendGrid API, el email remitente debe ser el email verificado, no 'apikey'
+  // Si SMTP_USER es 'apikey', usar el email por defecto o SENDGRID_FROM_EMAIL
+  let fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_USER || 'reforma.soft.co@gmail.com';
+  
+  // Si SMTP_USER es 'apikey' (configuración SMTP), usar el email por defecto
+  if (fromEmail === 'apikey') {
+    fromEmail = 'reforma.soft.co@gmail.com';
+  }
+  
   const contenido = generarContenidoEmail(nombreUsuario, urlVerificacion);
 
   const msg = {
