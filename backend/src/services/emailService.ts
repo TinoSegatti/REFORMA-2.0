@@ -239,7 +239,8 @@ export async function enviarEmailVerificacion(
       console.error('      - Que SMTP_PORT sea correcto (587 o 465)');
       console.error('      - Que el servidor tenga acceso a internet');
       
-      if (smtpHost === 'smtp.gmail.com') {
+      const currentSmtpHost = process.env.SMTP_HOST || '';
+      if (currentSmtpHost === 'smtp.gmail.com') {
         console.error('      - ⚠️  Gmail bloquea conexiones desde Render frecuentemente');
         console.error('      - 💡 SOLUCIÓN RECOMENDADA: Usa SendGrid (100 emails gratis/día)');
         console.error('      - 📖 Ver: docs/06-GUIAS/CONFIGURACION/CONFIGURACION_SENDGRID.md');
