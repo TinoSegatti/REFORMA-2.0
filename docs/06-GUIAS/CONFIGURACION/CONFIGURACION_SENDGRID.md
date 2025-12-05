@@ -86,10 +86,13 @@ En el dashboard de Render, configura estas variables de entorno:
 ```bash
 # SendGrid Configuration (API REST - Recomendado)
 SMTP_HOST=smtp.sendgrid.net  # Se usa para detectar SendGrid
-SMTP_USER=reforma.soft.co@gmail.com  # Email remitente verificado
+SMTP_USER=apikey  # Para SMTP (fallback), siempre 'apikey'
 SMTP_PASSWORD=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # Tu API Key de SendGrid
 # O alternativamente:
 SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # Tu API Key de SendGrid
+
+# Email remitente (OBLIGATORIO para API REST)
+SENDGRID_FROM_EMAIL=reforma.soft.co@gmail.com  # Email verificado en SendGrid
 
 # Frontend URL
 FRONTEND_URL=https://tu-frontend.vercel.app
@@ -97,6 +100,8 @@ FRONTEND_URL=https://tu-frontend.vercel.app
 
 **⚠️ IMPORTANTE**: 
 - El sistema ahora usa **API REST de SendGrid** automáticamente (más confiable que SMTP)
+- **`SENDGRID_FROM_EMAIL` es OBLIGATORIO**: Debe ser el email verificado en SendGrid (Single Sender Verification)
+- `SMTP_USER` puede ser `apikey` (para SMTP fallback), pero `SENDGRID_FROM_EMAIL` debe ser el email real
 - No necesitas configurar `SMTP_PORT` ni `SMTP_SECURE` cuando usas API REST
 - El paquete `@sendgrid/mail` se instalará automáticamente en el deploy
 - Guarda el API Key en un lugar seguro. No se puede recuperar después.
