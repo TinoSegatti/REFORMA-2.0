@@ -47,9 +47,21 @@ function initializeTransporter() {
       user: smtpUser,
       pass: smtpPassword,
     },
-    connectionTimeout: 10000, // 10 segundos para establecer conexión
-    greetingTimeout: 10000, // 10 segundos para saludo SMTP
-    socketTimeout: 10000, // 10 segundos para operaciones de socket
+    // Timeouts más largos para conexiones lentas o con problemas de red
+    connectionTimeout: 30000, // 30 segundos para establecer conexión
+    greetingTimeout: 30000, // 30 segundos para saludo SMTP
+    socketTimeout: 30000, // 30 segundos para operaciones de socket
+    // Opciones adicionales para mejorar la conexión
+    tls: {
+      // No rechazar conexiones no autorizadas (útil para desarrollo)
+      rejectUnauthorized: process.env.NODE_ENV === 'production',
+      // Ciphers permitidos
+      ciphers: 'SSLv3',
+    },
+    // Pool de conexiones
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 3,
   });
 
   return transporter;
@@ -76,7 +88,14 @@ export async function enviarEmailVerificacion(
     throw new Error('Servicio de email no configurado. Contacta al administrador.');
   }
 
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  // Obtener URL del frontend y asegurar que tenga protocolo
+  let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  
+  // Si la URL no tiene protocolo, agregar https:// (asumimos producción)
+  if (!frontendUrl.startsWith('http://') && !frontendUrl.startsWith('https://')) {
+    frontendUrl = `https://${frontendUrl}`;
+  }
+  
   const urlVerificacion = `${frontendUrl}/verificar-email?token=${tokenVerificacion}`;
 
   const mailOptions = {
@@ -202,6 +221,10 @@ export async function enviarEmailVerificacion(
       console.error('      - Que SMTP_HOST sea correcto (smtp.gmail.com)');
       console.error('      - Que SMTP_PORT sea correcto (587 o 465)');
       console.error('      - Que el servidor tenga acceso a internet');
+      console.error('      - Si estás en desarrollo local, puede haber restricciones de firewall');
+      console.error('      - Gmail puede bloquear conexiones desde ciertas IPs o redes');
+      console.error('      - Intenta usar el puerto 465 con SMTP_SECURE=true');
+      console.error('      - O considera usar un servicio de email profesional (SendGrid, Mailgun)');
     }
     
     throw new Error(`Error al enviar email de verificación: ${error.message}`);
