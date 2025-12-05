@@ -22,28 +22,35 @@ SendGrid es un servicio profesional de email que es más confiable que Gmail SMT
 
 ### Paso 2: Verificar Remitente (Obligatorio)
 
-Tienes dos opciones:
+#### Single Sender Verification (Para tu caso - Sin dominio propio)
 
-#### Opción A: Single Sender Verification (Recomendado para Empezar)
+**Como NO tienes dominio propio** (solo usas `reforma-2-0.onrender.com` y `reforma-2-0.vercel.app`):
 
-**Si NO tienes dominio propio** (solo usas Render/Vercel):
-
-1. Ve a **Settings** > **Sender Authentication**
-2. Selecciona **Single Sender Verification**
+1. Ve a **Settings** > **Sender Authentication** en SendGrid
+2. Selecciona **Single Sender Verification** (NO Domain Authentication)
 3. Haz clic en **Create New Sender**
 4. Completa el formulario:
    - **From Email**: `reforma.soft.co@gmail.com`
    - **From Name**: `REFORMA`
    - **Reply To**: `reforma.soft.co@gmail.com`
-5. Verifica el email que recibirás
-6. Una vez verificado, puedes usar este email como remitente
+   - **Company Address**: Tu dirección (opcional)
+   - **City**: Tu ciudad (opcional)
+   - **State**: Tu estado/provincia (opcional)
+   - **Country**: Tu país
+5. Haz clic en **Create**
+6. **Verifica el email**: SendGrid enviará un email de verificación a `reforma.soft.co@gmail.com`
+7. Abre el email y haz clic en el enlace de verificación
+8. Una vez verificado, puedes usar este email como remitente
 
 **Ventajas:**
 - ✅ No necesitas dominio propio
 - ✅ Configuración rápida (5 minutos)
 - ✅ Funciona inmediatamente
+- ✅ Perfecto para empezar
 
-#### Opción B: Domain Authentication (Recomendado para Producción)
+**Nota**: Si en el futuro compras un dominio propio (ejemplo: `reforma.com`), puedes configurar Domain Authentication para mejor deliverability. Por ahora, Single Sender Verification es suficiente.
+
+#### Domain Authentication (Solo si tienes dominio propio)
 
 **Si tienes dominio propio** (ejemplo: `reforma.com`):
 
@@ -58,7 +65,7 @@ Tienes dos opciones:
 5. Agrega los registros DNS que SendGrid te proporciona
 6. Espera 5-10 minutos y verifica
 
-**⚠️ IMPORTANTE**: Render NO es un DNS host. El DNS está donde compraste tu dominio o donde está configurado.
+**⚠️ IMPORTANTE**: Render y Vercel NO son DNS hosts. El DNS está donde compraste tu dominio o donde está configurado.
 
 **Ver guía completa**: [`CONFIGURACION_SENDGRID_DNS.md`](./CONFIGURACION_SENDGRID_DNS.md)
 
