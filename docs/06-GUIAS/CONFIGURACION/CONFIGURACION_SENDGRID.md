@@ -20,16 +20,47 @@ SendGrid es un servicio profesional de email que es más confiable que Gmail SMT
 3. Verifica tu email
 4. Completa el proceso de verificación
 
-### Paso 2: Verificar Dominio (Opcional pero Recomendado)
+### Paso 2: Verificar Remitente (Obligatorio)
 
-Para mejor deliverability, verifica tu dominio:
+Tienes dos opciones:
+
+#### Opción A: Single Sender Verification (Recomendado para Empezar)
+
+**Si NO tienes dominio propio** (solo usas Render/Vercel):
+
+1. Ve a **Settings** > **Sender Authentication**
+2. Selecciona **Single Sender Verification**
+3. Haz clic en **Create New Sender**
+4. Completa el formulario:
+   - **From Email**: `reforma.soft.co@gmail.com`
+   - **From Name**: `REFORMA`
+   - **Reply To**: `reforma.soft.co@gmail.com`
+5. Verifica el email que recibirás
+6. Una vez verificado, puedes usar este email como remitente
+
+**Ventajas:**
+- ✅ No necesitas dominio propio
+- ✅ Configuración rápida (5 minutos)
+- ✅ Funciona inmediatamente
+
+#### Opción B: Domain Authentication (Recomendado para Producción)
+
+**Si tienes dominio propio** (ejemplo: `reforma.com`):
 
 1. Ve a **Settings** > **Sender Authentication**
 2. Selecciona **Domain Authentication**
-3. Sigue las instrucciones para agregar registros DNS
-4. Esto mejora significativamente la tasa de entrega
+3. Ingresa tu dominio
+4. **Selecciona tu DNS Host**:
+   - Si compraste el dominio en **GoDaddy** → Selecciona "GoDaddy"
+   - Si compraste en **Namecheap** → Selecciona "Namecheap"
+   - Si usas **Cloudflare** → Selecciona "Cloudflare"
+   - Si no está en la lista → Selecciona "Other" o "Generic"
+5. Agrega los registros DNS que SendGrid te proporciona
+6. Espera 5-10 minutos y verifica
 
-**Nota**: Si no verificas el dominio, puedes usar el email de SendGrid para enviar, pero es mejor verificar tu dominio.
+**⚠️ IMPORTANTE**: Render NO es un DNS host. El DNS está donde compraste tu dominio o donde está configurado.
+
+**Ver guía completa**: [`CONFIGURACION_SENDGRID_DNS.md`](./CONFIGURACION_SENDGRID_DNS.md)
 
 ### Paso 3: Generar API Key
 
