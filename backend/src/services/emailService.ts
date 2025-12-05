@@ -1,10 +1,19 @@
 /**
  * Servicio de Email
  * Maneja el envío de correos electrónicos
+ * Usa API REST de SendGrid cuando está disponible (más confiable que SMTP)
  */
 
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+
+// Intentar importar SendGrid (opcional)
+let sgMail: any = null;
+try {
+  sgMail = require('@sendgrid/mail');
+} catch (e) {
+  // SendGrid no está instalado, usar solo SMTP
+}
 
 // Configuración del transporter de nodemailer
 let transporter: nodemailer.Transporter | null = null;
@@ -92,6 +101,148 @@ export function generarTokenVerificacion(): string {
 }
 
 /**
+ * Generar contenido HTML del email
+ */
+function generarContenidoEmail(nombreUsuario: string, urlVerificacion: string): { html: string; text: string } {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            background: linear-gradient(135deg, #9d77f4 0%, #f472b6 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+          }
+          .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+          }
+          .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #9d77f4 0%, #f472b6 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>¡Bienvenido a REFORMA!</h1>
+        </div>
+        <div class="content">
+          <p>Hola <strong>${nombreUsuario}</strong>,</p>
+          <p>Gracias por registrarte en REFORMA. Para completar tu registro, por favor verifica tu dirección de correo electrónico haciendo clic en el siguiente botón:</p>
+          <div style="text-align: center;">
+            <a href="${urlVerificacion}" class="button">Verificar Email</a>
+          </div>
+          <p>O copia y pega este enlace en tu navegador:</p>
+          <p style="word-break: break-all; color: #9d77f4;">${urlVerificacion}</p>
+          <p><strong>Este enlace expirará en 24 horas.</strong></p>
+          <p>Si no creaste esta cuenta, puedes ignorar este correo.</p>
+        </div>
+        <div class="footer">
+          <p>© 2024 REFORMA - Sistema de Gestión de Granjas</p>
+          <p>Este es un correo automático, por favor no respondas.</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const text = `
+    ¡Bienvenido a REFORMA!
+    
+    Hola ${nombreUsuario},
+    
+    Gracias por registrarte en REFORMA. Para completar tu registro, por favor verifica tu dirección de correo electrónico visitando el siguiente enlace:
+    
+    ${urlVerificacion}
+    
+    Este enlace expirará en 24 horas.
+    
+    Si no creaste esta cuenta, puedes ignorar este correo.
+    
+    © 2024 REFORMA - Sistema de Gestión de Granjas
+  `;
+
+  return { html, text };
+}
+
+/**
+ * Enviar email usando API REST de SendGrid (más confiable)
+ */
+async function enviarConSendGridAPI(
+  email: string,
+  nombreUsuario: string,
+  urlVerificacion: string
+): Promise<void> {
+  if (!sgMail) {
+    throw new Error('SendGrid no está disponible. Instala @sendgrid/mail o usa SMTP.');
+  }
+
+  const sendgridApiKey = process.env.SMTP_PASSWORD || process.env.SENDGRID_API_KEY;
+  if (!sendgridApiKey) {
+    throw new Error('SENDGRID_API_KEY no configurado');
+  }
+
+  sgMail.setApiKey(sendgridApiKey);
+
+  const fromEmail = process.env.SMTP_USER || 'reforma.soft.co@gmail.com';
+  const contenido = generarContenidoEmail(nombreUsuario, urlVerificacion);
+
+  const msg = {
+    to: email,
+    from: {
+      email: fromEmail,
+      name: 'REFORMA'
+    },
+    subject: 'Verifica tu cuenta de REFORMA',
+    text: contenido.text,
+    html: contenido.html,
+  };
+
+  try {
+    console.log(`📧 Enviando email con SendGrid API REST a ${email}...`);
+    const [response] = await sgMail.send(msg);
+    
+    console.log(`✅ Email enviado exitosamente con SendGrid API`);
+    console.log(`   Status Code: ${response.statusCode}`);
+    console.log(`   Message ID: ${response.headers['x-message-id'] || 'N/A'}`);
+    
+    return response;
+  } catch (error: any) {
+    console.error('❌ Error enviando email con SendGrid API:');
+    console.error(`   Status Code: ${error.code || 'N/A'}`);
+    console.error(`   Message: ${error.message || 'N/A'}`);
+    if (error.response) {
+      console.error(`   Response Body: ${JSON.stringify(error.response.body)}`);
+    }
+    throw error;
+  }
+}
+
+/**
  * Enviar email de verificación
  */
 export async function enviarEmailVerificacion(
@@ -99,12 +250,6 @@ export async function enviarEmailVerificacion(
   nombreUsuario: string,
   tokenVerificacion: string
 ): Promise<void> {
-  const transporter = initializeTransporter();
-
-  if (!transporter) {
-    throw new Error('Servicio de email no configurado. Contacta al administrador.');
-  }
-
   // Obtener URL del frontend y asegurar que tenga protocolo
   let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   
@@ -115,90 +260,34 @@ export async function enviarEmailVerificacion(
   
   const urlVerificacion = `${frontendUrl}/verificar-email?token=${tokenVerificacion}`;
 
+  // Intentar usar SendGrid API REST primero (más confiable)
+  const smtpHost = process.env.SMTP_HOST || '';
+  const sendgridApiKey = process.env.SMTP_PASSWORD || process.env.SENDGRID_API_KEY;
+  
+  if (smtpHost === 'smtp.sendgrid.net' && sendgridApiKey && sgMail) {
+    try {
+      return await enviarConSendGridAPI(email, nombreUsuario, urlVerificacion);
+    } catch (error: any) {
+      console.warn('⚠️  Falló SendGrid API REST, intentando con SMTP...');
+      // Continuar con SMTP como fallback
+    }
+  }
+
+  // Fallback a SMTP
+  const transporter = initializeTransporter();
+  if (!transporter) {
+    throw new Error('Servicio de email no configurado. Contacta al administrador.');
+  }
+
+  const contenido = generarContenidoEmail(nombreUsuario, urlVerificacion);
+  const fromEmail = process.env.SMTP_USER || 'reforma.soft.co@gmail.com';
+
   const mailOptions = {
-    from: `"REFORMA" <${process.env.SMTP_USER}>`,
+    from: `"REFORMA" <${fromEmail}>`,
     to: email,
     subject: 'Verifica tu cuenta de REFORMA',
-    html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              max-width: 600px;
-              margin: 0 auto;
-              padding: 20px;
-            }
-            .header {
-              background: linear-gradient(135deg, #9d77f4 0%, #f472b6 100%);
-              color: white;
-              padding: 30px;
-              text-align: center;
-              border-radius: 10px 10px 0 0;
-            }
-            .content {
-              background: #f9f9f9;
-              padding: 30px;
-              border-radius: 0 0 10px 10px;
-            }
-            .button {
-              display: inline-block;
-              padding: 12px 30px;
-              background: linear-gradient(135deg, #9d77f4 0%, #f472b6 100%);
-              color: white;
-              text-decoration: none;
-              border-radius: 5px;
-              margin: 20px 0;
-            }
-            .footer {
-              text-align: center;
-              margin-top: 30px;
-              color: #666;
-              font-size: 12px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>¡Bienvenido a REFORMA!</h1>
-          </div>
-          <div class="content">
-            <p>Hola <strong>${nombreUsuario}</strong>,</p>
-            <p>Gracias por registrarte en REFORMA. Para completar tu registro, por favor verifica tu dirección de correo electrónico haciendo clic en el siguiente botón:</p>
-            <div style="text-align: center;">
-              <a href="${urlVerificacion}" class="button">Verificar Email</a>
-            </div>
-            <p>O copia y pega este enlace en tu navegador:</p>
-            <p style="word-break: break-all; color: #9d77f4;">${urlVerificacion}</p>
-            <p><strong>Este enlace expirará en 24 horas.</strong></p>
-            <p>Si no creaste esta cuenta, puedes ignorar este correo.</p>
-          </div>
-          <div class="footer">
-            <p>© 2024 REFORMA - Sistema de Gestión de Granjas</p>
-            <p>Este es un correo automático, por favor no respondas.</p>
-          </div>
-        </body>
-      </html>
-    `,
-    text: `
-      ¡Bienvenido a REFORMA!
-      
-      Hola ${nombreUsuario},
-      
-      Gracias por registrarte en REFORMA. Para completar tu registro, por favor verifica tu dirección de correo electrónico visitando el siguiente enlace:
-      
-      ${urlVerificacion}
-      
-      Este enlace expirará en 24 horas.
-      
-      Si no creaste esta cuenta, puedes ignorar este correo.
-      
-      © 2024 REFORMA - Sistema de Gestión de Granjas
-    `,
+    html: contenido.html,
+    text: contenido.text,
   };
 
   try {
@@ -234,25 +323,22 @@ export async function enviarEmailVerificacion(
       console.error('      - Que la verificación en 2 pasos esté habilitada');
       console.error('      - Que el email SMTP_USER sea correcto');
     } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
-      console.error('   ⚠️  Error de conexión. Verifica:');
+      console.error('   ⚠️  Error de conexión SMTP. Verifica:');
       console.error('      - Que SMTP_HOST sea correcto');
       console.error('      - Que SMTP_PORT sea correcto (587 o 465)');
       console.error('      - Que el servidor tenga acceso a internet');
       
       const currentSmtpHost = process.env.SMTP_HOST || '';
-      if (currentSmtpHost === 'smtp.gmail.com') {
+      if (currentSmtpHost === 'smtp.sendgrid.net') {
+        console.error('      - 💡 SOLUCIÓN: Instala @sendgrid/mail y usa API REST');
+        console.error('      - Ejecuta: npm install @sendgrid/mail');
+        console.error('      - La API REST es más confiable que SMTP desde Render');
+      } else if (currentSmtpHost === 'smtp.gmail.com') {
         console.error('      - ⚠️  Gmail bloquea conexiones desde Render frecuentemente');
-        console.error('      - 💡 SOLUCIÓN RECOMENDADA: Usa SendGrid (100 emails gratis/día)');
-        console.error('      - 📖 Ver: docs/06-GUIAS/CONFIGURACION/CONFIGURACION_SENDGRID.md');
-        console.error('      - Configuración SendGrid:');
-        console.error('        SMTP_HOST=smtp.sendgrid.net');
-        console.error('        SMTP_PORT=587');
-        console.error('        SMTP_SECURE=false');
-        console.error('        SMTP_USER=apikey');
-        console.error('        SMTP_PASSWORD=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+        console.error('      - 💡 SOLUCIÓN RECOMENDADA: Usa SendGrid API REST');
       } else {
         console.error('      - Intenta usar el puerto 465 con SMTP_SECURE=true');
-        console.error('      - O considera usar SendGrid (más confiable)');
+        console.error('      - O considera usar SendGrid API REST (más confiable)');
       }
     }
     
