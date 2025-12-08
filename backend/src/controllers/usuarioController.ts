@@ -175,10 +175,41 @@ export async function loginUsuario(req: Request, res: Response) {
       return res.status(400).json({ error: 'Email y contraseña son requeridos' });
     }
 
-    // Buscar usuario
-    const usuario = await prisma.usuario.findUnique({
-      where: { email }
-    });
+    // Buscar usuario con retry logic para errores de conexión
+    let usuario;
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        usuario = await prisma.usuario.findUnique({
+          where: { email }
+        });
+        break; // Éxito, salir del loop
+      } catch (error: any) {
+        retryCount++;
+        
+        // Manejar errores de conexión a la base de datos
+        if (error.code === 'P1001' || error.message?.includes("Can't reach database")) {
+          if (retryCount < maxRetries) {
+            console.warn(`⚠️  Intento ${retryCount}/${maxRetries} fallido en login. Reintentando en ${retryCount * 500}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryCount * 500)); // Backoff exponencial
+            continue; // Reintentar
+          } else {
+            // Todos los reintentos fallaron
+            console.error('❌ Error de conexión a la base de datos después de', maxRetries, 'intentos en login:', error.message);
+            return res.status(503).json({ 
+              error: 'Error de conexión a la base de datos',
+              message: 'No se puede conectar al servidor de base de datos. Por favor, verifica que el proyecto de Supabase esté activo.',
+              code: 'DATABASE_CONNECTION_ERROR',
+              retries: maxRetries
+            });
+          }
+        }
+        // Re-lanzar otros errores (no son de conexión)
+        throw error;
+      }
+    }
 
     if (!usuario || !usuario.activo) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
@@ -203,11 +234,21 @@ export async function loginUsuario(req: Request, res: Response) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    // Actualizar último acceso
-    await prisma.usuario.update({
-      where: { id: usuario.id },
-      data: { ultimoAcceso: new Date() }
-    });
+    // Actualizar último acceso (con manejo de errores de conexión)
+    try {
+      await prisma.usuario.update({
+        where: { id: usuario.id },
+        data: { ultimoAcceso: new Date() }
+      });
+    } catch (error: any) {
+      // Si falla la actualización del último acceso, no fallar el login
+      // Solo registrar el error
+      if (error.code === 'P1001' || error.message?.includes("Can't reach database")) {
+        console.warn('⚠️  No se pudo actualizar último acceso debido a error de conexión, pero el login continúa');
+      } else {
+        console.error('Error actualizando último acceso:', error);
+      }
+    }
 
     // Generar token JWT
     const JWT_SECRET = process.env.JWT_SECRET || '';
