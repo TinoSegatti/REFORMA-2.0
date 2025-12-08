@@ -20,6 +20,14 @@ try {
 
 console.log('🚀 Iniciando deploy de migraciones...\n');
 
+// Permitir omitir migraciones si SKIP_MIGRATIONS=true (útil para problemas de conectividad)
+if (process.env.SKIP_MIGRATIONS === 'true') {
+  console.log('⚠️  SKIP_MIGRATIONS=true detectado');
+  console.log('   Omitiendo migraciones. Asegúrate de que ya estén aplicadas manualmente.');
+  console.log('   Esto es útil si hay problemas temporales de conectividad.');
+  process.exit(0);
+}
+
 // Verificar que las variables de entorno estén configuradas
 if (!process.env.DATABASE_URL) {
   console.error('❌ ERROR: DATABASE_URL no está configurada');
