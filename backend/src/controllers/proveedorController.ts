@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { validateGranja, sendValidationError } from '../utils/granjaValidation';
 import { parseCsvBuffer, buildCsv } from '../utils/csvUtils';
+import { withRetryAll } from '../utils/prismaRetry';
 
 interface ProveedorRequest extends Omit<Request, 'file'> {
   userId?: string;
@@ -316,12 +317,12 @@ export async function obtenerEstadisticasProveedores(req: ProveedorRequest, res:
     const validation = await validateGranja(idGranja, userId);
     if (sendValidationError(res, validation)) return;
 
-    // Ejecutar todas las consultas en paralelo
-    const [cantidadProveedores, comprasPorProveedorRaw, gastosPorProveedorRaw] = await Promise.all([
-      prisma.proveedor.count({
+    // Ejecutar todas las consultas en paralelo con retry automático para errores de conexión
+    const [cantidadProveedores, comprasPorProveedorRaw, gastosPorProveedorRaw] = await withRetryAll([
+      () => prisma.proveedor.count({
         where: { idGranja }
       }),
-      prisma.$queryRaw<any[]>`
+      () => prisma.$queryRaw<any[]>`
         SELECT 
           p.id,
           p."codigoProveedor" as codigo_proveedor,
@@ -333,7 +334,7 @@ export async function obtenerEstadisticasProveedores(req: ProveedorRequest, res:
         GROUP BY p.id, p."codigoProveedor", p."nombreProveedor"
         ORDER BY cantidad_compras DESC
       `,
-      prisma.$queryRaw<any[]>`
+      () => prisma.$queryRaw<any[]>`
         SELECT 
           p.id,
           p."codigoProveedor" as codigo_proveedor,
@@ -392,6 +393,16 @@ export async function obtenerEstadisticasProveedores(req: ProveedorRequest, res:
     });
   } catch (error: any) {
     console.error('Error obteniendo estadísticas:', error);
+    
+    // Manejar errores de conexión específicamente
+    if (error.code === 'P1001' || error.message?.includes("Can't reach database") || error.message?.includes('conexión')) {
+      return res.status(503).json({ 
+        error: 'Error de conexión a la base de datos',
+        message: 'No se puede conectar al servidor de base de datos. Por favor, verifica que el proyecto de Supabase esté activo.',
+        code: 'DATABASE_CONNECTION_ERROR'
+      });
+    }
+    
     res.status(500).json({ error: 'Error al obtener estadísticas' });
   }
 }
