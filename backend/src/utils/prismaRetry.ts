@@ -54,8 +54,9 @@ export async function withRetryAll<T extends readonly unknown[]>(
   maxRetries: number = 3,
   retryDelay: number = 500
 ): Promise<T> {
-  return Promise.all(
+  const results = await Promise.all(
     operations.map(op => withRetry(op, maxRetries, retryDelay))
-  ) as Promise<T>;
+  );
+  return results as T;
 }
 
