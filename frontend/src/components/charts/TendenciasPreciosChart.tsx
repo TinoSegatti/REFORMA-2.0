@@ -1,6 +1,7 @@
 'use client';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CustomTooltip } from './CustomTooltip';
 
 interface TendenciasPreciosChartProps {
   data: Array<{
@@ -77,20 +78,7 @@ export default function TendenciasPreciosChart({ data }: TendenciasPreciosChartP
             tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.7)' }}
             tickFormatter={(v: number) => `$${v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           />
-          <Tooltip
-            contentStyle={{
-              background: 'rgba(17, 24, 39, 0.9)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              color: '#f9fafb',
-              backdropFilter: 'blur(6px)',
-              padding: '12px 16px',
-            }}
-            formatter={(value: number, name: string, props: { payload?: ChartDataPoint }) => {
-              const materiaNombre = props.payload?.[`${name}_nombre`] || name;
-              return [`$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg`, materiaNombre];
-            }}
-          />
+          <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}
             formatter={(value: string) => {

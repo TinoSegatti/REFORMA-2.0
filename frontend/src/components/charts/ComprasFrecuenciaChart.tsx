@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { CustomTooltip } from './CustomTooltip';
 
 interface ComprasFrecuenciaChartProps {
   data: Array<{
@@ -40,18 +41,7 @@ export default function ComprasFrecuenciaChart({ data }: ComprasFrecuenciaChartP
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
           <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.7)' }} angle={-35} textAnchor="end" height={60} interval={0} />
           <YAxis tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.7)' }} tickFormatter={(v: number) => v.toLocaleString('es-AR')} />
-          <Tooltip
-            cursor={{ fill: 'rgba(255,255,255,0.06)' }}
-            contentStyle={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', boxShadow: '0 6px 12px rgba(0,0,0,0.3)', padding: '10px', color: '#fff' }}
-            labelFormatter={(label: string) => {
-              const item = chartData.find((d) => d.name === label);
-              return item ? item.label : label;
-            }}
-            formatter={(value: number) => {
-              const cantidadKg = (value / 1000).toFixed(2);
-              return [`${value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} kg (${cantidadKg} ton)`, 'Cantidad Total'];
-            }}
-          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.06)' }} />
           <Bar dataKey="cantidad" radius={[8, 8, 0, 0]} barSize={40}>
             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

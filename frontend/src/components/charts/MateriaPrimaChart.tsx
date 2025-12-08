@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { CustomTooltip } from './CustomTooltip';
 
 interface MateriaPrimaChartProps {
   data: Array<{
@@ -73,28 +74,7 @@ export default function MateriaPrimaChart({ data }: MateriaPrimaChartProps) {
           <YAxis 
             tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.7)', fontWeight: '500' }}
           />
-          <Tooltip 
-            contentStyle={{
-              background: 'rgba(0,0,0,0.6)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '12px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
-              padding: '12px',
-              color: '#fff'
-            }}
-            cursor={{ fill: 'rgba(255,255,255,0.06)' }}
-            formatter={(value: number) => [
-              <span key="value" style={{ fontWeight: '600' }}>
-                {value.toFixed(2)} ton
-              </span>,
-              'Cantidad'
-            ]}
-            labelFormatter={(label: string) => {
-              const item = chartData.find(d => d.nombre === label);
-              return item?.nombreCompleto || label;
-            }}
-          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.06)' }} />
           <Bar 
             dataKey="toneladas" 
             radius={[8, 8, 0, 0]}

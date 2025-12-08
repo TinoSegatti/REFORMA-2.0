@@ -1,6 +1,7 @@
 'use client';
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, PieLabelRenderProps } from 'recharts';
+import { CustomPieTooltip } from './CustomTooltip';
 
 interface DistribucionMateriasFormulasChartProps {
   data: Array<{
@@ -71,20 +72,7 @@ export default function DistribucionMateriasFormulasChart({ data }: Distribucion
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip
-            contentStyle={{
-              background: 'rgba(17, 24, 39, 0.9)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              color: '#f9fafb',
-              backdropFilter: 'blur(6px)',
-              padding: '12px 16px',
-            }}
-            formatter={(value: number, name: string, props: { payload?: ChartDataPoint }) => [
-              `${Number(value).toFixed(2)}% (${Number(props.payload?.cantidadKg || 0).toFixed(2)} kg)`,
-              'Porcentaje'
-            ]}
-          />
+          <Tooltip content={<CustomPieTooltip />} />
           <Legend
             wrapperStyle={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}
             formatter={(value) => value.length > 30 ? `${value.substring(0, 30)}...` : value}

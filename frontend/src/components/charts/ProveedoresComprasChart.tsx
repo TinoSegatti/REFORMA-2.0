@@ -10,6 +10,7 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
+import { CustomTooltip } from './CustomTooltip';
 
 interface ProveedoresComprasChartProps {
   data: Array<{
@@ -75,19 +76,7 @@ export default function ProveedoresComprasChart({ data }: ProveedoresComprasChar
             allowDecimals={false}
             ticks={yTicks}
           />
-          <Tooltip
-            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-            contentStyle={{
-              background: 'rgba(17, 24, 39, 0.9)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              color: '#f9fafb',
-              backdropFilter: 'blur(6px)',
-              padding: '12px 16px',
-            }}
-            formatter={(value: number) => [`${Number(value).toLocaleString('es-AR')} compras`, 'Compras']}
-            labelFormatter={(label: string) => label}
-          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
           <Bar dataKey="value" radius={[10, 10, 4, 4]} barSize={32} fill={BAR_COLOR}>
             {chartData.map((entry, index) => (
               <Cell

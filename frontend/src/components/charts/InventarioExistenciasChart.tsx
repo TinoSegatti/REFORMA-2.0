@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, PieLabelRenderProps, TooltipProps as RechartsTooltipProps } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, PieLabelRenderProps } from 'recharts';
+import { CustomTooltipWithTotal } from './CustomTooltip';
 
 interface InventarioExistenciasChartProps {
   data: Array<{
@@ -18,82 +19,6 @@ const COLORS = [
   '#FAA381', '#D4A574'
 ];
 
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: Array<{
-    payload: {
-      name: string;
-      value: number;
-      esOtras?: boolean;
-      detalleCompleto?: Array<{
-        codigo: string;
-        nombre: string;
-        cantidad: number;
-        porcentaje: number;
-      }>;
-    };
-  }>;
-  total: number;
-}
-
-const CustomTooltip = ({ active, payload, total }: CustomTooltipProps) => {
-  if (!active || !payload || !payload.length) return null;
-
-  const data = payload[0]?.payload as {
-    name: string;
-    value: number;
-    esOtras?: boolean;
-    detalleCompleto?: Array<{
-      codigo: string;
-      nombre: string;
-      cantidad: number;
-      porcentaje: number;
-    }>;
-  };
-  const pct = total > 0 ? (data.value / total) * 100 : 0;
-
-    if (data.esOtras && data.detalleCompleto && data.detalleCompleto.length > 0) {
-      return (
-        <div style={{
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255,255,255,0.2)',
-          borderRadius: '12px',
-          color: '#111827',
-          padding: '12px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          minWidth: '250px'
-        }}>
-          <div style={{ fontWeight: 600, marginBottom: '8px', color: '#111827' }}>
-            Otras: {data.value.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg · {pct.toFixed(1)}%
-          </div>
-        <div style={{ fontSize: '12px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-          <div style={{ fontWeight: 600, marginBottom: '6px', color: '#111827' }}>Desglose:</div>
-          {data.detalleCompleto.map((item, index: number) => (
-            <div key={index} style={{ marginBottom: '4px', color: '#374151' }}>
-              • {item.codigo} - {item.nombre}: {item.cantidad.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg ({item.porcentaje.toFixed(2)}%)
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{
-      background: 'rgba(255,255,255,0.95)',
-      backdropFilter: 'blur(8px)',
-      border: '1px solid rgba(255,255,255,0.2)',
-      borderRadius: '12px',
-      color: '#111827',
-      padding: '12px',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-    }}>
-      <div style={{ fontWeight: 600, marginBottom: '4px' }}>{data.name}</div>
-      <div>{data.value.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg · {pct.toFixed(1)}%</div>
-    </div>
-  );
-};
 
 export default function InventarioExistenciasChart({ data }: InventarioExistenciasChartProps) {
   const chartData = useMemo(() => data.map((item) => ({
@@ -105,10 +30,10 @@ export default function InventarioExistenciasChart({ data }: InventarioExistenci
 
   const total = useMemo(() => chartData.reduce((s, i) => s + i.value, 0), [chartData]);
 
-  // Crear función wrapper para pasar total al CustomTooltip (antes del early return)
+  // Crear función wrapper para pasar total al CustomTooltip
   const TooltipWrapper = useMemo(() => {
     function TooltipWrapperComponent(props: any) {
-      return <CustomTooltip {...props} total={total} />;
+      return <CustomTooltipWithTotal {...props} total={total} />;
     }
     return TooltipWrapperComponent;
   }, [total]);

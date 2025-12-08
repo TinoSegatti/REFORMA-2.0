@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { CustomTooltip, CustomPieTooltip } from '../charts/CustomTooltip';
 import AnimatedCounter from './AnimatedCounter';
 import ScrollReveal from './ScrollReveal';
 
@@ -156,13 +157,7 @@ export default function StatsSection({
                     stroke="rgba(255,255,255,0.6)"
                     tick={{ fill: 'rgba(255,255,255,0.6)' }}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(20, 20, 30, 0.95)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '8px',
-                    }}
-                  />
+                  <Tooltip content={<CustomTooltip />} />
                   <Line
                     type="monotone"
                     dataKey="value"
@@ -201,13 +196,7 @@ export default function StatsSection({
                       />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(20, 20, 30, 0.95)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '8px',
-                    }}
-                  />
+                  <Tooltip content={<CustomPieTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

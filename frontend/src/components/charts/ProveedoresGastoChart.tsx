@@ -10,6 +10,7 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
+import { CustomTooltip } from './CustomTooltip';
 
 interface ProveedoresGastoChartProps {
   data: Array<{
@@ -67,22 +68,7 @@ export default function ProveedoresGastoChart({ data }: ProveedoresGastoChartPro
             width={200}
             tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
           />
-          <Tooltip
-            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-            contentStyle={{
-              background: 'rgba(17, 24, 39, 0.9)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              color: '#f9fafb',
-              backdropFilter: 'blur(6px)',
-              padding: '12px 16px',
-            }}
-            formatter={(value: number) => [
-              `${Number(value).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })}`,
-              'Total gastado',
-            ]}
-            labelFormatter={(label: string) => label}
-          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
           <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={20}>
             {chartData.map((_, index) => (
               <Cell key={`gasto-${index}`} fill={GASTO_COLORS[index % GASTO_COLORS.length]} />

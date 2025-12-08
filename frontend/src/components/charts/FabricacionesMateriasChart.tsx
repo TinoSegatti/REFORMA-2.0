@@ -1,6 +1,7 @@
 'use client';
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, PieLabelRenderProps } from 'recharts';
+import { CustomPieTooltip } from './CustomTooltip';
 
 interface FabricacionesMateriasChartProps {
   data: Array<{
@@ -69,24 +70,7 @@ export default function FabricacionesMateriasChart({ data }: FabricacionesMateri
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip
-            contentStyle={{
-              background: 'rgba(255,255,255,0.12)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '12px',
-              color: '#111827',
-              padding: '10px'
-            }}
-            formatter={(value: number, _name: string, props: { payload?: { name?: string } }) => {
-              const pct = total > 0 ? (Number(value) / total) * 100 : 0;
-              return [
-                `${Number(value).toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg · ${pct.toFixed(1)}%`,
-                props?.payload?.name || 'Cantidad'
-              ];
-            }}
-            labelFormatter={(label: string) => label}
-          />
+          <Tooltip content={<CustomPieTooltip />} />
         </PieChart>
       </ResponsiveContainer>
 
