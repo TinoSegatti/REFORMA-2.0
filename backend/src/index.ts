@@ -36,28 +36,48 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/health', async (req, res) => {
+  let dbStatus = 'connected';
+  let dbMessage = 'Database is reachable';
+  let dbError = null;
+  
   try {
-    // Probar conexión a la base de datos
-    const { prisma } = await import('./config/database');
+    // Probar conexión a la base de datos usando el mismo prisma que usa el resto de la app
+    const prisma = (await import('./lib/prisma')).default;
     await prisma.$queryRaw`SELECT 1`;
-    
-    res.json({ 
-      status: 'OK', 
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      database: 'connected'
-    });
   } catch (error: any) {
-    // Si hay error de conexión, responder con estado degradado
-    res.status(503).json({ 
-      status: 'DEGRADED', 
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      database: 'disconnected',
-      error: error.code === 'P1001' ? 'Cannot reach database server' : 'Database error',
-      message: 'El servidor está funcionando pero no puede conectar a la base de datos. Verifica que el proyecto de Supabase esté activo.'
-    });
+    dbStatus = 'degraded';
+    dbMessage = `Database connection error: ${error.message}`;
+    dbError = {
+      code: error.code || 'UNKNOWN',
+      message: error.message,
+      isP1001: error.code === 'P1001'
+    };
+    console.error('Health check DB error:', error);
   }
+
+  const statusCode = dbStatus === 'connected' ? 200 : 503;
+  
+  res.status(statusCode).json({ 
+    status: dbStatus === 'connected' ? 'OK' : 'DEGRADED',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    database: {
+      status: dbStatus,
+      message: dbMessage,
+      ...(dbError && { error: dbError })
+    },
+    ...(dbStatus === 'degraded' && {
+      troubleshooting: {
+        message: 'El servidor está funcionando pero no puede conectar a la base de datos.',
+        steps: [
+          '1. Verifica que el proyecto de Supabase esté activo (no pausado)',
+          '2. Verifica las variables de entorno DATABASE_URL y DIRECT_URL en Render',
+          '3. Verifica Network Restrictions en Supabase Dashboard',
+          '4. Revisa los logs de Render para más detalles'
+        ]
+      }
+    })
+  });
 });
 
 // Importar rutas
