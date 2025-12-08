@@ -378,27 +378,6 @@ IMPORTANTE:
       }
       
       throw error;
-      } catch (parseError: any) {
-        console.error('❌ Error parseando respuesta de GPT-3.5:', parseError);
-        console.error('   Contenido recibido:', contenido);
-        throw new Error(`Error parseando respuesta: ${parseError.message}`);
-      }
-    } catch (error: any) {
-      console.error('❌ Error detectando tipo de comando:', error);
-      
-      // Manejar errores de cuota
-      if (error.code === 'insufficient_quota' || 
-          error.status === 429 ||
-          error.message?.includes('quota')) {
-        throw new Error('QUOTA_EXCEEDED');
-      }
-      
-      // En caso de error, retornar DESCONOCIDO
-      return {
-        tipoComando: 'DESCONOCIDO',
-        confianza: 0.0,
-        razon: `Error al procesar: ${error.message}`,
-      };
     }
   }
 
