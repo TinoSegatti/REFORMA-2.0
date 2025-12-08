@@ -200,7 +200,7 @@ async function runDeploy() {
         // Intentar deploy nuevamente con timeout aumentado y retry
         const retryResult = await execWithRetry('npx prisma migrate deploy', { 
           stdio: 'inherit',
-          timeout: 60000, // 60 segundos (aumentado de 30)
+          timeout: 90000, // 90 segundos (Transaction Pooler puede ser más lento)
           killSignal: 'SIGTERM'
         }, 3);
         
