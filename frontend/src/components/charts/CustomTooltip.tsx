@@ -1,13 +1,20 @@
 'use client';
 
-import { TooltipProps } from 'recharts';
+/**
+ * Props del tooltip de Recharts
+ */
+interface TooltipContentProps {
+  active?: boolean;
+  payload?: Array<any>;
+  label?: string;
+}
 
 /**
  * CustomTooltip reutilizable para todos los gráficos
  * Se adapta automáticamente al modo oscuro/claro usando colores que funcionan en ambos
  * Usa fondo gris oscuro en modo claro y gris claro en modo oscuro para máxima legibilidad
  */
-export function CustomTooltip({ active, payload, label }: TooltipProps<any, any>) {
+export function CustomTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload || !payload.length) return null;
 
   return (
@@ -53,7 +60,7 @@ export function CustomTooltip({ active, payload, label }: TooltipProps<any, any>
 /**
  * CustomTooltip para gráficos de Pie (más simple)
  */
-export function CustomPieTooltip({ active, payload }: TooltipProps<any, any>) {
+export function CustomPieTooltip({ active, payload }: TooltipContentProps) {
   if (!active || !payload || !payload.length) return null;
 
   const data = payload[0]?.payload;
@@ -84,7 +91,7 @@ export function CustomPieTooltip({ active, payload }: TooltipProps<any, any>) {
 /**
  * CustomTooltip especial para InventarioExistenciasChart con desglose de "Otras"
  */
-interface CustomTooltipWithTotalProps extends TooltipProps<any, any> {
+interface CustomTooltipWithTotalProps extends TooltipContentProps {
   total: number;
 }
 
@@ -135,7 +142,7 @@ export function CustomTooltipWithTotal({ active, payload, total }: CustomTooltip
 /**
  * CustomTooltip especial para InventarioValorChart con desglose de "Otras"
  */
-export function CustomTooltipValor({ active, payload }: TooltipProps<any, any>) {
+export function CustomTooltipValor({ active, payload }: TooltipContentProps) {
   if (!active || !payload || !payload.length) return null;
 
   const data = payload[0]?.payload;
