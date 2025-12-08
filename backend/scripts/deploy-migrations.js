@@ -193,17 +193,25 @@ async function runDeploy() {
         }
       }
       
-      console.error('\n💡 Posibles soluciones:');
-      console.error('   1. Verifica que el proyecto de Supabase esté ACTIVO (verde)');
-      console.error('   2. Verifica Network Restrictions en Supabase Dashboard');
-      console.error('   3. ⚠️  INTENTA USAR TRANSACTION POOLER en lugar de Session Pooler');
-      console.error('   4. Verifica que la región del pooler coincida con tu proyecto');
-      console.error('   5. Espera unos minutos y vuelve a intentar (puede ser un problema temporal)');
-      console.error('\n📝 Para usar Transaction Pooler:');
+      console.error('\n🚨 ACCIÓN REQUERIDA: El proyecto de Supabase está pausado o no es accesible');
+      console.error('\n📋 PASO 1: Reactivar proyecto de Supabase (MÁS PROBABLE)');
+      console.error('   1. Ve a https://supabase.com/dashboard');
+      console.error('   2. Busca tu proyecto (debería aparecer como "Paused" o con estado inactivo)');
+      console.error('   3. Haz clic en "Restore" o "Resume"');
+      console.error('   4. Espera 1-2 minutos para que se reactive');
+      console.error('   5. Verifica que el estado cambie a "Active" (verde)');
+      console.error('   6. Vuelve a hacer deploy en Render');
+      console.error('\n📋 PASO 2: Si el proyecto está activo, verifica Network Restrictions');
+      console.error('   1. Ve a Supabase Dashboard → Settings → Database → Network Restrictions');
+      console.error('   2. Asegúrate de que no haya restricciones que bloqueen a Render');
+      console.error('   3. Si hay restricciones, permite todas las IPs temporalmente o agrega la IP de Render');
+      console.error('\n📋 PASO 3: Alternativa temporal - Usar Transaction Pooler');
+      console.error('   ⚠️  Solo si Session Pooler no funciona después de reactivar:');
       console.error('   1. Ve a Supabase Dashboard → Settings → Database → Connection Pooling');
-      console.error('   2. Selecciona "Transaction Pooler" (NO Session Pooler)');
-      console.error('   3. Copia la URL y agrega ?sslmode=require al final');
+      console.error('   2. Selecciona "Transaction Pooler" (puerto 6543)');
+      console.error('   3. Copia la URL y agrega ?sslmode=require&pgbouncer=true al final');
       console.error('   4. Usa esa URL para ambas variables (DATABASE_URL y DIRECT_URL) en Render');
+      console.error('\n📚 Guía completa: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_CONEXION_SUPABASE.md');
       process.exit(1);
     } else {
       // Otro tipo de error - mostrar la salida completa
