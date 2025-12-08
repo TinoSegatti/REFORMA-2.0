@@ -344,6 +344,42 @@ IMPORTANTE:
         };
       } catch (parseError: any) {
         console.error('❌ Error parseando respuesta de GPT-3.5:', parseError);
+        throw new Error(`Error parseando respuesta de GPT-3.5: ${parseError.message}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Error detectando tipo de comando:', error);
+      
+      // Manejar errores de autenticación de OpenAI
+      if (error.code === 'invalid_api_key' || 
+          error.status === 401 || 
+          error.type === 'invalid_request_error' ||
+          error.message?.includes('Incorrect API key') ||
+          error.message?.includes('invalid_api_key')) {
+        console.error('⚠️  Error de autenticación de OpenAI: API key inválida');
+        console.error('   Verifica que OPENAI_API_KEY esté configurada correctamente en Render');
+        console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_AUTENTICACION_CORINA.md');
+        
+        const authError: any = new Error('OPENAI_AUTH_ERROR');
+        authError.code = 'invalid_api_key';
+        authError.status = 401;
+        throw authError;
+      }
+      
+      // Manejar errores de cuota
+      if (error.code === 'insufficient_quota' || 
+          error.status === 429 || 
+          error.message === 'QUOTA_EXCEEDED' ||
+          error.message?.includes('quota')) {
+        console.error('⚠️  Cuota de OpenAI agotada');
+        
+        const quotaError: any = new Error('QUOTA_EXCEEDED');
+        quotaError.code = 'insufficient_quota';
+        throw quotaError;
+      }
+      
+      throw error;
+      } catch (parseError: any) {
+        console.error('❌ Error parseando respuesta de GPT-3.5:', parseError);
         console.error('   Contenido recibido:', contenido);
         throw new Error(`Error parseando respuesta: ${parseError.message}`);
       }

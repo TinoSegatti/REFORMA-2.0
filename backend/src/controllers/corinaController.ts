@@ -2081,6 +2081,16 @@ export async function procesarMensajeTexto(from: string, mensaje: string) {
     } catch (detectionError: any) {
       console.error('Error detectando comando:', detectionError);
       
+      // Si es error de autenticación de OpenAI, no intentar enviar mensaje (evitar loop de errores)
+      if (detectionError.message === 'OPENAI_AUTH_ERROR' || 
+          detectionError.code === 'invalid_api_key' ||
+          detectionError.status === 401) {
+        console.error('⚠️  Error de autenticación de OpenAI - no se puede detectar comando');
+        console.error('   Verifica que OPENAI_API_KEY esté configurada correctamente');
+        console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_AUTENTICACION_CORINA.md');
+        return; // Salir sin intentar enviar mensaje (evitar errores de Twilio también)
+      }
+      
       // Si es error de cuota, no intentar enviar mensaje
       if (detectionError.message === 'QUOTA_EXCEEDED') {
         console.error('⚠️  Cuota de OpenAI agotada - no se puede detectar comando');
@@ -2122,6 +2132,16 @@ export async function procesarMensajeTexto(from: string, mensaje: string) {
       return; // Salir silenciosamente sin intentar enviar más mensajes
     }
     
+    // Manejar error de autenticación de Twilio
+    if (error.message === 'TWILIO_AUTH_ERROR' || 
+        error.code === 20003 ||
+        (error.status === 401 && error.message?.includes('Authenticate'))) {
+      console.error('⚠️  Error de autenticación de Twilio - no se puede enviar mensaje de error');
+      console.error('   Verifica que TWILIO_ACCOUNT_SID y TWILIO_AUTH_TOKEN estén configuradas correctamente');
+      console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_AUTENTICACION_CORINA.md');
+      return; // Salir sin intentar enviar más mensajes (evitar loop de errores)
+    }
+    
     // Para otros errores, intentar enviar mensaje de error (si no es otro error de Twilio)
     try {
       const { CorinaNotificacionService: CorinaService } = await import('../services/corinaNotificacionService');
@@ -2132,6 +2152,12 @@ export async function procesarMensajeTexto(from: string, mensaje: string) {
     } catch (mensajeError: any) {
       // Si también falla el mensaje de error, solo registrar
       console.error('Error enviando mensaje de error:', mensajeError.message);
+      
+      // Si es error de autenticación, no intentar más
+      if (mensajeError.code === 20003 || mensajeError.status === 401) {
+        console.error('⚠️  Error de autenticación de Twilio detectado en mensaje de error');
+        return;
+      }
     }
   }
 }

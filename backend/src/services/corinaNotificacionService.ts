@@ -361,6 +361,21 @@ export class CorinaNotificacionService {
         throw limiteError;
       }
       
+      // Manejar errores de autenticación de Twilio
+      if (error.code === 20003 || 
+          error.status === 401 ||
+          error.message?.includes('Authenticate') ||
+          error.message?.includes('authentication')) {
+        console.error('❌ Error de autenticación de Twilio (código 20003)');
+        console.error('   Verifica que TWILIO_ACCOUNT_SID y TWILIO_AUTH_TOKEN estén configuradas correctamente');
+        console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_AUTENTICACION_CORINA.md');
+        
+        const authError: any = new Error('TWILIO_AUTH_ERROR');
+        authError.code = 20003;
+        authError.status = 401;
+        throw authError;
+      }
+      
       console.error('Error enviando mensaje WhatsApp:', error);
       throw error;
     }
