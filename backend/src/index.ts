@@ -35,12 +35,29 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+app.get('/health', async (req, res) => {
+  try {
+    // Probar conexión a la base de datos
+    const { prisma } = await import('./config/database');
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      database: 'connected'
+    });
+  } catch (error: any) {
+    // Si hay error de conexión, responder con estado degradado
+    res.status(503).json({ 
+      status: 'DEGRADED', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      database: 'disconnected',
+      error: error.code === 'P1001' ? 'Cannot reach database server' : 'Database error',
+      message: 'El servidor está funcionando pero no puede conectar a la base de datos. Verifica que el proyecto de Supabase esté activo.'
+    });
+  }
 });
 
 // Importar rutas
