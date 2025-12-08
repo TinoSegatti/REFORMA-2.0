@@ -60,10 +60,20 @@ if (!directUrl.includes('pooler.supabase.com')) {
 if (!directUrl.includes('?sslmode=require')) {
   console.error('   ⚠️  DIRECT_URL no incluye ?sslmode=require');
 }
-if (dbUrl === directUrl) {
-  console.log('   ✅ Ambas URLs son idénticas (correcto para Render IPv4)');
+
+// Verificar configuración recomendada
+const dbUsesTransactionPooler = dbUrl.includes(':6543');
+const directUsesSessionPooler = directUrl.includes(':5432') && !directUrl.includes(':6543');
+
+if (dbUsesTransactionPooler && directUsesSessionPooler) {
+  console.log('   ✅ Configuración óptima detectada:');
+  console.log('      - DATABASE_URL usa Transaction Pooler (puerto 6543) para la aplicación');
+  console.log('      - DIRECT_URL usa Session Pooler (puerto 5432) para migraciones más rápidas');
+} else if (dbUrl === directUrl) {
+  console.log('   ✅ Ambas URLs son idénticas (configuración simple, puede ser más lenta para migraciones)');
 } else {
-  console.error('   ⚠️  Las URLs son diferentes - deberían ser idénticas para Render');
+  console.warn('   ⚠️  Las URLs son diferentes - verifica la configuración');
+  console.warn('      Recomendación: DATABASE_URL (puerto 6543) y DIRECT_URL (puerto 5432)');
 }
 console.log('');
 
