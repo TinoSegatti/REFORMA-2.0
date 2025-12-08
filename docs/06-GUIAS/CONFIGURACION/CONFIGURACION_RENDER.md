@@ -222,7 +222,7 @@ Si tu base de datos ya tiene el esquema correcto y solo necesitas hacer deploy d
    ```
 3. **A:**
    ```
-   npm install && npm run prisma:generate && npm run build && node scripts/deploy-migrations-skip-on-error.js
+   npm install && npm run prisma:generate && npm run build && node scripts/deploy-migrations.js
    ```
 
 **O mejor aún, si ya aplicaste las migraciones manualmente, puedes omitirlas completamente:**
@@ -230,7 +230,7 @@ Si tu base de datos ya tiene el esquema correcto y solo necesitas hacer deploy d
 npm install && npm run prisma:generate && npm run build
 ```
 
-**Nota:** El script `deploy-migrations-skip-on-error.js` intentará aplicar las migraciones, pero si falla (por timeout o conexión), continuará con el deploy sin bloquearse.
+**Nota:** El script `deploy-migrations.js` intentará aplicar las migraciones con manejo de errores y timeouts para evitar bloqueos durante el deploy.
 
 ### Solución Permanente: Arreglar la Conexión
 
