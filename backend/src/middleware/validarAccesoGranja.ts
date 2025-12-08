@@ -133,14 +133,31 @@ export async function validarAccesoGranja(req: AuthRequest, res: Response, next:
     }
 
     // Obtener información de la granja
-    const granja = await prisma.granja.findUnique({
-      where: { id: granjaId },
-      select: {
-        id: true,
-        idUsuario: true,
-        activa: true
+    let granja;
+    try {
+      granja = await prisma.granja.findUnique({
+        where: { id: granjaId },
+        select: {
+          id: true,
+          idUsuario: true,
+          activa: true
+        }
+      });
+    } catch (error: any) {
+      // Manejar errores de conexión a la base de datos
+      if (error.code === 'P1001' || error.message?.includes("Can't reach database")) {
+        console.error('❌ Error de conexión a la base de datos:', error.message);
+        console.error('   Verifica que el proyecto de Supabase esté activo (no pausado)');
+        console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_CONEXION_SUPABASE.md');
+        return res.status(503).json({ 
+          error: 'Error de conexión a la base de datos',
+          message: 'No se puede conectar al servidor de base de datos. Por favor, verifica que el proyecto de Supabase esté activo.',
+          code: 'DATABASE_CONNECTION_ERROR'
+        });
       }
-    });
+      // Re-lanzar otros errores
+      throw error;
+    }
 
     if (!granja) {
       return res.status(404).json({ error: 'Granja no encontrada' });
