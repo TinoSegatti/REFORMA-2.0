@@ -65,6 +65,16 @@ export async function handleWhatsAppStatus(req: Request, res: Response) {
  */
 export async function handleWhatsAppWebhook(req: Request, res: Response) {
   try {
+    // Verificar si CORINA está habilitado
+    const corinaEnabled = process.env.CORINA_ENABLED === 'true';
+    if (!corinaEnabled) {
+      console.log('⚠️ CORINA está deshabilitado (CORINA_ENABLED !== true)');
+      // Responder a Twilio para que no reintente, pero sin procesar el mensaje
+      res.type('text/xml');
+      res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+      return;
+    }
+
     // Twilio envía datos como form-urlencoded
     // El body viene como Buffer desde express.raw()
     let body: string;

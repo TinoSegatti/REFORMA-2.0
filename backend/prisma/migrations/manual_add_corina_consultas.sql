@@ -23,3 +23,6 @@ SELECT unnest(enum_range(NULL::"TipoInteraccionCorina")) AS tipo_interaccion;
 
 
 
+
+
+

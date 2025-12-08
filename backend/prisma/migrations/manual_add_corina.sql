@@ -118,3 +118,6 @@ FOREIGN KEY ("idGranja") REFERENCES "t_granja"("id") ON DELETE SET NULL ON UPDAT
 
 
 
+
+
+

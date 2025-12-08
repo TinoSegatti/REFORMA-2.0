@@ -200,3 +200,6 @@ El servicio de email está configurado con:
 - [Configuración SMTP de Gmail](https://support.google.com/mail/answer/7126229)
 - [Google Cloud Console](https://console.cloud.google.com/)
 
+
+
+

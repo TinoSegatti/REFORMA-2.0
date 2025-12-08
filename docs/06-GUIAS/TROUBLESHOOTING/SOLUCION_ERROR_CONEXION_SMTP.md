@@ -207,3 +207,6 @@ Si el problema persiste:
 3. Considera usar un servicio de email profesional
 4. Verifica que Gmail no haya bloqueado tu cuenta
 
+
+
+

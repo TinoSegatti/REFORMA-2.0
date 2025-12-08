@@ -19,6 +19,11 @@ CORINA es el sistema de IA que permite interactuar con REFORMA a través de What
 
 ### 1.2 Variables de Entorno Requeridas
 
+**⚠️ IMPORTANTE:** Para una guía completa y actualizada de variables de entorno, ver:
+[`CONFIGURACION_CORINA_VARIABLES_ENTORNO.md`](./CONFIGURACION_CORINA_VARIABLES_ENTORNO.md)
+
+**Variables OBLIGATORIAS en producción:**
+
 Agrega las siguientes variables de entorno en Render:
 
 ```bash

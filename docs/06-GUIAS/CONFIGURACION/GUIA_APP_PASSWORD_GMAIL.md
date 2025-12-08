@@ -200,3 +200,6 @@ El sistema mostrará en los logs al iniciar:
 - [ ] Logs verificados al iniciar el servidor
 - [ ] Email de prueba enviado y recibido
 
+
+
+
