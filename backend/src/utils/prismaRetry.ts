@@ -57,6 +57,7 @@ export async function withRetryAll<T extends readonly unknown[]>(
   const results = await Promise.all(
     operations.map(op => withRetry(op, maxRetries, retryDelay))
   );
-  return results as T;
+  // Cast seguro: primero a unknown, luego a T
+  return results as unknown as T;
 }
 
