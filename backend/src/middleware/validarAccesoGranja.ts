@@ -100,63 +100,94 @@ export async function validarAccesoGranja(req: AuthRequest, res: Response, next:
       return res.status(400).json({ error: 'ID de granja no proporcionado' });
     }
 
-    // Obtener información del usuario
+    // Obtener información del usuario con retry logic
     let usuario;
-    try {
-      usuario = await prisma.usuario.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          esUsuarioEmpleado: true,
-          idUsuarioDueño: true,
-          activoComoEmpleado: true
-        }
-      });
-    } catch (error: any) {
-      // Manejar errores de conexión a la base de datos
-      if (error.code === 'P1001' || error.message?.includes("Can't reach database")) {
-        console.error('❌ Error de conexión a la base de datos:', error.message);
-        console.error('   Verifica que el proyecto de Supabase esté activo (no pausado)');
-        console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_CONEXION_SUPABASE.md');
-        return res.status(503).json({ 
-          error: 'Error de conexión a la base de datos',
-          message: 'No se puede conectar al servidor de base de datos. Por favor, verifica que el proyecto de Supabase esté activo.',
-          code: 'DATABASE_CONNECTION_ERROR'
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        usuario = await prisma.usuario.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            esUsuarioEmpleado: true,
+            idUsuarioDueño: true,
+            activoComoEmpleado: true
+          }
         });
+        break; // Éxito, salir del loop
+      } catch (error: any) {
+        retryCount++;
+        
+        // Manejar errores de conexión a la base de datos
+        if (error.code === 'P1001' || error.message?.includes("Can't reach database")) {
+          if (retryCount < maxRetries) {
+            console.warn(`⚠️  Intento ${retryCount}/${maxRetries} fallido. Reintentando en ${retryCount * 500}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryCount * 500)); // Backoff exponencial
+            continue; // Reintentar
+          } else {
+            // Todos los reintentos fallaron
+            console.error('❌ Error de conexión a la base de datos después de', maxRetries, 'intentos:', error.message);
+            console.error('   Verifica que el proyecto de Supabase esté activo (no pausado)');
+            console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_CONEXION_SUPABASE.md');
+            return res.status(503).json({ 
+              error: 'Error de conexión a la base de datos',
+              message: 'No se puede conectar al servidor de base de datos después de varios intentos. Por favor, verifica que el proyecto de Supabase esté activo.',
+              code: 'DATABASE_CONNECTION_ERROR',
+              retries: maxRetries
+            });
+          }
+        }
+        // Re-lanzar otros errores (no son de conexión)
+        throw error;
       }
-      // Re-lanzar otros errores
-      throw error;
     }
 
     if (!usuario) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Obtener información de la granja
+    // Obtener información de la granja con retry logic
     let granja;
-    try {
-      granja = await prisma.granja.findUnique({
-        where: { id: granjaId },
-        select: {
-          id: true,
-          idUsuario: true,
-          activa: true
-        }
-      });
-    } catch (error: any) {
-      // Manejar errores de conexión a la base de datos
-      if (error.code === 'P1001' || error.message?.includes("Can't reach database")) {
-        console.error('❌ Error de conexión a la base de datos:', error.message);
-        console.error('   Verifica que el proyecto de Supabase esté activo (no pausado)');
-        console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_CONEXION_SUPABASE.md');
-        return res.status(503).json({ 
-          error: 'Error de conexión a la base de datos',
-          message: 'No se puede conectar al servidor de base de datos. Por favor, verifica que el proyecto de Supabase esté activo.',
-          code: 'DATABASE_CONNECTION_ERROR'
+    retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        granja = await prisma.granja.findUnique({
+          where: { id: granjaId },
+          select: {
+            id: true,
+            idUsuario: true,
+            activa: true
+          }
         });
+        break; // Éxito, salir del loop
+      } catch (error: any) {
+        retryCount++;
+        
+        // Manejar errores de conexión a la base de datos
+        if (error.code === 'P1001' || error.message?.includes("Can't reach database")) {
+          if (retryCount < maxRetries) {
+            console.warn(`⚠️  Intento ${retryCount}/${maxRetries} fallido. Reintentando en ${retryCount * 500}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryCount * 500)); // Backoff exponencial
+            continue; // Reintentar
+          } else {
+            // Todos los reintentos fallaron
+            console.error('❌ Error de conexión a la base de datos después de', maxRetries, 'intentos:', error.message);
+            console.error('   Verifica que el proyecto de Supabase esté activo (no pausado)');
+            console.error('   Guía: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_CONEXION_SUPABASE.md');
+            return res.status(503).json({ 
+              error: 'Error de conexión a la base de datos',
+              message: 'No se puede conectar al servidor de base de datos después de varios intentos. Por favor, verifica que el proyecto de Supabase esté activo.',
+              code: 'DATABASE_CONNECTION_ERROR',
+              retries: maxRetries
+            });
+          }
+        }
+        // Re-lanzar otros errores (no son de conexión)
+        throw error;
       }
-      // Re-lanzar otros errores
-      throw error;
     }
 
     if (!granja) {

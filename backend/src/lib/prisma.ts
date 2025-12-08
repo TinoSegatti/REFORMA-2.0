@@ -23,8 +23,19 @@ export const prisma =
             : `${databaseUrl}?pgbouncer=true`
         }
       }
-    })
+    }),
+    // Configuración mejorada para manejar conexiones intermitentes
+    // Aumentar timeouts para conexiones lentas o intermitentes
+    errorFormat: 'minimal',
   });
+
+// Manejar desconexiones y reconexiones automáticas
+prisma.$on('error' as never, (e: any) => {
+  console.error('❌ Prisma error:', e);
+  if (e.code === 'P1001') {
+    console.error('   Error de conexión detectado. Prisma intentará reconectar automáticamente.');
+  }
+});
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 

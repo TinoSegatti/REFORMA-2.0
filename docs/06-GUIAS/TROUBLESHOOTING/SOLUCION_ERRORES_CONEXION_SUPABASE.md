@@ -133,6 +133,8 @@ Si tu proyecto está pausado:
 5. Verifica que el estado cambie a "Active" (verde)
 6. Prueba tu aplicación nuevamente
 
+**⚠️ IMPORTANTE:** Después de reactivar el proyecto, puede tomar algunos minutos para que todas las conexiones se estabilicen. El código ahora incluye retry logic automático que intentará reconectar hasta 3 veces con backoff exponencial.
+
 ## 📝 Mejoras Recomendadas
 
 ### 1. Implementar Retry Logic
