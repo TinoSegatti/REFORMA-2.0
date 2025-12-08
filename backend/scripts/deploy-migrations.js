@@ -5,6 +5,11 @@
 
 const { execSync } = require('child_process');
 
+// Función helper para esperar
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Intentar importar pg para pruebas de conexión
 let pg = null;
 try {
@@ -54,25 +59,67 @@ if (dbUrl === directUrl) {
 }
 console.log('');
 
+// Función para ejecutar comando con retry (async)
+async function execWithRetry(command, options, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 1) {
+        const waitTime = (attempt - 1) * 3000; // 3s, 6s entre intentos
+        console.log(`\n🔄 Intento ${attempt}/${maxRetries} (esperando ${waitTime/1000}s antes de reintentar)...`);
+        await sleep(waitTime);
+      } else {
+        console.log(`\n🔄 Intento ${attempt}/${maxRetries}...`);
+      }
+      
+      const output = execSync(command, options).toString();
+      return { success: true, output };
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries;
+      const stdout = error.stdout?.toString() || '';
+      const stderr = error.stderr?.toString() || '';
+      const message = error.message || '';
+      const output = stdout + stderr + message;
+      
+      // Si es error de conexión y no es el último intento, reintentar
+      if (!isLastAttempt && (output.includes('P1001') || output.includes("Can't reach database"))) {
+        console.log(`   ⚠️  Error de conexión detectado (P1001). Reintentando...`);
+        continue;
+      }
+      
+      // Si es el último intento o no es error de conexión, retornar el error
+      return { success: false, output, error };
+    }
+  }
+}
+
 // Función principal asíncrona
 async function runDeploy() {
   try {
-    // Intentar hacer deploy normal
+    // Intentar hacer deploy normal con retry
     console.log('📦 Intentando aplicar migraciones...');
     let output = '';
     
     try {
-      // Timeout de 30 segundos para evitar bloqueos
-      output = execSync('npx prisma migrate deploy', { 
+      // Timeout aumentado a 60 segundos y con retry logic
+      const result = await execWithRetry('npx prisma migrate deploy', { 
         encoding: 'utf8',
         stdio: 'pipe',
-        timeout: 30000, // 30 segundos
+        timeout: 60000, // 60 segundos (aumentado de 30)
         killSignal: 'SIGTERM'
-      }).toString();
-      // Si llegamos aquí, fue exitoso
-      console.log(output);
-      console.log('\n✅ Migraciones aplicadas correctamente');
-      process.exit(0);
+      }, 3); // 3 intentos máximo
+      
+      if (result.success) {
+        // Si llegamos aquí, fue exitoso
+        console.log(result.output);
+        console.log('\n✅ Migraciones aplicadas correctamente');
+        process.exit(0);
+      } else {
+        // Lanzar error para que se maneje en el catch
+        const execError = result.error || new Error(result.output);
+        execError.stdout = { toString: () => result.output };
+        execError.stderr = { toString: () => '' };
+        throw execError;
+      }
     } catch (execError) {
     // Capturar tanto stdout como stderr
     const stdout = execError.stdout?.toString() || '';
@@ -138,16 +185,21 @@ async function runDeploy() {
           }
         }
         
-        console.log('\n✅ Baseline completado. Intentando deploy nuevamente...\n');
+        console.log('\n✅ Baseline completado. Intentando deploy nuevamente con retry...\n');
         
-        // Intentar deploy nuevamente con timeout
-        execSync('npx prisma migrate deploy', { 
+        // Intentar deploy nuevamente con timeout aumentado y retry
+        const retryResult = await execWithRetry('npx prisma migrate deploy', { 
           stdio: 'inherit',
-          timeout: 30000, // 30 segundos
+          timeout: 60000, // 60 segundos (aumentado de 30)
           killSignal: 'SIGTERM'
-        });
-        console.log('\n✅ Migraciones aplicadas correctamente después del baseline');
-        process.exit(0);
+        }, 3);
+        
+        if (retryResult.success) {
+          console.log('\n✅ Migraciones aplicadas correctamente después del baseline');
+          process.exit(0);
+        } else {
+          throw retryResult.error || new Error(retryResult.output);
+        }
       } catch (baselineError) {
         const baselineOutput = baselineError.stdout?.toString() || baselineError.stderr?.toString() || baselineError.message || '';
         console.error('\n❌ Error durante el baseline:', baselineOutput);
@@ -193,24 +245,38 @@ async function runDeploy() {
         }
       }
       
-      console.error('\n🚨 ACCIÓN REQUERIDA: El proyecto de Supabase está pausado o no es accesible');
-      console.error('\n📋 PASO 1: Reactivar proyecto de Supabase (MÁS PROBABLE)');
-      console.error('   1. Ve a https://supabase.com/dashboard');
-      console.error('   2. Busca tu proyecto (debería aparecer como "Paused" o con estado inactivo)');
-      console.error('   3. Haz clic en "Restore" o "Resume"');
-      console.error('   4. Espera 1-2 minutos para que se reactive');
-      console.error('   5. Verifica que el estado cambie a "Active" (verde)');
-      console.error('   6. Vuelve a hacer deploy en Render');
-      console.error('\n📋 PASO 2: Si el proyecto está activo, verifica Network Restrictions');
+      console.error('\n🚨 ERROR DE CONEXIÓN DESPUÉS DE 3 INTENTOS');
+      console.error('\n📋 DIAGNÓSTICO:');
+      console.error('   - El proyecto de Supabase está activo según el usuario');
+      console.error('   - Las URLs están configuradas correctamente (Session Pooler, puerto 5432)');
+      console.error('   - El error P1001 ocurre inmediatamente, sugiriendo problema de conectividad');
+      console.error('\n💡 POSIBLES CAUSAS:');
+      console.error('   1. Problema temporal de red desde Render hacia Supabase');
+      console.error('   2. El Session Pooler puede tener problemas intermitentes');
+      console.error('   3. Network Restrictions en Supabase pueden estar bloqueando');
+      console.error('   4. El proyecto puede estar en proceso de reactivación (aunque aparezca activo)');
+      console.error('\n📋 SOLUCIONES RECOMENDADAS:');
+      console.error('\n🔧 SOLUCIÓN 1: Verificar Network Restrictions (MÁS PROBABLE)');
       console.error('   1. Ve a Supabase Dashboard → Settings → Database → Network Restrictions');
-      console.error('   2. Asegúrate de que no haya restricciones que bloqueen a Render');
-      console.error('   3. Si hay restricciones, permite todas las IPs temporalmente o agrega la IP de Render');
-      console.error('\n📋 PASO 3: Alternativa temporal - Usar Transaction Pooler');
-      console.error('   ⚠️  Solo si Session Pooler no funciona después de reactivar:');
+      console.error('   2. Verifica que NO haya restricciones activas');
+      console.error('   3. Si hay restricciones, permite todas las IPs temporalmente');
+      console.error('   4. Guarda los cambios y espera 1-2 minutos');
+      console.error('   5. Vuelve a hacer deploy en Render');
+      console.error('\n🔧 SOLUCIÓN 2: Usar Transaction Pooler temporalmente');
+      console.error('   ⚠️  Si Session Pooler sigue fallando, prueba con Transaction Pooler:');
       console.error('   1. Ve a Supabase Dashboard → Settings → Database → Connection Pooling');
       console.error('   2. Selecciona "Transaction Pooler" (puerto 6543)');
-      console.error('   3. Copia la URL y agrega ?sslmode=require&pgbouncer=true al final');
-      console.error('   4. Usa esa URL para ambas variables (DATABASE_URL y DIRECT_URL) en Render');
+      console.error('   3. Copia la URL completa');
+      console.error('   4. Reemplaza [YOUR-PASSWORD] con tu contraseña real');
+      console.error('   5. Agrega ?sslmode=require&pgbouncer=true al final');
+      console.error('   6. Usa esa URL para AMBAS variables en Render:');
+      console.error('      - DATABASE_URL: [URL con Transaction Pooler]');
+      console.error('      - DIRECT_URL: [MISMA URL con Transaction Pooler]');
+      console.error('   7. Haz redeploy en Render');
+      console.error('\n🔧 SOLUCIÓN 3: Esperar y reintentar');
+      console.error('   - A veces hay problemas temporales de red');
+      console.error('   - Espera 5-10 minutos y vuelve a hacer deploy');
+      console.error('   - El retry logic ya intentó 3 veces automáticamente');
       console.error('\n📚 Guía completa: docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_ERRORES_CONEXION_SUPABASE.md');
       process.exit(1);
     } else {
