@@ -108,11 +108,12 @@ async function runDeploy() {
     let output = '';
     
     try {
-      // Timeout aumentado a 90 segundos para Transaction Pooler (puede ser más lento)
+      // Timeout aumentado a 120 segundos para migraciones complejas
+      // DIRECT_URL debería usar Session Pooler (más rápido), pero por si acaso aumentamos el timeout
       const result = await execWithRetry('npx prisma migrate deploy', { 
         encoding: 'utf8',
         stdio: 'pipe',
-        timeout: 90000, // 90 segundos (Transaction Pooler puede ser más lento)
+        timeout: 120000, // 120 segundos (2 minutos) para migraciones complejas
         killSignal: 'SIGTERM'
       }, 3); // 3 intentos máximo
       
@@ -137,15 +138,16 @@ async function runDeploy() {
     
     // Si es un timeout, mostrar mensaje específico
     if (execError.signal === 'SIGTERM' || message.includes('timeout') || message.includes('ETIMEDOUT')) {
-      console.error('\n⏱️  TIMEOUT: Las migraciones tardaron más de 90 segundos');
+      console.error('\n⏱️  TIMEOUT: Las migraciones tardaron más de 120 segundos');
       console.error('   Esto puede indicar un problema de conexión a la base de datos.');
-      console.error('   Transaction Pooler puede ser más lento que Session Pooler para migraciones.');
       console.error('\n💡 Soluciones:');
-      console.error('   1. Verifica que las URLs de conexión usen puerto 6543 y tengan &pgbouncer=true');
-      console.error('   2. Verifica que el proyecto de Supabase esté activo');
-      console.error('   3. Si la base de datos ya tiene el esquema, puedes omitir las migraciones temporalmente:');
+      console.error('   1. Verifica que DIRECT_URL use Session Pooler (puerto 5432) para migraciones más rápidas');
+      console.error('   2. Verifica que DATABASE_URL use Transaction Pooler (puerto 6543) con &pgbouncer=true');
+      console.error('   3. Verifica que el proyecto de Supabase esté activo');
+      console.error('   4. Si la base de datos ya tiene el esquema, puedes omitir las migraciones temporalmente:');
       console.error('      Agrega SKIP_MIGRATIONS=true en Render Environment');
-      console.error('   4. Las migraciones pueden aplicarse manualmente desde Supabase SQL Editor');
+      console.error('   5. Las migraciones pueden aplicarse manualmente desde Supabase SQL Editor');
+      console.error('\n📚 Guía completa: docs/06-GUIAS/CONFIGURACION/CONFIGURACION_DEFINITIVA_RENDER.md');
       process.exit(1);
     }
     
@@ -200,7 +202,7 @@ async function runDeploy() {
         // Intentar deploy nuevamente con timeout aumentado y retry
         const retryResult = await execWithRetry('npx prisma migrate deploy', { 
           stdio: 'inherit',
-          timeout: 90000, // 90 segundos (Transaction Pooler puede ser más lento)
+          timeout: 120000, // 120 segundos (2 minutos) para migraciones complejas
           killSignal: 'SIGTERM'
         }, 3);
         
