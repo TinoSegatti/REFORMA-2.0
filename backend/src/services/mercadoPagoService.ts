@@ -119,7 +119,6 @@ export async function crearPreapprovalMercadoPago(
   let validUrl: string;
   try {
     // Normalizar URL si no tiene protocolo
-    const { normalizeUrl } = await import('../utils/urlHelper');
     const normalizedSuccessUrl = normalizeUrl(successUrl);
     const urlObj = new URL(normalizedSuccessUrl);
     validUrl = urlObj.toString();

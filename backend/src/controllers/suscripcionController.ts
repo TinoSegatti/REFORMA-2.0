@@ -6,6 +6,7 @@ import { Request, Response } from 'express';
 import { PlanSuscripcion, PeriodoFacturacion, LIMITES_PLANES, obtenerLimitesPlan } from '../constants/planes';
 import * as suscripcionService from '../services/suscripcionService';
 import prisma from '../lib/prisma';
+import { getFrontendUrl, buildUrl } from '../utils/urlHelper';
 
 const SUPERUSUARIO_ID = 'cmhb1d6c50001kdggopzuiczr';
 
@@ -191,7 +192,6 @@ export async function crearCheckout(req: Request, res: Response) {
 
     // URLs de éxito y cancelación
     // Normalizar URL para asegurar que tenga https:// en producción
-    const { getFrontendUrl, buildUrl } = await import('../utils/urlHelper');
     const frontendUrl = getFrontendUrl();
     // Mercado Pago no acepta placeholders en URLs, usar URL simple
     const successUrl = buildUrl(frontendUrl, '/planes/exito');
@@ -240,7 +240,6 @@ export async function cambiarPlan(req: Request, res: Response) {
 
     // TODO: Implementar lógica de cambio de plan con prorrateo
     // Por ahora, crear nuevo checkout
-    const { getFrontendUrl, buildUrl } = await import('../utils/urlHelper');
     const frontendUrl = getFrontendUrl();
     const successUrl = buildUrl(frontendUrl, '/planes/exito?session_id={CHECKOUT_SESSION_ID}');
     const cancelUrl = buildUrl(frontendUrl, '/planes?cancelado=true');
