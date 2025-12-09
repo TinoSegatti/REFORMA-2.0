@@ -78,7 +78,7 @@ export async function crearPlanSuscripcion(
           ],
           payment_methods: [],
         },
-        back_url: process.env.FRONTEND_URL || 'http://localhost:3001',
+        back_url: getFrontendUrl(),
       },
     });
 
