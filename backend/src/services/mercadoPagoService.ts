@@ -5,6 +5,7 @@
 
 import { MercadoPagoConfig, PreApproval, PreApprovalPlan } from 'mercadopago';
 import { PlanSuscripcion, PeriodoFacturacion, obtenerPrecioPlan } from '../constants/planes';
+import { getFrontendUrl, normalizeUrl } from '../utils/urlHelper';
 
 // Lazy initialization de Mercado Pago
 let mercadoPagoClient: MercadoPagoConfig | null = null;
