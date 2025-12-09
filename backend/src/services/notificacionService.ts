@@ -117,6 +117,10 @@ export async function notificarEmpleadoAgregado(
           user: smtpUser,
           pass: smtpPassword,
         },
+        // Timeouts más cortos para evitar bloqueos largos
+        connectionTimeout: 10000, // 10 segundos para establecer conexión
+        greetingTimeout: 10000, // 10 segundos para saludo SMTP
+        socketTimeout: 10000, // 10 segundos para operaciones de socket
       });
     });
 
@@ -201,6 +205,10 @@ export async function notificarEmpleadoAceptaInvitacion(
           user: smtpUser,
           pass: smtpPassword,
         },
+        // Timeouts más cortos para evitar bloqueos largos
+        connectionTimeout: 10000, // 10 segundos para establecer conexión
+        greetingTimeout: 10000, // 10 segundos para saludo SMTP
+        socketTimeout: 10000, // 10 segundos para operaciones de socket
       });
     });
 
@@ -280,6 +288,10 @@ export async function notificarAntesEliminarEmpleado(
           user: smtpUser,
           pass: smtpPassword,
         },
+        // Timeouts más cortos para evitar bloqueos largos
+        connectionTimeout: 10000, // 10 segundos para establecer conexión
+        greetingTimeout: 10000, // 10 segundos para saludo SMTP
+        socketTimeout: 10000, // 10 segundos para operaciones de socket
       });
     });
 
@@ -360,6 +372,10 @@ export async function notificarEmpleadoEliminado(
           user: smtpUser,
           pass: smtpPassword,
         },
+        // Timeouts más cortos para evitar bloqueos largos
+        connectionTimeout: 10000, // 10 segundos para establecer conexión
+        greetingTimeout: 10000, // 10 segundos para saludo SMTP
+        socketTimeout: 10000, // 10 segundos para operaciones de socket
       });
     });
 
@@ -437,6 +453,10 @@ export async function notificarEliminacionDemo10Dias(
           user: smtpUser,
           pass: smtpPassword,
         },
+        // Timeouts más cortos para evitar bloqueos largos
+        connectionTimeout: 10000, // 10 segundos para establecer conexión
+        greetingTimeout: 10000, // 10 segundos para saludo SMTP
+        socketTimeout: 10000, // 10 segundos para operaciones de socket
       });
     });
 
@@ -527,6 +547,10 @@ export async function notificarEliminacionDemo5Dias(
           user: smtpUser,
           pass: smtpPassword,
         },
+        // Timeouts más cortos para evitar bloqueos largos
+        connectionTimeout: 10000, // 10 segundos para establecer conexión
+        greetingTimeout: 10000, // 10 segundos para saludo SMTP
+        socketTimeout: 10000, // 10 segundos para operaciones de socket
       });
     });
 
@@ -612,6 +636,10 @@ export async function notificarEliminacionDemo1Dia(
           user: smtpUser,
           pass: smtpPassword,
         },
+        // Timeouts más cortos para evitar bloqueos largos
+        connectionTimeout: 10000, // 10 segundos para establecer conexión
+        greetingTimeout: 10000, // 10 segundos para saludo SMTP
+        socketTimeout: 10000, // 10 segundos para operaciones de socket
       });
     });
 
@@ -705,6 +733,10 @@ export async function notificarDatosEliminadosDemo(
           user: smtpUser,
           pass: smtpPassword,
         },
+        // Timeouts más cortos para evitar bloqueos largos
+        connectionTimeout: 10000, // 10 segundos para establecer conexión
+        greetingTimeout: 10000, // 10 segundos para saludo SMTP
+        socketTimeout: 10000, // 10 segundos para operaciones de socket
       });
     });
 
