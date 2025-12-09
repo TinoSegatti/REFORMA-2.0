@@ -190,10 +190,12 @@ export async function crearCheckout(req: Request, res: Response) {
     }
 
     // URLs de éxito y cancelación
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    // Normalizar URL para asegurar que tenga https:// en producción
+    const { getFrontendUrl, buildUrl } = await import('../utils/urlHelper');
+    const frontendUrl = getFrontendUrl();
     // Mercado Pago no acepta placeholders en URLs, usar URL simple
-    const successUrl = `${frontendUrl}/planes/exito`;
-    const cancelUrl = `${frontendUrl}/planes?cancelado=true`;
+    const successUrl = buildUrl(frontendUrl, '/planes/exito');
+    const cancelUrl = buildUrl(frontendUrl, '/planes?cancelado=true');
     
     console.log(`[crearCheckout] URLs configuradas - successUrl: ${successUrl}, cancelUrl: ${cancelUrl}`);
 
@@ -238,9 +240,10 @@ export async function cambiarPlan(req: Request, res: Response) {
 
     // TODO: Implementar lógica de cambio de plan con prorrateo
     // Por ahora, crear nuevo checkout
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const successUrl = `${frontendUrl}/planes/exito?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${frontendUrl}/planes?cancelado=true`;
+    const { getFrontendUrl, buildUrl } = await import('../utils/urlHelper');
+    const frontendUrl = getFrontendUrl();
+    const successUrl = buildUrl(frontendUrl, '/planes/exito?session_id={CHECKOUT_SESSION_ID}');
+    const cancelUrl = buildUrl(frontendUrl, '/planes?cancelado=true');
 
     const { sessionId, url } = await suscripcionService.crearSuscripcionCheckout(
       userId,

@@ -115,14 +115,18 @@ export async function crearPreapprovalMercadoPago(
   console.log(`[MercadoPago] Creando preapproval - userId: ${userId}, email: ${email}, plan: ${plan}, periodo: ${periodo}`);
   console.log(`[MercadoPago] successUrl recibida: ${successUrl}`);
   
-  // Validar que successUrl sea una URL válida
+  // Validar y normalizar que successUrl sea una URL válida
   let validUrl: string;
   try {
-    const urlObj = new URL(successUrl);
+    // Normalizar URL si no tiene protocolo
+    const { normalizeUrl } = await import('../utils/urlHelper');
+    const normalizedSuccessUrl = normalizeUrl(successUrl);
+    const urlObj = new URL(normalizedSuccessUrl);
     validUrl = urlObj.toString();
-    console.log(`[MercadoPago] URL validada: ${validUrl}`);
+    console.log(`[MercadoPago] URL validada y normalizada: ${validUrl}`);
   } catch (error) {
-    throw new Error(`URL de éxito inválida: ${successUrl}`);
+    console.error(`[MercadoPago] Error validando URL: ${successUrl}`, error);
+    throw new Error(`URL de éxito inválida: ${successUrl}. Debe ser una URL completa con protocolo (https://)`);
   }
   
   // Si es localhost, intentar usar ngrok si está disponible
