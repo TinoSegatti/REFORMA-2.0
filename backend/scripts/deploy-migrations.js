@@ -110,20 +110,56 @@ async function execWithRetry(command, options, maxRetries = 3) {
   }
 }
 
+// Función para verificar conexión antes de migraciones
+async function verificarConexion() {
+  if (!pg) {
+    console.log('⚠️  pg no disponible, omitiendo verificación de conexión\n');
+    return true;
+  }
+  
+  console.log('🔍 Verificando conexión a la base de datos...');
+  try {
+    const client = new pg.Client({
+      connectionString: process.env.DIRECT_URL,
+      ssl: {
+        rejectUnauthorized: false
+      },
+      connectionTimeoutMillis: 10000
+    });
+    
+    await client.connect();
+    const result = await client.query('SELECT 1 as test');
+    await client.end();
+    console.log('✅ Conexión verificada exitosamente\n');
+    return true;
+  } catch (error) {
+    console.error(`❌ Error verificando conexión: ${error.message}`);
+    console.error('   Esto puede indicar problemas de conectividad.\n');
+    return false;
+  }
+}
+
 // Función principal asíncrona
 async function runDeploy() {
   try {
+    // Verificar conexión primero
+    const conexionOk = await verificarConexion();
+    
+    if (!conexionOk) {
+      console.error('⚠️  No se pudo verificar la conexión. Las migraciones pueden fallar.');
+      console.error('   Si las migraciones ya están aplicadas, puedes usar SKIP_MIGRATIONS=true\n');
+    }
+    
     // Intentar hacer deploy normal con retry
     console.log('📦 Intentando aplicar migraciones...');
     let output = '';
     
     try {
-      // Timeout aumentado a 120 segundos para migraciones complejas
-      // DIRECT_URL debería usar Session Pooler (más rápido), pero por si acaso aumentamos el timeout
+      // Timeout aumentado a 180 segundos para migraciones complejas con Transaction Pooler
       const result = await execWithRetry('npx prisma migrate deploy', { 
         encoding: 'utf8',
         stdio: 'pipe',
-        timeout: 120000, // 120 segundos (2 minutos) para migraciones complejas
+        timeout: 180000, // 180 segundos (3 minutos) para Transaction Pooler que puede ser más lento
         killSignal: 'SIGTERM'
       }, 3); // 3 intentos máximo
       
@@ -148,16 +184,16 @@ async function runDeploy() {
     
     // Si es un timeout, mostrar mensaje específico
     if (execError.signal === 'SIGTERM' || message.includes('timeout') || message.includes('ETIMEDOUT')) {
-      console.error('\n⏱️  TIMEOUT: Las migraciones tardaron más de 120 segundos');
-      console.error('   Esto puede indicar un problema de conexión a la base de datos.');
+      console.error('\n⏱️  TIMEOUT: Las migraciones tardaron más de 180 segundos');
+      console.error('   Esto puede indicar un problema de conexión o que Transaction Pooler es muy lento para migraciones.');
       console.error('\n💡 Soluciones:');
-      console.error('   1. Verifica que DIRECT_URL use Session Pooler (puerto 5432) para migraciones más rápidas');
-      console.error('   2. Verifica que DATABASE_URL use Transaction Pooler (puerto 6543) con &pgbouncer=true');
-      console.error('   3. Verifica que el proyecto de Supabase esté activo');
-      console.error('   4. Si la base de datos ya tiene el esquema, puedes omitir las migraciones temporalmente:');
-      console.error('      Agrega SKIP_MIGRATIONS=true en Render Environment');
-      console.error('   5. Las migraciones pueden aplicarse manualmente desde Supabase SQL Editor');
+      console.error('   1. Si las migraciones ya están aplicadas, omite las migraciones:');
+      console.error('      Agrega SKIP_MIGRATIONS=true en Render Environment y haz redeploy');
+      console.error('   2. Verifica que el proyecto de Supabase esté activo');
+      console.error('   3. Las migraciones pueden aplicarse manualmente desde Supabase SQL Editor');
+      console.error('   4. Si necesitas aplicar migraciones nuevas, considera usar Session Pooler para DIRECT_URL');
       console.error('\n📚 Guía completa: docs/06-GUIAS/CONFIGURACION/CONFIGURACION_DEFINITIVA_RENDER.md');
+      console.error('\n⚠️  NOTA: Si tu base de datos ya tiene el esquema correcto, usa SKIP_MIGRATIONS=true');
       process.exit(1);
     }
     
@@ -212,7 +248,7 @@ async function runDeploy() {
         // Intentar deploy nuevamente con timeout aumentado y retry
         const retryResult = await execWithRetry('npx prisma migrate deploy', { 
           stdio: 'inherit',
-          timeout: 120000, // 120 segundos (2 minutos) para migraciones complejas
+          timeout: 180000, // 180 segundos (3 minutos) para Transaction Pooler
           killSignal: 'SIGTERM'
         }, 3);
         
