@@ -485,29 +485,41 @@ export async function verificarEmail(req: Request, res: Response) {
     });
 
     // Si es empleado, enviar notificación al dueño cuando acepta la invitación
+    // IMPORTANTE: No usar await para no bloquear la verificación si el email falla
     if (usuarioActualizado.esUsuarioEmpleado && usuarioActualizado.idUsuarioDueño) {
-      try {
-        const dueño = await prisma.usuario.findUnique({
-          where: { id: usuarioActualizado.idUsuarioDueño },
-          select: {
-            email: true,
-            nombreUsuario: true,
-            apellidoUsuario: true
-          }
-        });
+      // Ejecutar de forma asíncrona sin bloquear la respuesta
+      (async () => {
+        try {
+          const dueño = await prisma.usuario.findUnique({
+            where: { id: usuarioActualizado.idUsuarioDueño! },
+            select: {
+              email: true,
+              nombreUsuario: true,
+              apellidoUsuario: true
+            }
+          });
 
-        if (dueño) {
-          await notificarEmpleadoAceptaInvitacion(
-            dueño.email,
-            `${dueño.nombreUsuario} ${dueño.apellidoUsuario}`,
-            `${usuarioActualizado.nombreUsuario} ${usuarioActualizado.apellidoUsuario}`,
-            usuarioActualizado.email
-          );
+          if (dueño) {
+            // Usar Promise con timeout para evitar bloqueos largos
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout enviando notificación')), 10000)
+            );
+            
+            await Promise.race([
+              notificarEmpleadoAceptaInvitacion(
+                dueño.email,
+                `${dueño.nombreUsuario} ${dueño.apellidoUsuario}`,
+                `${usuarioActualizado.nombreUsuario} ${usuarioActualizado.apellidoUsuario}`,
+                usuarioActualizado.email
+              ),
+              timeoutPromise
+            ]);
+          }
+        } catch (error) {
+          console.error('Error enviando notificación de empleado acepta invitación:', error);
+          // No fallar la verificación si falla la notificación
         }
-      } catch (error) {
-        console.error('Error enviando notificación de empleado acepta invitación:', error);
-        // No fallar la verificación si falla la notificación
-      }
+      })();
     }
 
     // Generar token JWT para login automático
