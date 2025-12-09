@@ -179,7 +179,30 @@ GOOGLE_CLIENT_SECRET=tu_client_secret
 
 ## 🆘 Si Sigue Fallando
 
-### Opción 1: Usar Session Pooler para Ambas (Más Estable)
+### Opción 1: Usar Transaction Pooler para Ambas (Si Session Pooler No Funciona)
+
+Si Session Pooler (puerto 5432) no funciona durante el build, usa Transaction Pooler para ambas:
+
+**DATABASE_URL:**
+```
+postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true
+```
+
+**DIRECT_URL:** (idéntica)
+```
+postgresql://postgres.tguajsxchwtnliueokwy:DataBase2025.@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true
+```
+
+**⚠️ IMPORTANTE:** Ambas URLs deben ser idénticas y usar puerto 6543 con `&pgbouncer=true`.
+
+**Cuándo usar esta opción:**
+- ✅ Si Session Pooler falla durante el build pero Transaction Pooler funciona en runtime
+- ✅ Si el health check funciona pero las migraciones fallan
+- ✅ Si necesitas una solución que funcione inmediatamente
+
+**Ver guía completa:** `docs/06-GUIAS/TROUBLESHOOTING/SOLUCION_SESSION_POOLER_NO_FUNCIONA_BUILD.md`
+
+### Opción 2: Usar Session Pooler para Ambas (Si Transaction Pooler No Funciona)
 
 Si Transaction Pooler sigue dando problemas, usa Session Pooler para ambas:
 
