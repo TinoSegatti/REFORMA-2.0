@@ -6,6 +6,7 @@
 
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { getFrontendProductionUrl, buildUrl } from '../utils/urlHelper';
 
 // Intentar importar SendGrid (opcional)
 let sgMail: any = null;
