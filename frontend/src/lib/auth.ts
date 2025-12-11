@@ -43,6 +43,15 @@ export const authService = {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      
+      // Forzar modo oscuro antes de redirigir al login
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      
+      // Remover cualquier preferencia de tema del localStorage que pueda interferir
+      localStorage.removeItem('theme');
+      localStorage.removeItem('next-themes');
     }
   },
 
