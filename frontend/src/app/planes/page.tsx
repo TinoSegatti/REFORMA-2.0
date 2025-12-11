@@ -166,21 +166,43 @@ export default function PlanesPage() {
     );
   }
 
+  const token = authService.getToken();
+  const estaAutenticado = !!token;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#1a1a2e] to-[#16213e]">
       {/* Header */}
       <header className="border-b border-white/10 bg-background/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            REFORMA
+          <Link href={estaAutenticado ? "/mis-plantas" : "/"} className="flex items-center gap-2">
+            <img 
+              src="/logo.png?v=2" 
+              alt="REFORMA Logo" 
+              className="h-8 w-8 object-contain"
+            />
+            <span className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+              REFORMA
+            </span>
           </Link>
           <div className="flex gap-4">
-            <Link href="/login" className="px-4 py-2 text-white/70 hover:text-white transition">
-              Iniciar Sesión
-            </Link>
-            <Link href="/login" className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-600 transition">
-              Registrarse
-            </Link>
+            {estaAutenticado ? (
+              <Link 
+                href="/mis-plantas" 
+                className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-600 transition flex items-center gap-2"
+              >
+                <ArrowRight className="h-4 w-4 rotate-180" />
+                Volver al Menú Principal
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="px-4 py-2 text-white/70 hover:text-white transition">
+                  Iniciar Sesión
+                </Link>
+                <Link href="/login" className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-600 transition">
+                  Registrarse
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>

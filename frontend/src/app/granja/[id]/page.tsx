@@ -261,7 +261,7 @@ export default function PanelPrincipalPage() {
                 )}
               </button>
             )}
-            {planActual !== 'ENTERPRISE' && planActual !== null && (
+            {(planActual === 'DEMO' || (planActual !== 'ENTERPRISE' && planActual !== null)) && (
               <Link
                 href="/planes"
                 className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-purple-700 transition-all flex items-center gap-2 shadow-lg shadow-purple-500/30"
