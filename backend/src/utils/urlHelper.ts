@@ -50,26 +50,38 @@ export function getFrontendUrl(): string {
  * Reemplaza previews de Vercel con el dominio de producción
  */
 export function getFrontendProductionUrl(): string {
-  let frontendUrl = process.env.FRONTEND_URL || process.env.FRONTEND_PRODUCTION_URL || 'http://localhost:3001';
-  
-  // Si hay una variable específica de producción, usarla
+  // Si hay una variable específica de producción, usarla (prioridad máxima)
   if (process.env.FRONTEND_PRODUCTION_URL) {
     return normalizeUrl(process.env.FRONTEND_PRODUCTION_URL);
   }
   
-  // Detectar si es un preview de Vercel (contiene "git-" o es un preview)
-  // Ejemplo: reforma-2-0-git-master-tinosegattis-projects.vercel.app
-  // Debe ser: reforma-2-0.vercel.app
-  if (frontendUrl.includes('git-') || frontendUrl.includes('-git-')) {
-    // Extraer el dominio base de producción
-    // Si es "reforma-2-0-git-master-tinosegattis-projects.vercel.app"
-    // Convertir a "reforma-2-0.vercel.app"
-    const match = frontendUrl.match(/^([^-]+(?:-[^-]+)*?)(?:-git-.*?)?\.(vercel\.app|localhost)/);
-    if (match) {
-      const baseName = match[1];
-      const domain = match[2];
-      frontendUrl = `${baseName}.${domain}`;
+  let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+  
+  // Remover protocolo para procesar
+  const hasProtocol = frontendUrl.startsWith('http://') || frontendUrl.startsWith('https://');
+  const urlWithoutProtocol = hasProtocol 
+    ? frontendUrl.replace(/^https?:\/\//, '') 
+    : frontendUrl;
+  
+  // Detectar si es un preview de Vercel
+  // Ejemplos:
+  // - reforma-2-0-git-master-tinosegattis-projects.vercel.app -> reforma-2-0.vercel.app
+  // - proyecto-git-branch-usuario-projects.vercel.app -> proyecto.vercel.app
+  if (urlWithoutProtocol.includes('-git-') && urlWithoutProtocol.includes('.vercel.app')) {
+    // Extraer el nombre base del proyecto (antes de -git-)
+    // y el dominio (.vercel.app)
+    const parts = urlWithoutProtocol.split('.vercel.app')[0].split('-git-');
+    if (parts.length > 0) {
+      const baseName = parts[0]; // Nombre base del proyecto
+      frontendUrl = `${baseName}.vercel.app`;
     }
+  }
+  
+  // Si no es preview pero contiene vercel.app, asegurar que sea el dominio de producción
+  // (sin -git- ni otros sufijos de preview)
+  if (urlWithoutProtocol.includes('.vercel.app') && !urlWithoutProtocol.includes('-git-')) {
+    // Ya es un dominio de producción, mantenerlo
+    frontendUrl = urlWithoutProtocol;
   }
   
   return normalizeUrl(frontendUrl);
