@@ -45,3 +45,33 @@ export function getFrontendUrl(): string {
   return normalizeUrl(frontendUrl);
 }
 
+/**
+ * Obtiene la URL de producción del frontend para emails
+ * Reemplaza previews de Vercel con el dominio de producción
+ */
+export function getFrontendProductionUrl(): string {
+  let frontendUrl = process.env.FRONTEND_URL || process.env.FRONTEND_PRODUCTION_URL || 'http://localhost:3001';
+  
+  // Si hay una variable específica de producción, usarla
+  if (process.env.FRONTEND_PRODUCTION_URL) {
+    return normalizeUrl(process.env.FRONTEND_PRODUCTION_URL);
+  }
+  
+  // Detectar si es un preview de Vercel (contiene "git-" o es un preview)
+  // Ejemplo: reforma-2-0-git-master-tinosegattis-projects.vercel.app
+  // Debe ser: reforma-2-0.vercel.app
+  if (frontendUrl.includes('git-') || frontendUrl.includes('-git-')) {
+    // Extraer el dominio base de producción
+    // Si es "reforma-2-0-git-master-tinosegattis-projects.vercel.app"
+    // Convertir a "reforma-2-0.vercel.app"
+    const match = frontendUrl.match(/^([^-]+(?:-[^-]+)*?)(?:-git-.*?)?\.(vercel\.app|localhost)/);
+    if (match) {
+      const baseName = match[1];
+      const domain = match[2];
+      frontendUrl = `${baseName}.${domain}`;
+    }
+  }
+  
+  return normalizeUrl(frontendUrl);
+}
+

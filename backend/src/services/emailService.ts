@@ -258,15 +258,9 @@ export async function enviarEmailVerificacion(
   nombreUsuario: string,
   tokenVerificacion: string
 ): Promise<void> {
-  // Obtener URL del frontend y asegurar que tenga protocolo
-  let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-  
-  // Si la URL no tiene protocolo, agregar https:// (asumimos producción)
-  if (!frontendUrl.startsWith('http://') && !frontendUrl.startsWith('https://')) {
-    frontendUrl = `https://${frontendUrl}`;
-  }
-  
-  const urlVerificacion = `${frontendUrl}/verificar-email?token=${tokenVerificacion}`;
+  // Usar URL de producción para emails (no previews de Vercel)
+  const frontendUrl = getFrontendProductionUrl();
+  const urlVerificacion = buildUrl(frontendUrl, `/verificar-email?token=${tokenVerificacion}`);
 
   // Intentar usar SendGrid API REST primero (más confiable)
   const smtpHost = process.env.SMTP_HOST || '';
